@@ -1,21 +1,19 @@
-# Lab 1 — Peer Reviewer
+# Lab 1 — Peer Review Record  (fill this in)
 
-| Field           | Value                    |
-| --------------- | ------------------------ |
-| Reviewer name   | _TODO: reviewer name_    |
-| Student ID      | _TODO: reviewer ID_      |
-| GitHub username | _TODO: @reviewer-handle_ |
+**Author:** <your name> — <student id> — GitHub: @AlphabetCG
+**Peer reviewer:** <partner name> — <student id> — GitHub: @copter549365
 
-## Reviewed Pull Requests
+## Pull Requests I authored (reviewed by my partner)
+| PR | Branch | Reviewer verdict |
+|----|--------|------------------|
+|    | feature/1-project-foundation |  |
+|    | feature/2-health-check |  |
+|    | feature/3-category-seed |  |
+|    | feature/4-category-list |  |
 
-| Issue | PR link | Status |
-| ----- | ------- | ------ |
-| 1. Project Foundation | _TODO: PR URL_ | _pending_ |
-| 2. API Health Check   | _TODO: PR URL_ | _pending_ |
-| 3. Category Seed      | _TODO: PR URL_ | _pending_ |
-| 4. Category List      | _TODO: PR URL_ | _pending_ |
+Reviewer comment I received: <...>
+How I responded: <...>
 
-## Review Notes
-
-_Record the review comments exchanged with your peer partner and how each was
-resolved._
+## Pull Requests I reviewed for my partner
+My comment: <...>
+Partner's response: <...>

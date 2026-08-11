@@ -1,14 +1,13 @@
-# Lab 1 — Test Catalog
+# Lab 1 — Test Plan and Evidence  (fill this in)
 
-All tests live under `server/tests/lab-01/` (API) and `client/src/` (UI).
+All test files live under server/tests/lab-01/ and client/tests/lab-01/.
 
-| Test File (tests/lab-01/) | Tool | Test Description |
-| ------------------------- | --------- | ---------------- |
-| foundation.test.ts        | Supertest | Express app boots and responds on the root route |
-| App.test.tsx (client/src) | Vitest    | UI-01: TokTickIT heading renders |
-| _API-01 (Issue 2)_        | Supertest | Health endpoint returns 200 and expected JSON |
-| _API-02 (Issue 4)_        | Supertest | Categories endpoint returns the four seeded categories |
-| _UI-02 (Issue 4)_         | Vitest    | Loading state changes to category list |
-| _UI-03 (Issue 4)_         | Vitest    | API failure displays a useful error message |
+| # | Tool | Test | Result |
+|---|------|------|--------|
+| 1 | Supertest | GET /api/health returns 200, status=ok | |
+| 2 | Supertest | GET /api/categories returns 4 seeded categories in id order | |
+| 3 | Vitest | Heading renders | |
+| 4 | Vitest | Success state shows Online + category list | |
+| 5 | Vitest | Error state shows Offline + message | |
 
-> Rows in italics are placeholders to be implemented in later issues.
+Paste your passing terminal output / screenshot below.
