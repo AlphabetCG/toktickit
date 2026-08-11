@@ -1,78 +1,47 @@
 # TokTickIT
 
-A tiny full-stack IT service desk vertical slice built for CPE 334 (Intro to
-Software Engineering in the Age of AI Agents), Lab 1.
+Project TokTickIT for Software Engineering, KMUTT — Lab 1.
 
-**Stack:** React + TypeScript + Vite + Bootstrap (client) → Node.js + Express +
-TypeScript (server) → Prisma ORM → PostgreSQL.
+A small full-stack IT service desk slice: React + TypeScript + Vite + Bootstrap
+on the front, Express + TypeScript on the back, Prisma + PostgreSQL underneath.
 
-## Repository structure
+## Structure
 
 ```
-toktickit/
-├── client/
-│   ├── src/            # App.tsx, api.ts, main.tsx
-│   └── tests/
-│       ├── setup.ts
-│       └── lab-01/     # Vitest UI tests
-├── server/
-│   ├── prisma/         # schema.prisma, seed.ts
-│   ├── src/            # app.ts, index.ts, prisma.ts
-│   └── tests/
-│       └── lab-01/     # Vitest + Supertest API tests
-├── docs/
-│   └── lab-01/         # ai_use.md, reviewer.md, tests.md
-├── .gitignore
-└── README.md
+client/src        App.tsx, api.ts, main.tsx
+client/tests      lab-01/ — Vitest UI tests
+server/src        app.ts, index.ts, prisma.ts
+server/prisma     schema.prisma, seed.ts
+server/tests      lab-01/ — Vitest + Supertest API tests
+docs/lab-01       ai_use.md, reviewer.md, tests.md
 ```
-
-## Prerequisites
-
-- Node.js 18+ and npm
-- PostgreSQL running locally
 
 ## Setup
 
-### 1. Backend (`server/`)
+Requires Node.js 18+ and a local PostgreSQL.
 
 ```bash
-cd server
-npm install
-cp .env.example .env        # then edit DATABASE_URL with your Postgres credentials
-npx prisma generate
-npm run dev                 # starts the API on http://localhost:3000
+cd server && npm install && cp .env.example .env && npm run dev   # :3000
+cd client && npm install && cp .env.example .env && npm run dev   # :5173
 ```
 
-Database tasks (needed from Issue 3 onwards):
+From Issue 3 onwards the database also needs:
 
 ```bash
-npm run prisma:migrate      # create/apply migrations
-npm run prisma:seed         # insert the four request categories
+cd server && npm run prisma:migrate && npm run prisma:seed
 ```
 
-### 2. Frontend (`client/`)
+## Tests
 
 ```bash
-cd client
-npm install
-cp .env.example .env        # VITE_API_URL points at the backend
-npm run dev                 # starts the app on http://localhost:5173
-```
-
-## Running tests
-
-```bash
-# Backend (Vitest + Supertest)
 cd server && npm test
-
-# Frontend (Vitest + Testing Library)
 cd client && npm test
 ```
 
-## Lab 1 progress
+`server/tests/lab-01/health.test.ts` stays **red until Issue 2** implements the
+route — that is the intended red → green starting point, not a broken build.
 
-Lab 1 is delivered across four issues, each on its own branch and merged into
-`lab1-staging` through a peer-reviewed PR:
+## Issues
 
 | Issue | Branch | Status |
 | ----- | ------ | ------ |
@@ -81,12 +50,4 @@ Lab 1 is delivered across four issues, each on its own branch and merged into
 | 3. Category seed | `feature/3-category-seed` | not started |
 | 4. Category list | `feature/4-category-list` | not started |
 
-The foundation ships the official scaffold with `TODO(Issue n)` markers in
-`server/src/app.ts`, `server/prisma/schema.prisma`, `server/prisma/seed.ts` and
-`client/src/api.ts`. `server/tests/lab-01/health.test.ts` is a worked example
-that stays **red until Issue 2** implements the route — that is the intended
-red → green TDD starting point, not a broken build.
-
-## Notes
-
-- Never commit `.env`; only `.env.example` is tracked.
+Never commit `.env`; only `.env.example` is tracked.

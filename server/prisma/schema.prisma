@@ -1,5 +1,4 @@
-// Prisma schema — datasource and generator are pre-wired.
-// Your DATABASE_URL lives in server/.env (copy it from .env.example).
+// DATABASE_URL lives in server/.env (copy it from .env.example).
 
 generator client {
   provider = "prisma-client-js"
@@ -10,12 +9,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------------------------------------------------------------------------
-// Issue 3 — Create and seed IT request categories
-// Define a Category model with:
-//   id        Int      @id @default(autoincrement())
-//   name      String   @unique
-//   createdAt DateTime @default(now())
-// Then run:  npx prisma migrate dev --name init
-// TODO(Issue 3): add the Category model below.
-// ---------------------------------------------------------------------------
+// TODO(Issue 3): add the Category model, then run
+// `npx prisma migrate dev --name init`.
+//
+//   model Category {
+//     id        Int      @id @default(autoincrement())
+//     name      String   @unique
+//     createdAt DateTime @default(now())
+//   }
