@@ -8,10 +8,9 @@ export const app = express();
 app.use(cors());          // lets the Vite dev server call this API
 app.use(express.json());
 
-// TODO(Issue 2): return 200 with { status: "ok", service: "TokTickIT API" }
-// to make tests/lab-01/health.test.ts pass.
+// Issue 2: health check the client uses to confirm the API is reachable.
 app.get("/api/health", (_req: Request, res: Response) => {
-  res.status(501).json({ error: "Not implemented yet" });
+  res.status(200).json({ status: "ok", service: "TokTickIT API" });
 });
 
 // TODO(Issue 4): add GET /api/categories.
