@@ -1,0 +1,19 @@
+// DATABASE_URL lives in server/.env (copy it from .env.example).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TODO(Issue 3): add the Category model, then run
+// `npx prisma migrate dev --name init`.
+//
+//   model Category {
+//     id        Int      @id @default(autoincrement())
+//     name      String   @unique
+//     createdAt DateTime @default(now())
+//   }
