@@ -11,8 +11,7 @@ export default function App() {
   async function handleCheck() {
     setState("loading");
     try {
-      const result = await checkSystem(); // Issue 2: real health API call
-      setCategories(result.categories);
+      setCategories(await checkSystem()); // real health + categories API calls
       setState("success");
     } catch {
       setState("error");
@@ -30,9 +29,17 @@ export default function App() {
       </button>
 
       {state === "success" && (
-        <p className="mt-4 mb-0">
-          System Status: <span className="fw-semibold text-success">Online</span>
-        </p>
+        <div className="mt-4">
+          <p className="mb-2">
+            System Status: <span className="fw-semibold text-success">Online</span>
+          </p>
+          <p className="mb-1">Supported Request Categories:</p>
+          <ol className="mb-0">
+            {categories.map((c) => (
+              <li key={c.id}>{c.name}</li>
+            ))}
+          </ol>
+        </div>
       )}
 
       {state === "error" && (
@@ -43,8 +50,6 @@ export default function App() {
           <p className="text-danger mb-0">Unable to connect to TokTickIT API</p>
         </div>
       )}
-
-      {/* TODO(Issue 4): when state === "success", also render `categories`. */}
     </div>
   );
 }
