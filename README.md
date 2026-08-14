@@ -20,16 +20,24 @@ docs/lab-01       ai_use.md, reviewer.md, tests.md
 
 Requires Node.js 18+ and a local PostgreSQL.
 
+Create the database once, as a PostgreSQL superuser:
+
+```sql
+CREATE ROLE toktickit WITH LOGIN PASSWORD 'toktickit' CREATEDB;
+CREATE DATABASE toktickit OWNER toktickit;
+```
+
+`CREATEDB` is required — Prisma's `migrate dev` needs it for its shadow database.
+
 ```bash
-cd server && npm install && cp .env.example .env && npm run dev   # :3000
+cd server && npm install && cp .env.example .env
+npm run prisma:migrate && npm run prisma:seed   # Category table + 4 categories
+npm run dev                                     # :3000
+
 cd client && npm install && cp .env.example .env && npm run dev   # :5173
 ```
 
-From Issue 3 onwards the database also needs:
-
-```bash
-cd server && npm run prisma:migrate && npm run prisma:seed
-```
+The seed upserts on the unique category name, so it is safe to re-run.
 
 ## Tests
 
@@ -38,16 +46,16 @@ cd server && npm test
 cd client && npm test
 ```
 
-`server/tests/lab-01/health.test.ts` stays **red until Issue 2** implements the
-route — that is the intended red → green starting point, not a broken build.
+The server tests need a migrated and seeded database. Tests still marked `todo`
+belong to Issue 4.
 
 ## Issues
 
 | Issue | Branch | Status |
 | ----- | ------ | ------ |
-| 1. Project foundation | `feature/1-project-foundation` | in review |
-| 2. API health check | `feature/2-health-check` | not started |
-| 3. Category seed | `feature/3-category-seed` | not started |
+| 1. Project foundation | `feature/1-project-foundation` | merged |
+| 2. API health check | `feature/2-health-check` | merged |
+| 3. Category seed | `feature/3-category-seed` | in review |
 | 4. Category list | `feature/4-category-list` | not started |
 
 Never commit `.env`; only `.env.example` is tracked.

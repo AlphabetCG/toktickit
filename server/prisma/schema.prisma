@@ -9,11 +9,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// TODO(Issue 3): add the Category model, then run
-// `npx prisma migrate dev --name init`.
-//
-//   model Category {
-//     id        Int      @id @default(autoincrement())
-//     name      String   @unique
-//     createdAt DateTime @default(now())
-//   }
+// The IT request categories shown on the TokTickIT page. `name` is unique so
+// the seed can upsert on it and stay safe to re-run.
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
