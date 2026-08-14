@@ -1,13 +1,15 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
+import { CATEGORY_NAMES } from "../../prisma/seed.js";
 
-// TODO(Issue 4): write this test using health.test.ts as the pattern.
-// It should assert GET /api/categories returns 200 and the four seeded
-// category names in id order. Migrate and seed the DB first.
-describe.todo("GET /api/categories", () => {
-  it.todo("returns the four seeded categories in id order", async () => {
+// Requires a migrated and seeded database (npm run prisma:migrate && prisma:seed).
+describe("GET /api/categories", () => {
+  it("returns the four seeded categories in id order", async () => {
     const res = await request(app).get("/api/categories");
+
     expect(res.status).toBe(200);
+    expect(res.body.map((c: { name: string }) => c.name)).toEqual(CATEGORY_NAMES);
+    expect(res.body.every((c: { id: number }) => typeof c.id === "number")).toBe(true);
   });
 });

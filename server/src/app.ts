@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
+import { getPrisma } from "./prisma.js";
 
 // Exported without app.listen() — that lives in index.ts — so Supertest can
 // import the app without opening a port.
@@ -13,6 +14,15 @@ app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", service: "TokTickIT API" });
 });
 
-// TODO(Issue 4): add GET /api/categories.
-// Import getPrisma from "./prisma.js", read with getPrisma().category.findMany()
-// in id order, return each { id, name }, and answer 500 on failure.
+// Issue 4: list the seeded IT request categories from PostgreSQL, in id order.
+app.get("/api/categories", async (_req: Request, res: Response) => {
+  try {
+    const categories = await getPrisma().category.findMany({
+      orderBy: { id: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(categories);
+  } catch {
+    res.status(500).json({ error: "Failed to load categories" });
+  }
+});

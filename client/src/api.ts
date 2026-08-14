@@ -5,19 +5,14 @@ export interface Category {
   name: string;
 }
 
-export interface SystemStatus {
-  online: boolean;
-  categories: Category[];
-}
+// Confirms the backend is up (health), then returns the seeded categories.
+// Throws if either request fails, so the UI can show a single Offline state.
+export async function checkSystem(): Promise<Category[]> {
+  const health = await fetch(`${API_URL}/api/health`);
+  if (!health.ok) throw new Error(`Health check failed: HTTP ${health.status}`);
 
-// Issue 2: call the real backend health endpoint. Throws when the request fails
-// or the backend is unreachable, letting the UI show a single Offline state.
-// Issue 4 will also fetch `${API_URL}/api/categories` and fill `categories`.
-export async function checkSystem(): Promise<SystemStatus> {
-  const res = await fetch(`${API_URL}/api/health`);
-  if (!res.ok) {
-    throw new Error(`Health check failed: HTTP ${res.status}`);
-  }
-  // TODO(Issue 4): also GET `${API_URL}/api/categories` and return them here.
-  return { online: true, categories: [] };
+  const res = await fetch(`${API_URL}/api/categories`);
+  if (!res.ok) throw new Error(`Categories request failed: HTTP ${res.status}`);
+
+  return res.json();
 }
