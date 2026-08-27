@@ -192,7 +192,28 @@ Update, in the same PR:
 Run [`skill-sprint-verification.md`](./skill-sprint-verification.md) in full
 before opening the PR.
 
-### 10. Open the PR
+### 10. Tell the user what to capture
+
+**Before opening the PR, list the screenshots this Issue has just made possible**
+— see `AGENTS.md` §4.1 for the milestone table. Do not wait to be asked, and do
+not defer it to the end of the sprint: a state that exists only right now cannot
+be rebuilt later.
+
+For a screen Issue, that means naming each state the screen can now show —
+initial, loading, validation failure, submitting, success, API failure, empty,
+no-results — and saying which of them the user has to force by hand.
+
+Call out destructive-to-reproduce states explicitly:
+
+- stopping the backend to photograph the API-failure state;
+- an oversized or wrong-type file rejection;
+- an attachment after soft removal, before the database is reset;
+- a cross-Requester refusal taken from a direct API call.
+
+State plainly which of these the tests already cover automatically and which only
+exist as a screenshot, so the user knows what is genuinely at risk of being lost.
+
+### 11. Open the PR
 
 ```bash
 gh pr create --base labN-staging --title "<type>: <summary>" \

@@ -157,6 +157,30 @@ At every size confirm:
       actually work.
 - [ ] `specification.md` still matches what was built.
 
+## 10. Evidence Capture
+
+Graded evidence is perishable. Before this Issue's PR merges, confirm — and where
+it is missing, **tell the user to capture it now**, naming each item. The
+milestone table lives in `AGENTS.md` §4.1.
+
+- [ ] Every new screen state this Issue produced has been photographed:
+      initial, loading, validation failure, submitting, success, API failure,
+      empty, no-results.
+- [ ] States that are destructive to reproduce were captured before normal
+      operation was restored — stopped backend, rejected upload, removed
+      attachment, cross-Requester refusal.
+- [ ] Ownership refusals were captured from a direct API call, not from the UI.
+- [ ] Responsive screenshots exist for every affected screen at desktop, tablet,
+      and mobile, under `artifacts/lab-0N/screenshots/`.
+- [ ] The PR page was captured while still open, showing the staging base.
+- [ ] Peer review evidence exists in **both directions** — comment, reply, and
+      approval.
+- [ ] The Kanban board was captured mid-sprint, while cards are still spread
+      across columns.
+
+State explicitly which evidence the automated tests already prove and which
+exists only as a screenshot, so nothing irreplaceable is lost by moving on.
+
 ---
 
 ## Peer Review Checklist

@@ -161,6 +161,32 @@ quality and reflection are graded.
 * **Never guess credentials.** On a database authentication failure, ask. Do not
   brute-force or try candidate passwords.
 * **Commit and push only when the user asks.**
+* **Prompt for evidence.** Graded evidence is perishable — a state that exists
+  only while a branch is unmerged or a card sits mid-board cannot be
+  reconstructed later. At every milestone below, **tell the user what to capture
+  before moving on**. Never assume they will remember, and never let a milestone
+  pass silently.
+
+### 4.1 Evidence capture points
+
+The submission PDF answers Parts 1–9. Evidence is captured at the moment the
+state exists, not rebuilt at the end of the sprint.
+
+| Milestone | Remind the user to capture | Part |
+|-----------|---------------------------|------|
+| Contract committed, before any implementation PR | The commit list for the specification branch **showing its dates** — this is the only proof the spec preceded the code, and it is unrecoverable once implementation starts | 2 |
+| Any PR opened | The PR page while still open, showing the base is the staging branch | 1 |
+| Issues created | The Issue list while the Issues are still open | 1 |
+| Kanban mid-sprint | The board while cards are spread across columns — at the end everything sits in Done and the movement is invisible | 1 |
+| Peer review exchanged | The reviewer's comment, the author's reply, and the approval badge — **in both directions** | 1 |
+| A screen reaches a new state | That state: initial, loading, validation failure, submitting, success, API failure, empty, no-results | 6, 7, 8 |
+| Ownership enforced | The refusal when the wrong Requester requests a resource, taken from a direct API call, not the UI | 7, 8 |
+| Responsive pass | Desktop, tablet, and mobile for every screen, into `artifacts/lab-0N/screenshots/` | 9 |
+| Sprint merged to `main` | Commit history showing feature → staging → main; Kanban with every Issue in Done; the full test suite passing **on `main`** | 1, 3 |
+
+When a state is destructive to reproduce — a stopped backend, a failed upload, a
+seeded-then-removed attachment — say so explicitly and capture it before
+restoring normal operation.
 
 ---
 
