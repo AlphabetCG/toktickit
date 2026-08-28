@@ -9,6 +9,11 @@ dist/
 build/
 # prisma
 server/prisma/*.db
+# uploaded attachments (Lab 2) — metadata lives in the database
+server/uploads/
+# playwright
+test-results/
+playwright-report/
 # logs & OS
 *.log
 .DS_Store
