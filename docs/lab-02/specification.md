@@ -655,6 +655,7 @@ hold:
 | **D-08** | Ticket creation and attachment upload are separate operations (BR-48) | A Requester who wrote a long Description should not lose it because one file failed. Keeping the Ticket and reporting the failed files is kinder and matches how the Detail screen can recover. |
 | **D-09** | Removal reason is mandatory, 3–200 characters | The handout requires "soft removal with reason" in the Part 8 evidence, so the reason is treated as required rather than optional. |
 | **D-10** | Selected Requester stored in `localStorage` | It must survive reload (BR-21) without a server session, which Lab 2 excludes. It is explicitly not a security boundary — the server re-validates the id on every request. |
+| **D-11** | Client routing uses `react-router-dom` | Decided during Issue #12, which the handout left open. AC-24 and E2E-04 require navigating directly to another Requester's Ticket **by URL**, which needs real addressable routes — state-based view switching cannot express that test. It also gives the shell a genuine active-page indicator (`ui-spec.md` §7). Added as a dependency; the rest of the stack is unchanged. |
 
 ### Open assumptions
 
