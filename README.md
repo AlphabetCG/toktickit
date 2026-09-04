@@ -1,19 +1,28 @@
 # TokTickIT
 
-Project TokTickIT for Software Engineering, KMUTT — Lab 1.
+Project TokTickIT for Software Engineering, KMUTT. Built across four individual
+sprints (Labs 1–4). Lab 1 (foundation, health check, categories) is complete and
+merged to `main`; Lab 2 (Requester Ticketing MVP + Zen Green UI) is in progress.
 
-A small full-stack IT service desk slice: React + TypeScript + Vite + Bootstrap
-on the front, Express + TypeScript on the back, Prisma + PostgreSQL underneath.
+A full-stack IT service desk: React + TypeScript + Vite + Bootstrap on the front,
+Express + TypeScript on the back, Prisma + PostgreSQL underneath, tested with
+Vitest + Supertest + Playwright.
+
+Process, lifecycle, and conventions live in [`AGENTS.md`](./AGENTS.md); each
+sprint's engineering contract lives under `docs/lab-0N/`.
 
 ## Structure
 
 ```
-client/src        App.tsx, api.ts, main.tsx
-client/tests      lab-01/ — Vitest UI tests
-server/src        app.ts, index.ts, prisma.ts
-server/prisma     schema.prisma, seed.ts
-server/tests      lab-01/ — Vitest + Supertest API tests
-docs/lab-01       ai_use.md, reviewer.md, tests.md
+client/src           App.tsx, api.ts, main.tsx, components/, theme.css
+client/tests         lab-01/, lab-02/ — Vitest UI + style tests
+server/src           app.ts, index.ts, prisma.ts
+server/prisma        schema.prisma, seed.ts, migrations/
+server/tests         lab-01/, lab-02/ — Vitest + Supertest API tests
+e2e/lab-02           Playwright end-to-end specs
+docs/lab-01          ai_use.md, reviewer.md, tests.md
+docs/lab-02          specification.md, api-spec.md, ui-spec.md, tests.md, reviewer.md, ai-use.md
+docs/skills          agent playbooks
 ```
 
 ## Setup
@@ -31,31 +40,32 @@ CREATE DATABASE toktickit OWNER toktickit;
 
 ```bash
 cd server && npm install && cp .env.example .env
-npm run prisma:migrate && npm run prisma:seed   # Category table + 4 categories
+npm run prisma:migrate && npm run prisma:seed   # tables + reference and requester seed
 npm run dev                                     # :3000
 
 cd client && npm install && cp .env.example .env && npm run dev   # :5173
 ```
 
-The seed upserts on the unique category name, so it is safe to re-run.
+The seed upserts on natural keys (category/related-system `name`, requester
+`email`), so it is safe to re-run. It creates 4 categories, 7 related systems,
+and 5 development requesters (4 active, 1 inactive).
 
 ## Tests
 
 ```bash
-cd server && npm test
-cd client && npm test
+cd server && npm test          # Vitest + Supertest (needs a migrated + seeded DB)
+cd client && npm test          # Vitest + Testing Library
+npx playwright test            # e2e (repo root)
 ```
 
-The server tests need a migrated and seeded database. Tests still marked `todo`
-belong to Issue 4.
+To rebuild the database from scratch: `cd server && npx prisma migrate reset --force`
+(re-applies every migration and re-seeds).
 
-## Issues
+## Status
 
-| Issue | Branch | Status |
-| ----- | ------ | ------ |
-| 1. Project foundation | `feature/1-project-foundation` | merged |
-| 2. API health check | `feature/2-health-check` | merged |
-| 3. Category seed | `feature/3-category-seed` | in review |
-| 4. Category list | `feature/4-category-list` | not started |
+Lab 1 is merged to `main`. Lab 2 work happens on feature branches off
+`lab2-staging`. The authoritative per-lab status table is in
+[`AGENTS.md`](./AGENTS.md) §10, and each Issue is tracked on the
+**TokTickIT Individual Sprints** GitHub Project board.
 
 Never commit `.env`; only `.env.example` is tracked.

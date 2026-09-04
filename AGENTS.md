@@ -311,7 +311,7 @@ keys, so they are safe to re-run.
 | Lab | State | Branch |
 |-----|-------|--------|
 | Lab 1 — foundation, health check, category seed, category list | **complete, merged to `main`** | `lab1-staging` |
-| Lab 2 — Requester Ticketing MVP + Zen Green UI | **specification in progress** | `lab2-staging` |
+| Lab 2 — Requester Ticketing MVP + Zen Green UI | **in progress** — contract approved; implementing | `lab2-staging` |
 | Lab 3 — authentication and roles | not started | — |
 | Lab 4 — not yet released | not started | — |
 
@@ -319,7 +319,17 @@ keys, so they are safe to re-run.
 `{status:"ok",service:"TokTickIT API"}`; `GET /api/categories` → the four seeded
 categories in id order. Tests green: server 4/4, client 4/4.
 
-**Lab 2 next steps:** finish `api-spec.md`, `ui-spec.md`, and `tests.md`; open
-the remaining Issues; then implement in dependency order —
-Development Requester context → Ticket creation → My Tickets → Ticket Detail and
-attachments → E2E and visual evidence.
+**Lab 2 progress:**
+
+| Issue | State |
+|-------|-------|
+| #11 Sprint specification and test plan | merged to `lab2-staging` |
+| #12 Zen Green UI foundation and application shell | merged to `lab2-staging` (PR #21) |
+| #13 Data model, migration, and seed | in review (PR #22 → `lab2-staging`) |
+| #14 Development Requester context | not started |
+| #15 Create Ticket · #16 My Tickets · #17 Ticket Detail + attachments | not started |
+| #19 E2E, responsive evidence, release integration | not started |
+
+**Lab 2 next steps:** merge #13, then implement in dependency order —
+Development Requester context (#14) → Ticket creation (#15) → My Tickets (#16) →
+Ticket Detail and attachments (#17) → E2E and visual evidence (#19).
