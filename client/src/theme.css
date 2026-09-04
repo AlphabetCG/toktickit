@@ -115,8 +115,11 @@ body {
   border-color: var(--zg-error);
 }
 
+/* Description grows only downward (never sideways, which would break the column)
+   and is capped so dragging the handle can never push the page (ui-spec §2). */
 .zg-field--multiline {
   min-height: calc(var(--zg-control-h) * 3);
+  max-height: 60vh;
   padding: var(--zg-space-3);
   resize: vertical;
   line-height: var(--zg-lh-body);

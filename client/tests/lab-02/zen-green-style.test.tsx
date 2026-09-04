@@ -81,6 +81,54 @@ describe("Zen Green foundation", () => {
     });
   });
 
+  // STYLE-04 proves components hold no literal colour, but "use a class" is only
+  // half the contract — the class must map to the right value. This block reads
+  // theme.css and locks the fixed palette to ui-spec §1.1, so a typo in a token
+  // (#006b3c → #006b3d) fails the suite instead of shipping a wrong green.
+  // Addresses peer-review point 1 on PR #21.
+  describe("STYLE-04: tokens map to the ui-spec §1.1 palette", () => {
+    const themeCss = readFileSync(join(process.cwd(), "src", "theme.css"), "utf8");
+
+    // The palette the lab sheet and ui-spec §1.1 fix by value. Derived tokens
+    // (--zg-border, --zg-focus-ring, …) are our own choices and are deliberately
+    // not asserted here — the review approved deriving them.
+    const FIXED_TOKENS: Record<string, string> = {
+      "--zg-primary": "#006b3c",
+      "--zg-secondary": "#0b7a46",
+      "--zg-pale": "#eaf6ef",
+      "--zg-page-bg": "#f5f7f6",
+      "--zg-surface": "#ffffff",
+      "--zg-text": "#1c2b24",
+      "--zg-field-bg": "#ffffff",
+      "--zg-field-readonly": "#f0f3f0",
+      "--zg-error": "#b3261e",
+      "--zg-warning": "#b26a00",
+      "--zg-success": "#0b7a46",
+    };
+
+    it.each(Object.entries(FIXED_TOKENS))("declares %s as %s", (token, hex) => {
+      const declared = new RegExp(`${token}\\s*:\\s*(#[0-9a-fA-F]{3,8})`).exec(themeCss);
+      expect(declared?.[1]?.toLowerCase()).toBe(hex);
+    });
+  });
+
+  // Peer-review points 2 and 3 on PR #21 asked to verify the CSS itself, not the
+  // component markup: the shell must collapse below tablet, and Description must
+  // resize vertically only, capped so it cannot break the page (ui-spec §2, §8).
+  describe("STYLE-04: responsive and resize rules live in the CSS", () => {
+    const themeCss = readFileSync(join(process.cwd(), "src", "theme.css"), "utf8");
+
+    it("collapses the shell navigation below the 768px tablet breakpoint", () => {
+      expect(themeCss).toMatch(/@media\s*\(max-width:\s*767px\)/);
+    });
+
+    it("caps the Description textarea to vertical resize within the page", () => {
+      const rule = /\.zg-field--multiline\s*\{([^}]*)\}/.exec(themeCss)?.[1] ?? "";
+      expect(rule).toMatch(/resize:\s*vertical/);
+      expect(rule).toMatch(/max-height:/);
+    });
+  });
+
   // STYLE-05 — a submitting action must be both unusable and visibly busy
   // (ui-spec section 4, BR-43).
   describe("STYLE-05: busy buttons are disabled and announced", () => {
