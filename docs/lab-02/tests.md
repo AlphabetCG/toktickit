@@ -230,7 +230,12 @@ Rules whose evidence sits outside the AC table:
 | BR-38 | Filters compose with ownership | API-16 |
 | BR-41 | Reference ids must exist and be active | API-08 |
 | BR-50 | Stored filename resists path traversal | UNIT-05 |
-| BR-09 | Seed is idempotent | Verified in §4.2 |
+| BR-09 | Seed is idempotent | `server/tests/lab-02/seed.test.ts` (double-run) + §4.2 |
+| BR-10 | Four categories seeded | `server/tests/lab-02/seed.test.ts` |
+| BR-11 | Seven related systems seeded | `server/tests/lab-02/seed.test.ts` |
+| BR-12 | Four active + one inactive requester seeded | `server/tests/lab-02/seed.test.ts` |
+| BR-13 | Inactive requester flagged inactive | `server/tests/lab-02/seed.test.ts` + API-01 |
+| BR-63 | Requester email is unique | `server/tests/lab-02/seed.test.ts` |
 
 ---
 
@@ -257,10 +262,10 @@ mobile:
 
 ### 4.2 Data and integrity spot checks
 
-- [ ] `npx prisma migrate reset --force` rebuilds from scratch without error
-- [ ] The seed runs twice and produces no duplicate rows (BR-09)
-- [ ] `git ls-files | grep -E '\.env$'` returns nothing
-- [ ] `git ls-files | grep -E 'node_modules|server/uploads'` returns nothing
+- [x] `npx prisma migrate reset --force` rebuilds from scratch without error _(Issue #3)_
+- [x] The seed runs twice and produces no duplicate rows (BR-09) _(seed.test.ts + row dump: Category 4, RelatedSystem 7, RequesterUser 5)_
+- [x] `git ls-files | grep -E '\.env$'` returns nothing _(Issue #3)_
+- [x] `git ls-files | grep -E 'node_modules|server/uploads'` returns nothing _(Issue #3)_
 - [ ] No test is skipped, `.todo`, `.skip`, or commented out
 
 ---
