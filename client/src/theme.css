@@ -1,0 +1,417 @@
+/* Zen Green theme — the single source of the visual system.
+   Contract: docs/lab-02/ui-spec.md. Components reference tokens only; a literal
+   colour in a component is a defect (STYLE-04). */
+
+:root {
+  /* Brand — fixed by the lab sheet */
+  --zg-primary: #006b3c;
+  --zg-secondary: #0b7a46;
+  --zg-pale: #eaf6ef;
+
+  /* Structure */
+  --zg-page-bg: #f5f7f6;
+  --zg-surface: #ffffff;
+  --zg-text: #1c2b24;
+
+  /* Fields */
+  --zg-field-bg: #ffffff;
+  --zg-field-readonly: #f0f3f0;
+
+  /* Feedback */
+  --zg-error: #b3261e;
+  --zg-warning: #b26a00;
+  --zg-success: #0b7a46;
+
+  /* Derived */
+  --zg-primary-hover: #005830;
+  --zg-border: #d4ddd8;
+  --zg-border-strong: #b9c7c0;
+  --zg-text-muted: #5a6b62;
+  --zg-focus-ring: rgba(11, 122, 70, 0.35);
+  --zg-error-surface: #fdecea;
+  --zg-warning-surface: #fff6e5;
+  --zg-disabled-bg: #e8ecea;
+  --zg-disabled-text: #8a9691;
+  --zg-shadow: 0 1px 2px rgba(28, 43, 36, 0.06), 0 2px 8px rgba(28, 43, 36, 0.04);
+
+  /* Typography */
+  --zg-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "Noto Sans Thai", sans-serif;
+  --zg-fs-page-title: 1.5rem;
+  --zg-fs-section: 1.125rem;
+  --zg-fs-body: 1rem;
+  --zg-fs-label: 0.875rem;
+  --zg-fs-small: 0.8125rem;
+  --zg-fw-regular: 400;
+  --zg-fw-medium: 500;
+  --zg-fw-semibold: 600;
+  --zg-lh-tight: 1.3;
+  --zg-lh-body: 1.55;
+
+  /* Spacing — 4px scale */
+  --zg-space-1: 0.25rem;
+  --zg-space-2: 0.5rem;
+  --zg-space-3: 0.75rem;
+  --zg-space-4: 1rem;
+  --zg-space-5: 1.5rem;
+  --zg-space-6: 2rem;
+  --zg-space-7: 3rem;
+
+  /* Shape */
+  --zg-radius-sm: 4px;
+  --zg-radius-md: 6px;
+  --zg-radius-lg: 10px;
+  --zg-control-h: 2.5rem;
+  --zg-border-w: 1px;
+  --zg-page-max-w: 1120px;
+}
+
+body {
+  margin: 0;
+  background: var(--zg-page-bg);
+  color: var(--zg-text);
+  font-family: var(--zg-font);
+  font-size: var(--zg-fs-body);
+  line-height: var(--zg-lh-body);
+}
+
+/* ---------------------------------------------------------------- fields  */
+
+.zg-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-1);
+  margin-bottom: var(--zg-space-4);
+}
+
+.zg-label {
+  font-size: var(--zg-fs-label);
+  font-weight: var(--zg-fw-medium);
+}
+
+.zg-required {
+  color: var(--zg-error);
+  margin-left: var(--zg-space-1);
+}
+
+.zg-field {
+  min-height: var(--zg-control-h);
+  padding: 0 var(--zg-space-3);
+  background: var(--zg-field-bg);
+  color: var(--zg-text);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-md);
+  font: inherit;
+  font-size: var(--zg-fs-body);
+}
+
+.zg-field--readonly {
+  background: var(--zg-field-readonly);
+  cursor: default;
+}
+
+/* Border carries the error, not the text — the message below states the rule. */
+.zg-field--invalid {
+  border-color: var(--zg-error);
+}
+
+/* Description grows only downward (never sideways, which would break the column)
+   and is capped so dragging the handle can never push the page (ui-spec §2). */
+.zg-field--multiline {
+  min-height: calc(var(--zg-control-h) * 3);
+  max-height: 60vh;
+  padding: var(--zg-space-3);
+  resize: vertical;
+  line-height: var(--zg-lh-body);
+}
+
+.zg-field:disabled {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-disabled-text);
+  cursor: not-allowed;
+}
+
+.zg-field:focus-visible,
+.zg-btn:focus-visible,
+.zg-nav-link:focus-visible {
+  outline: 2px solid var(--zg-focus-ring);
+  outline-offset: 2px;
+  border-color: var(--zg-secondary);
+}
+
+/* Space is reserved so an appearing message does not shift the layout. */
+.zg-field-message {
+  min-height: 1.25rem;
+  margin: var(--zg-space-1) 0 0;
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-field-message--error {
+  color: var(--zg-error);
+}
+
+/* --------------------------------------------------------------- buttons  */
+
+.zg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zg-space-2);
+  min-height: var(--zg-control-h);
+  padding: 0 var(--zg-space-4);
+  border: var(--zg-border-w) solid transparent;
+  border-radius: var(--zg-radius-md);
+  font: inherit;
+  font-weight: var(--zg-fw-semibold);
+  cursor: pointer;
+}
+
+.zg-btn--primary {
+  background: var(--zg-primary);
+  color: var(--zg-surface);
+}
+
+.zg-btn--primary:hover:not(:disabled) {
+  background: var(--zg-primary-hover);
+}
+
+.zg-btn--secondary {
+  background: var(--zg-surface);
+  color: var(--zg-text);
+  border-color: var(--zg-border-strong);
+}
+
+.zg-btn--tertiary {
+  background: none;
+  color: var(--zg-secondary);
+  padding: 0 var(--zg-space-2);
+  font-weight: var(--zg-fw-medium);
+}
+
+/* Outline, not a filled red — the confirmation step carries the weight. */
+.zg-btn--destructive {
+  background: var(--zg-surface);
+  color: var(--zg-error);
+  border-color: var(--zg-error);
+}
+
+.zg-btn:disabled {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-disabled-text);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+.zg-btn__spinner {
+  width: 0.875em;
+  height: 0.875em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: zg-spin 0.7s linear infinite;
+}
+
+@keyframes zg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zg-btn__spinner {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- badges  */
+
+.zg-badge {
+  display: inline-block;
+  padding: var(--zg-space-1) var(--zg-space-3);
+  border-radius: var(--zg-radius-sm);
+  font-size: var(--zg-fs-small);
+  font-weight: var(--zg-fw-semibold);
+  white-space: nowrap;
+}
+
+.zg-badge--priority-low {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-text-muted);
+}
+
+.zg-badge--priority-medium {
+  background: var(--zg-warning-surface);
+  color: var(--zg-warning);
+}
+
+.zg-badge--priority-high {
+  background: var(--zg-error-surface);
+  color: var(--zg-error);
+}
+
+.zg-badge--status-new {
+  background: var(--zg-pale);
+  color: var(--zg-primary);
+}
+
+.zg-badge--removed {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-text-muted);
+}
+
+/* ---------------------------------------------------------------- states  */
+
+.zg-skeleton-row {
+  height: var(--zg-control-h);
+  margin-bottom: var(--zg-space-2);
+  border-radius: var(--zg-radius-md);
+  background: var(--zg-disabled-bg);
+}
+
+.zg-panel {
+  padding: var(--zg-space-6);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-lg);
+  box-shadow: var(--zg-shadow);
+  text-align: center;
+}
+
+.zg-panel__heading {
+  margin: 0 0 var(--zg-space-2);
+  font-size: var(--zg-fs-section);
+  line-height: var(--zg-lh-tight);
+}
+
+.zg-panel__body {
+  margin: 0 0 var(--zg-space-4);
+  color: var(--zg-text-muted);
+}
+
+.zg-callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-3);
+  padding: var(--zg-space-4);
+  background: var(--zg-error-surface);
+  border: var(--zg-border-w) solid var(--zg-error);
+  border-radius: var(--zg-radius-md);
+  color: var(--zg-error);
+}
+
+/* ----------------------------------------------------------------- shell  */
+
+.zg-shell {
+  min-height: 100vh;
+}
+
+.zg-header {
+  background: var(--zg-primary);
+  color: var(--zg-surface);
+}
+
+.zg-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--zg-space-4);
+  min-height: 3.5rem;
+  max-width: var(--zg-page-max-w);
+  margin: 0 auto;
+  padding: 0 var(--zg-space-4);
+}
+
+.zg-brand {
+  font-size: var(--zg-fs-section);
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-nav {
+  display: flex;
+  gap: var(--zg-space-4);
+  flex: 1;
+}
+
+
+.zg-nav-link {
+  padding: var(--zg-space-2) 0;
+  border-bottom: 3px solid transparent;
+  color: inherit;
+  text-decoration: none;
+  font-weight: var(--zg-fw-medium);
+}
+
+/* Active page is marked by an underline as well as aria-current, never colour
+   alone (ui-spec section 7). */
+.zg-nav-link--active {
+  border-bottom-color: var(--zg-pale);
+}
+
+.zg-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--zg-space-2);
+  font-size: var(--zg-fs-label);
+}
+
+.zg-identity .zg-btn--tertiary {
+  color: var(--zg-surface);
+  text-decoration: underline;
+}
+
+.zg-nav-toggle {
+  display: none;
+}
+
+.zg-main {
+  max-width: var(--zg-page-max-w);
+  margin: 0 auto;
+  padding: var(--zg-space-6) var(--zg-space-4) var(--zg-space-7);
+}
+
+/* Mobile: navigation collapses behind a disclosure; the Requester name stays
+   visible (ui-spec section 7). */
+@media (max-width: 767px) {
+  .zg-header__inner {
+    flex-wrap: wrap;
+    padding: var(--zg-space-2) var(--zg-space-4);
+  }
+
+  .zg-nav-toggle {
+    display: inline-flex;
+    margin-left: auto;
+    color: var(--zg-surface);
+  }
+
+  /* Collapsed by default on mobile; `display: none` also removes it from the
+     accessibility tree, which is what the disclosure should do. */
+  .zg-nav {
+    display: none;
+    flex: 1 0 100%;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .zg-nav--open {
+    display: flex;
+  }
+
+  .zg-nav-link {
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    padding: var(--zg-space-3);
+  }
+
+  .zg-nav-link--active {
+    border-left-color: var(--zg-pale);
+  }
+
+  .zg-btn {
+    width: 100%;
+  }
+
+  .zg-identity .zg-btn--tertiary {
+    width: auto;
+  }
+}

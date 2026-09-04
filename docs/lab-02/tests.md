@@ -127,11 +127,24 @@ fixtures invented per test.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| STYLE-01 | UI style | AC-37 | Required-field marking | Every required field renders the red asterisk **and** still produces a message on failure | `client/tests/lab-02/zen-green-style.test.tsx` | Planned |
+| STYLE-01 | UI style | AC-37 | Required-field marking | Every required field renders the red asterisk **and** still produces a message on failure | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
 | STYLE-02 | UI style | AC-38 | Accessible labelling | Every icon-only control exposes an accessible name and a tooltip | `client/tests/lab-02/zen-green-style.test.tsx` | Planned |
-| STYLE-03 | UI style | AC-39 | Badge semantics | Status and Priority badges contain text; meaning never rests on colour alone | `client/tests/lab-02/zen-green-style.test.tsx` | Planned |
-| STYLE-04 | UI style | §6.1, §6.4 | Field-state classes | Editable and read-only fields carry distinct classes bound to theme tokens; no hardcoded hex in components | `client/tests/lab-02/zen-green-style.test.tsx` | Planned |
-| STYLE-05 | UI style | BR-43 | Busy and disabled state | The submitting button carries both the disabled attribute and the busy indicator class | `client/tests/lab-02/zen-green-style.test.tsx` | Planned |
+| STYLE-03 | UI style | AC-39 | Badge semantics | Status and Priority badges contain text; meaning never rests on colour alone | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
+| STYLE-04 | UI style | §6.1, §6.4 | Field-state classes | Editable and read-only fields carry distinct classes bound to theme tokens; no hardcoded hex in components | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
+| STYLE-05 | UI style | BR-43 | Busy and disabled state | The submitting button carries both the disabled attribute and the busy indicator class | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
+
+> **Foundation coverage (Issue #12).** `zen-green-style.test.tsx` also carries six
+> unnumbered assertions for the application shell itself — identity, both
+> navigation destinations, the active-page marker as `aria-current` **and** a
+> class, the mobile disclosure's `aria-expanded`, and the Requester identity area
+> appearing only once a Requester is selected. They prove Issue #12's own
+> acceptance criteria; the Requester-driven behaviour they hand off to is UI-05
+> and UI-06 in Issue #14.
+>
+> STYLE-01 and STYLE-03 land early because the field and badge components ship
+> with the foundation. Both are re-verified in context — STYLE-01 on the Create
+> Ticket form (Issue #15), STYLE-03 in the ticket list (Issue #16). STYLE-02
+> waits for the icon-only attachment controls in Issue #17.
 
 ### 2.5 Responsive
 
