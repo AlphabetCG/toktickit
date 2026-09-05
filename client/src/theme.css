@@ -461,3 +461,85 @@ body {
   width: 100%;
   margin-top: var(--zg-space-2);
 }
+
+/* ---------------------------------------------------------- create ticket  */
+
+.zg-section-title {
+  margin: var(--zg-space-5) 0 var(--zg-space-3);
+  font-size: var(--zg-fs-section);
+  font-weight: var(--zg-fw-semibold);
+  padding-bottom: var(--zg-space-2);
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+}
+
+/* Two columns at desktop; single column below the tablet breakpoint. */
+.zg-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--zg-space-4);
+}
+
+@media (max-width: 767px) {
+  .zg-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Label plus a right-aligned live character counter (ui-spec §8.2). */
+.zg-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zg-space-2);
+}
+
+.zg-counter {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-counter--over {
+  color: var(--zg-error);
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-fieldset {
+  border: none;
+  padding: 0;
+  margin-inline: 0;
+}
+
+.zg-radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zg-space-4);
+}
+
+.zg-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zg-space-2);
+  cursor: pointer;
+}
+
+.zg-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--zg-space-3);
+  margin-top: var(--zg-space-5);
+}
+
+@media (max-width: 767px) {
+  .zg-form-actions {
+    flex-direction: column-reverse;
+  }
+}
+
+.zg-success-panel {
+  text-align: left;
+}
+
+.zg-ticket-number {
+  color: var(--zg-primary);
+  font-size: var(--zg-fs-section);
+}

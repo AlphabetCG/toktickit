@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
 import { requireRequester } from "./requesterContext.js";
+import { allocateTicketNumber } from "./ticketNumber.js";
+import { validateSummary, validateDescription, validatePriority } from "./validation.js";
 
 // Exported without app.listen() — that lives in index.ts — so Supertest can
 // import the app without opening a port.
@@ -46,5 +48,87 @@ app.get("/api/categories", requireRequester, async (_req: Request, res: Response
     res.status(200).json(categories);
   } catch {
     res.status(500).json({ error: "Failed to load categories" });
+  }
+});
+
+// Lab 2 / Issue #15: active Related Systems for the Create Ticket form. Fixed id
+// order so the dropdown never reshuffles between loads (api-spec §2.3).
+app.get("/api/related-systems", requireRequester, async (_req: Request, res: Response) => {
+  try {
+    const systems = await getPrisma().relatedSystem.findMany({
+      where: { isActive: true },
+      orderBy: { id: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(systems);
+  } catch {
+    res.status(500).json({ error: "Failed to load related systems" });
+  }
+});
+
+// Lab 2 / Issue #15: create one validated Ticket for the selected Requester. The
+// Ticket Number is allocated inside the transaction so concurrent creates cannot
+// collide (BR-01, BR-14). ticketNumber/ticketDate/currentStatus/requesterId in
+// the body are ignored — the server owns them (BR-16, BR-18).
+app.post("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+  const prisma = getPrisma();
+  const body = req.body ?? {};
+  const { categoryId, relatedSystemId, requestedPriority, summary, description } = body;
+
+  const fields: Record<string, string> = {};
+
+  const summaryError = validateSummary(summary);
+  if (summaryError) fields.summary = summaryError;
+
+  const descriptionError = validateDescription(description);
+  if (descriptionError) fields.description = descriptionError;
+
+  const priorityError = validatePriority(requestedPriority);
+  if (priorityError) fields.requestedPriority = priorityError;
+
+  try {
+    // Reference ids must exist and be active (BR-41).
+    const category = Number.isInteger(categoryId)
+      ? await prisma.category.findFirst({ where: { id: categoryId, isActive: true } })
+      : null;
+    if (!category) fields.categoryId = "Select a valid category.";
+
+    const relatedSystem = Number.isInteger(relatedSystemId)
+      ? await prisma.relatedSystem.findFirst({ where: { id: relatedSystemId, isActive: true } })
+      : null;
+    if (!relatedSystem) fields.relatedSystemId = "Select a valid related system.";
+
+    // Validate everything before any write — a 400 never leaves a partial Ticket.
+    if (Object.keys(fields).length > 0) {
+      res.status(400).json({ error: "Validation failed", fields });
+      return;
+    }
+
+    const year = new Date().getFullYear();
+    const ticket = await prisma.$transaction(async (tx) => {
+      const ticketNumber = await allocateTicketNumber(tx, year);
+      return tx.ticket.create({
+        data: {
+          ticketNumber,
+          requesterId: req.requester!.id,
+          categoryId,
+          relatedSystemId,
+          requestedPriority,
+          summary: String(summary).trim(),
+          description: String(description).trim(),
+        },
+        select: {
+          id: true,
+          ticketNumber: true,
+          currentStatus: true,
+          ticketDate: true,
+          requesterId: true,
+        },
+      });
+    });
+
+    res.status(201).json(ticket);
+  } catch {
+    res.status(500).json({ error: "Unable to create ticket" });
   }
 });

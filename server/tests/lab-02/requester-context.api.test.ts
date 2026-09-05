@@ -87,4 +87,30 @@ describe("Requester context", () => {
       expect(res.status).toBe(200);
     });
   });
+
+  // API-03 — AC-10, BR-41: scoped reference data for the Create Ticket form.
+  describe("scoped reference data", () => {
+    it("returns active Categories from the database in id order", async () => {
+      const res = await request(app).get("/api/categories").set("X-Requester-Id", String(activeId));
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThanOrEqual(4);
+      const ids = res.body.map((c: { id: number }) => c.id);
+      expect([...ids]).toEqual([...ids].sort((a, b) => a - b));
+    });
+
+    it("returns the seeded active Related Systems", async () => {
+      const res = await request(app)
+        .get("/api/related-systems")
+        .set("X-Requester-Id", String(activeId));
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThanOrEqual(7);
+      for (const s of res.body) {
+        expect(s).toEqual({ id: expect.any(Number), name: expect.any(String) });
+      }
+    });
+
+    it("requires the requester context (401 without a valid header)", async () => {
+      expect((await request(app).get("/api/related-systems")).status).toBe(401);
+    });
+  });
 });
