@@ -45,7 +45,23 @@ rubric.
 
 Result after fixes: client **35/35** (13 new), `tsc --noEmit` clean, `npm run build` succeeds.
 
-- **Approval:** _pending re-review_
+- **Approval:** `APPROVED` by @copter549365; PR #21 merged into `lab2-staging` (2026-09-05).
+
+### PR #22 — feat: Lab 2 data model, migration, and seed (Issue #13)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/22
+- **Base:** `lab2-staging` ← **Head:** `feature/3-data-model-seed`
+- **Status:** opened 2026-09-05 — awaiting peer review.
+
+Requested review focus in the PR description:
+
+1. Do the composite indexes `(requesterId, ticketDate DESC)` and
+   `(requesterId, currentStatus)` match how My Tickets will query in #16?
+2. Are the seeded requester identities and emails sensible fixtures for the
+   ownership tests in #14?
+
+_Reviewer comment, author reply, and approval to be recorded here once the
+exchange happens._
 
 ---
 

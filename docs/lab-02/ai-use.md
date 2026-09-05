@@ -34,6 +34,14 @@ specification phase; the table is extended as each implementation Issue lands.
 | 8 | *"วางแผนแตก issue และ dependency และสร้าง branch ตามชื่อได้เลย รวมถึงเตรียม pr feature 1 ให้หน่อย และจัดการ update kanban board ให้ที"* | Got the 8-Issue decomposition with a dependency graph and justification, plus the Issues created on GitHub and PR #20 opened against `lab2-staging`. |
 | 9 | *"ทำ ai-use.md ต่อเลย และคอยแจ้งผมหน่อยว่า ใน step ทีทำไปเรื่อย ๆ มีอะไรที่ผมควรต้อง screenshot เก็บไว้เพื่อส่งในใบแลปบ้าง"* | This document, plus a running evidence checklist tied to the nine submission parts so screenshots are captured at the moment each state exists rather than reconstructed at the end. |
 
+### Implementation phase — per Issue
+
+| # | Issue | Prompt (as typed) | What I did with the result |
+|---|-------|-------------------|----------------------------|
+| 10 | #12 Zen Green — review response | *"เริ่ม session ด้วยการอ่าน AGENTS.md เพื่อเตรียมตัวสำหรับการ Implement session"* → *"Read current peer review from my reviewer (he doesn't approve with a reason), check the reason of change suggest, implement along it but if some comment is not aligned with the requirement of this PR issue please prepare a comment that describes a non-fix."* → *"do it"* | The agent read @copter549365's COMMENTED review on PR #21 (4 points) and split them by whether they fit the Issue's scope. It fixed the two real gaps — the Description textarea was missing the `max-height` ui-spec §2 requires, and nothing locked the palette to the spec, so it added a test asserting the 11 fixed Zen Green tokens equal their `ui-spec §1.1` hex (plus the shell breakpoint and textarea resize). It verified the token values were already correct, drafted a Thai reply, recorded the exchange in `reviewer.md`, and prepared a documented **non-fix** for the IT-Priority-badge suggestion, which is out of Lab 2 scope (`specification §3.2`). Result: client 35/35, tsc clean, build passes. |
+| 11 | #13 Data model, migration, seed | *"now my pr review approve code, moving kanban board for me then start implementing next issue (don't forget to change branch)"* → *"don't forget to update md (ai-use) for me (tracking what have you done with each issue, all prompt in ai-use)"* | The agent moved #12 → Done and #13 → Started on the Kanban, then recut `feature/3-data-model-seed` fresh off the updated `lab2-staging` (the pre-existing branch had been cut too early and was empty). It added the §7.1 models, both enums, and the two composite indexes; created migration `lab2_requester_ticketing` as an additive `ALTER TABLE` so the Lab 1 `Category` rows survived with `isActive = true`; extended the idempotent seed (7 related systems, 4 active + 1 inactive requester, upserts on natural keys); and wrote `seed.test.ts` for content + idempotency (BR-09…BR-13, BR-63). Verified with `migrate reset`, a double-seed row dump (Category 4 / RelatedSystem 7 / RequesterUser 5), server 9/9, client 35/35, tsc clean, `.env` untracked. |
+| 12 | #13 delivery | *"move board, push and open PR for me"* → *"complete every docs (ai-use and others)"* | The agent pushed `feature/3-data-model-seed`, opened PR #22 with the base explicitly set to `lab2-staging` (not the GitHub default `main`), and moved #13 → PR Review. It then brought the evidence docs current: `reviewer.md` (PR #21 approval recorded, PR #22 logged as awaiting review) and this file, and reminded me to capture the open-PR page and the mid-sprint Kanban spread before they become unrecoverable. |
+
 ---
 
 ## Decomposed sub-agent task prompts
@@ -108,3 +116,35 @@ file existed; in Lab 2 it caught the cross-document consistency I would not have
 checked by hand — that all 39 acceptance criteria appear in the traceability
 table and that every endpoint, BR, AC, and test id referenced across four
 documents actually resolves.
+
+### Implementation-phase notes (Issues #12–#13)
+
+**Making the agent triage a peer review against scope.** For the PR #12 review I
+did not just say "fix the comments" — I told the agent to implement the ones that
+fit the Issue and, for any that did not, prepare a written non-fix instead of
+silently ignoring or blindly obeying them. That produced two real fixes (a missing
+`max-height`, and a test that locks the colour tokens to the spec) and one
+reasoned refusal (the IT-Priority badge is excluded by `specification §3.2`). The
+refusal is worth as much as the fixes — it shows the review was read against the
+contract, not treated as a checklist.
+
+**A test that enforces the token rule mechanically.** The reviewer noticed that
+"no literal colour in a component" only proves a component uses a class, not that
+the class holds the right value. The fix was a test that reads `theme.css` and
+asserts each fixed token equals its `ui-spec §1.1` hex, so a typo now fails the
+suite. This is the pattern I want to repeat: turn a reviewer's "did you check…"
+into an automated check rather than a one-time manual answer.
+
+**Catching a branch that was cut too early.** `feature/3-data-model-seed` already
+existed from earlier planning, but it had been branched before the spec and the
+UI foundation merged, so it was empty and eight commits behind `lab2-staging`.
+The agent flagged this instead of building on it, and recut the branch fresh from
+the updated staging — exactly the "branch off staging only after the previous
+Issue merged" rule in `AGENTS.md §8`.
+
+**Additive migrations protect existing data.** For the data model I had the agent
+confirm the migration added `Category.isActive` with `ALTER TABLE … ADD COLUMN`
+(default `true`) rather than rebuilding the table, and then prove the four Lab 1
+`Category` rows still existed afterwards. Verifying the generated SQL and the row
+counts — not just "the migration ran" — is what makes the survive-the-migration
+claim defensible.
