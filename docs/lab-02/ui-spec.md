@@ -407,6 +407,9 @@ Rules:
   to scan than a dropdown, and the group is keyboard-navigable by arrow keys.
 - Attachment constraints are stated **before** the user picks a file, not only
   in the error afterwards.
+- **The Attachments section is delivered in Issue #17** (`specification.md` D-12):
+  Create Ticket saves the Ticket, and its success panel routes to Ticket Detail,
+  where files are attached. The upload lifecycle is built once, on that screen.
 - Actions bottom-right at desktop; full-width stacked with the primary on top
   below 768 px.
 - **Success state** replaces the form with the confirmation panel:

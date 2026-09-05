@@ -2,9 +2,10 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { RequesterProvider, useRequester } from "./requester.js";
 import { AppShell } from "./components/AppShell.js";
 import { RequesterSelection } from "./screens/RequesterSelection.js";
+import { CreateTicket } from "./screens/CreateTicket.js";
 
-// Placeholders for the screens that later Issues build. They keep the shell,
-// navigation, and route guard testable now; #15 and #16 replace them.
+// Placeholder for My Tickets, which Issue #16 builds. Keeps the shell,
+// navigation, and route guard testable now.
 function MyTicketsPlaceholder() {
   const { requester } = useRequester();
   return (
@@ -14,15 +15,6 @@ function MyTicketsPlaceholder() {
         Viewing as <strong>{requester?.name}</strong> ({requester?.email}). Your
         tickets will appear here (Issue #16).
       </p>
-    </section>
-  );
-}
-
-function CreateTicketPlaceholder() {
-  return (
-    <section>
-      <h1 className="zg-page-title">Create Ticket</h1>
-      <p>The ticket form arrives in Issue #15.</p>
     </section>
   );
 }
@@ -47,7 +39,7 @@ function ScopedApp() {
     <AppShell key={requester.id} requesterName={requester.name} onChangeRequester={changeRequester}>
       <Routes>
         <Route path="/tickets" element={<MyTicketsPlaceholder />} />
-        <Route path="/tickets/new" element={<CreateTicketPlaceholder />} />
+        <Route path="/tickets/new" element={<CreateTicket />} />
         <Route path="*" element={<Navigate to="/tickets" replace />} />
       </Routes>
     </AppShell>
