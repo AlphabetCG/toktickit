@@ -1,55 +1,66 @@
-import { useState } from "react";
-import { checkSystem, Category } from "./api.js";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { RequesterProvider, useRequester } from "./requester.js";
+import { AppShell } from "./components/AppShell.js";
+import { RequesterSelection } from "./screens/RequesterSelection.js";
 
-// The four states the UI must handle in Issue 4.
-type UiState = "idle" | "loading" | "success" | "error";
+// Placeholders for the screens that later Issues build. They keep the shell,
+// navigation, and route guard testable now; #15 and #16 replace them.
+function MyTicketsPlaceholder() {
+  const { requester } = useRequester();
+  return (
+    <section>
+      <h1 className="zg-page-title">My Tickets</h1>
+      <p>
+        Viewing as <strong>{requester?.name}</strong> ({requester?.email}). Your
+        tickets will appear here (Issue #16).
+      </p>
+    </section>
+  );
+}
 
-export default function App() {
-  const [state, setState] = useState<UiState>("idle");
-  const [categories, setCategories] = useState<Category[]>([]);
+function CreateTicketPlaceholder() {
+  return (
+    <section>
+      <h1 className="zg-page-title">Create Ticket</h1>
+      <p>The ticket form arrives in Issue #15.</p>
+    </section>
+  );
+}
 
-  async function handleCheck() {
-    setState("loading");
-    try {
-      setCategories(await checkSystem()); // real health + categories API calls
-      setState("success");
-    } catch {
-      setState("error");
-    }
+// The Requester-scoped half of the app. Rendered only once a Requester exists.
+function ScopedApp() {
+  const { requester, clear } = useRequester();
+  const navigate = useNavigate();
+
+  // Guard: no Requester selected → the selection screen, whatever ticket URL was
+  // requested (BR-19, AC-01, UI-05).
+  if (!requester) return <RequesterSelection />;
+
+  function changeRequester() {
+    clear();
+    navigate("/select");
   }
 
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="h3 mb-4">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
+    // Keying the shell by requester id remounts every scoped screen on switch, so
+    // no data from the previous Requester can survive on screen (BR-22, AC-04).
+    <AppShell key={requester.id} requesterName={requester.name} onChangeRequester={changeRequester}>
+      <Routes>
+        <Route path="/tickets" element={<MyTicketsPlaceholder />} />
+        <Route path="/tickets/new" element={<CreateTicketPlaceholder />} />
+        <Route path="*" element={<Navigate to="/tickets" replace />} />
+      </Routes>
+    </AppShell>
+  );
+}
 
-      <button className="btn btn-success" onClick={handleCheck} disabled={state === "loading"}>
-        {state === "loading" ? "Loading…" : "Check System"}
-      </button>
-
-      {state === "success" && (
-        <div className="mt-4">
-          <p className="mb-2">
-            System Status: <span className="fw-semibold text-success">Online</span>
-          </p>
-          <p className="mb-1">Supported Request Categories:</p>
-          <ol className="mb-0">
-            {categories.map((c) => (
-              <li key={c.id}>{c.name}</li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="mt-4">
-          <p className="mb-1">
-            System Status: <span className="fw-semibold text-danger">Offline</span>
-          </p>
-          <p className="text-danger mb-0">Unable to connect to TokTickIT API</p>
-        </div>
-      )}
-    </div>
+export default function App() {
+  return (
+    <RequesterProvider>
+      <Routes>
+        <Route path="/select" element={<RequesterSelection />} />
+        <Route path="*" element={<ScopedApp />} />
+      </Routes>
+    </RequesterProvider>
   );
 }
