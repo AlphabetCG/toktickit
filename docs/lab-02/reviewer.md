@@ -88,6 +88,33 @@ No changes requested. The PR called out two review-focus questions (the
 identical-401 contract for all four rejection cases, and keying the scoped
 subtree by requester id for BR-22); the reviewer accepted both as delivered.
 
+### PR #24 — feat: Create Ticket end to end (Issue #15)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/24
+- **Base:** `lab2-staging` ← **Head:** `feature/5-create-ticket`
+- **Review verdict:** `COMMENTED`, 2026-09-05 — awaiting re-review after the reply.
+
+#### Reviewer comment
+
+Labsheet §4.4 lists Attachments as a field of the Create Ticket screen and Part 6
+evidence item 4 ("select one valid and one invalid attachment") ties to it, but
+the form has no attachment input. If attachments are being split to #17 (BR-48),
+an assumption for the flow should be recorded in `specification.md`.
+
+#### Author reply & resolution
+
+Valid point — the omission was deliberate, not a gap, but it was undocumented.
+Attachment upload is out of scope for #15 by the Issue decomposition, following
+BR-48/D-08, which already make ticket creation and attachment upload **separate
+operations** so a long Description is never lost to a failed file. Rather than
+implement a create-with-files form (which would contradict that compensation
+model and duplicate the upload UI), the flow is: Create Ticket saves the Ticket,
+and the success panel's **View ticket** action lands on Ticket Detail, where the
+whole attachment lifecycle is built in #17. FR-08 is realised as part of that
+intake flow, and the Part 6 valid/invalid-attachment evidence is captured there.
+Recorded as **D-12** in `specification.md` and noted in `ui-spec.md` §8.2 so the
+deferral is explicit. No code change to #15.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
