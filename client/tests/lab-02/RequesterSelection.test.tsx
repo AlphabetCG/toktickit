@@ -10,6 +10,9 @@ import * as api from "../../src/api.js";
 // UI-01…UI-04 from docs/lab-02/tests.md. Behaviour contract: ui-spec §8.1.
 vi.mock("../../src/api.js");
 const getRequesters = vi.mocked(api.getRequesters);
+const getTickets = vi.mocked(api.getTickets);
+const getCategories = vi.mocked(api.getCategories);
+const getRelatedSystems = vi.mocked(api.getRelatedSystems);
 
 const ACTIVE = [
   { id: 1, name: "Somchai Prasert", email: "somchai.prasert@toktickit.test" },
@@ -30,6 +33,10 @@ describe("Development Requester Selection", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    // The routed app lands on My Tickets after a selection; keep its fetches quiet.
+    getTickets.mockResolvedValue({ items: [], page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
+    getCategories.mockResolvedValue([]);
+    getRelatedSystems.mockResolvedValue([]);
   });
 
   // UI-01 — AC-02

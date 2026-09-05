@@ -3,21 +3,7 @@ import { RequesterProvider, useRequester } from "./requester.js";
 import { AppShell } from "./components/AppShell.js";
 import { RequesterSelection } from "./screens/RequesterSelection.js";
 import { CreateTicket } from "./screens/CreateTicket.js";
-
-// Placeholder for My Tickets, which Issue #16 builds. Keeps the shell,
-// navigation, and route guard testable now.
-function MyTicketsPlaceholder() {
-  const { requester } = useRequester();
-  return (
-    <section>
-      <h1 className="zg-page-title">My Tickets</h1>
-      <p>
-        Viewing as <strong>{requester?.name}</strong> ({requester?.email}). Your
-        tickets will appear here (Issue #16).
-      </p>
-    </section>
-  );
-}
+import { MyTickets } from "./screens/MyTickets.js";
 
 // The Requester-scoped half of the app. Rendered only once a Requester exists.
 function ScopedApp() {
@@ -38,7 +24,7 @@ function ScopedApp() {
     // no data from the previous Requester can survive on screen (BR-22, AC-04).
     <AppShell key={requester.id} requesterName={requester.name} onChangeRequester={changeRequester}>
       <Routes>
-        <Route path="/tickets" element={<MyTicketsPlaceholder />} />
+        <Route path="/tickets" element={<MyTickets />} />
         <Route path="/tickets/new" element={<CreateTicket />} />
         <Route path="*" element={<Navigate to="/tickets" replace />} />
       </Routes>

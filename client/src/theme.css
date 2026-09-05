@@ -543,3 +543,135 @@ body {
   color: var(--zg-primary);
   font-size: var(--zg-fs-section);
 }
+
+/* ------------------------------------------------------------- my tickets  */
+
+.zg-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zg-space-4);
+  flex-wrap: wrap;
+}
+
+.zg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-2);
+  margin: var(--zg-space-4) 0;
+}
+
+.zg-search {
+  flex: 1 1 14rem;
+}
+
+.zg-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-md);
+}
+
+.zg-table th,
+.zg-table td {
+  text-align: left;
+  padding: var(--zg-space-3);
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+}
+
+.zg-table thead th {
+  background: var(--zg-pale);
+  font-size: var(--zg-fs-label);
+  font-weight: var(--zg-fw-medium);
+}
+
+.zg-row {
+  cursor: pointer;
+}
+
+.zg-row:hover {
+  background: var(--zg-pale);
+}
+
+.zg-row:focus-visible {
+  outline: 2px solid var(--zg-focus-ring);
+  outline-offset: -2px;
+}
+
+.zg-cell-summary {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zg-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zg-space-3);
+  margin-top: var(--zg-space-4);
+}
+
+/* Pages wrap rather than overflow the page on narrow screens. */
+.zg-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zg-space-1);
+}
+
+.zg-rows-per-page {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zg-space-2);
+  font-size: var(--zg-fs-label);
+}
+
+.zg-rows-per-page .zg-field {
+  width: auto;
+}
+
+/* Below the tablet breakpoint the table becomes stacked cards (ui-spec §8.3):
+   each row a card, each cell labelled by its column name. */
+@media (max-width: 767px) {
+  .zg-table,
+  .zg-table tbody,
+  .zg-table tr,
+  .zg-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .zg-table thead {
+    display: none;
+  }
+
+  .zg-row {
+    margin-bottom: var(--zg-space-3);
+    border: var(--zg-border-w) solid var(--zg-border);
+    border-radius: var(--zg-radius-md);
+    padding: var(--zg-space-2);
+  }
+
+  .zg-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--zg-space-3);
+    border-bottom: none;
+    padding: var(--zg-space-1) var(--zg-space-2);
+  }
+
+  .zg-table td::before {
+    content: attr(data-label);
+    font-weight: var(--zg-fw-medium);
+    color: var(--zg-text-muted);
+  }
+
+  .zg-cell-summary {
+    max-width: none;
+    white-space: normal;
+  }
+}

@@ -4,6 +4,8 @@ import { getPrisma } from "./prisma.js";
 import { requireRequester } from "./requesterContext.js";
 import { allocateTicketNumber } from "./ticketNumber.js";
 import { validateSummary, validateDescription, validatePriority } from "./validation.js";
+import { normalizeTicketQuery } from "./ticketQuery.js";
+import type { Prisma } from "@prisma/client";
 
 // Exported without app.listen() — that lives in index.ts — so Supertest can
 // import the app without opening a port.
@@ -130,5 +132,68 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
     res.status(201).json(ticket);
   } catch {
     res.status(500).json({ error: "Unable to create ticket" });
+  }
+});
+
+// Lab 2 / Issue #16: the selected Requester's Tickets, paginated. Ownership is
+// always part of the where clause, so filters compose with it and can never widen
+// the result set beyond the Requester's own Tickets (BR-27, BR-38). Invalid query
+// parameters fall back to documented defaults, never 400 (BR-36).
+app.get("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+  const q = normalizeTicketQuery(req.query as Record<string, unknown>);
+
+  const where: Prisma.TicketWhereInput = {
+    requesterId: req.requester!.id,
+    ...(q.categoryId ? { categoryId: q.categoryId } : {}),
+    ...(q.relatedSystemId ? { relatedSystemId: q.relatedSystemId } : {}),
+    ...(q.priority ? { requestedPriority: q.priority as Prisma.EnumRequestedPriorityFilter } : {}),
+    ...(q.status ? { currentStatus: q.status as Prisma.EnumTicketStatusFilter } : {}),
+    ...(q.search
+      ? {
+          OR: [
+            { ticketNumber: { contains: q.search, mode: "insensitive" } },
+            { summary: { contains: q.search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  // id DESC is the secondary key so ordering is deterministic on ties (BR-34).
+  const orderBy: Prisma.TicketOrderByWithRelationInput[] = [
+    { [q.sort]: q.order },
+    { id: "desc" },
+  ];
+
+  try {
+    const [totalItems, items] = await getPrisma().$transaction([
+      getPrisma().ticket.count({ where }),
+      getPrisma().ticket.findMany({
+        where,
+        orderBy,
+        skip: (q.page - 1) * q.pageSize,
+        take: q.pageSize,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          requestedPriority: true,
+          currentStatus: true,
+          ticketDate: true,
+          updatedAt: true,
+          category: { select: { id: true, name: true } },
+          relatedSystem: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    res.status(200).json({
+      items,
+      page: q.page,
+      pageSize: q.pageSize,
+      totalItems,
+      totalPages: Math.ceil(totalItems / q.pageSize),
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to load tickets" });
   }
 });
