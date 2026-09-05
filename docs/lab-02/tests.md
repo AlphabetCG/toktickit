@@ -57,9 +57,9 @@ fixtures invented per test.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| UNIT-01 | Unit | AC-09, BR-14 | Ticket Number generator format | Matches `TKT-YYYY-NNNNNN` with the current year and zero padding | `server/tests/lab-02/ticket-number.unit.test.ts` | Planned |
-| UNIT-02 | Unit | AC-09, BR-14 | Sequence increments and restarts each year | Consecutive calls increment; a new year restarts at `000001` | `server/tests/lab-02/ticket-number.unit.test.ts` | Planned |
-| UNIT-03 | Unit | AC-12, BR-39, BR-40 | Summary and Description validators | Trimmed first; 4 and 151 chars rejected, 5 and 150 accepted; 19 and 5001 rejected, 20 and 5000 accepted | `server/tests/lab-02/validation.unit.test.ts` | Planned |
+| UNIT-01 | Unit | AC-09, BR-14 | Ticket Number generator format | Matches `TKT-YYYY-NNNNNN` with the current year and zero padding | `server/tests/lab-02/ticket-number.unit.test.ts` | Pass |
+| UNIT-02 | Unit | AC-09, BR-14 | Sequence increments and restarts each year | Consecutive calls increment; a new year restarts at `000001` | `server/tests/lab-02/ticket-number.unit.test.ts` | Pass |
+| UNIT-03 | Unit | AC-12, BR-39, BR-40 | Summary and Description validators | Trimmed first; 4 and 151 chars rejected, 5 and 150 accepted; 19 and 5001 rejected, 20 and 5000 accepted | `server/tests/lab-02/validation.unit.test.ts` | Pass |
 | UNIT-04 | Unit | AC-27, AC-28, BR-04, BR-05, BR-51 | Attachment type and size validators | PDF/PNG/JPEG/WEBP accepted by detected MIME type; `.exe` rejected; 5 MB accepted, 5 MB + 1 byte rejected | `server/tests/lab-02/validation.unit.test.ts` | Planned |
 | UNIT-05 | Unit | BR-50 | Stored filename generation | Output is a server-generated UUID plus a validated extension; `../../etc/passwd` in the original name cannot escape the upload directory | `server/tests/lab-02/validation.unit.test.ts` | Planned |
 | UNIT-06 | Unit | AC-20, BR-36 | List query parameter normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `order=sideways` each fall back to the documented default | `server/tests/lab-02/validation.unit.test.ts` | Planned |
@@ -70,13 +70,13 @@ fixtures invented per test.
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
 | API-01 | API | AC-02, BR-13, BR-20 | Active Requester list | 200; only active Requesters; the seeded inactive Requester is absent | `server/tests/lab-02/requester-context.api.test.ts` | Pass |
 | API-02 | API | AC-01, BR-19 | Requester context header | Missing, malformed, unknown, and inactive `X-Requester-Id` each return 401 | `server/tests/lab-02/requester-context.api.test.ts` | Pass |
-| API-03 | API | AC-10, BR-41 | Reference data endpoints | 200; active Categories and the seeded Related Systems returned from the database | `server/tests/lab-02/requester-context.api.test.ts` | Planned |
-| API-04 | API | AC-07 | Create a valid Ticket | 201; one Ticket saved; official Ticket Number returned | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| API-05 | API | AC-08, BR-02, BR-18 | Created Ticket ownership and defaults | Stored row has `requesterId` of the header Requester and `currentStatus = NEW` | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| API-06 | API | AC-09, BR-01 | Ticket Number uniqueness | Two Tickets created in the same year receive different, correctly formatted numbers | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| API-07 | API | AC-12, BR-39 | Summary below minimum | 400 with a field-level message naming Summary | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| API-08 | API | BR-41 | Unknown or inactive reference id | 400; no Ticket is created | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| API-09 | API | BR-16 | Client-supplied read-only fields | `ticketNumber`, `ticketDate`, and `currentStatus` in the body are ignored; server values win | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
+| API-03 | API | AC-10, BR-41 | Reference data endpoints | 200; active Categories and the seeded Related Systems returned from the database | `server/tests/lab-02/requester-context.api.test.ts` | Pass |
+| API-04 | API | AC-07 | Create a valid Ticket | 201; one Ticket saved; official Ticket Number returned | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-05 | API | AC-08, BR-02, BR-18 | Created Ticket ownership and defaults | Stored row has `requesterId` of the header Requester and `currentStatus = NEW` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-06 | API | AC-09, BR-01 | Ticket Number uniqueness | Two Tickets created in the same year receive different, correctly formatted numbers | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-07 | API | AC-12, BR-39 | Summary below minimum | 400 with a field-level message naming Summary | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-08 | API | BR-41 | Unknown or inactive reference id | 400; no Ticket is created | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-09 | API | BR-16 | Client-supplied read-only fields | `ticketNumber`, `ticketDate`, and `currentStatus` in the body are ignored; server values win | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-10 | API | AC-15, BR-27 | Owned-only listing | Requester B's list contains none of Requester A's Tickets | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
 | API-11 | API | AC-16, BR-31 | Search | Case-insensitive match on Summary and Ticket Number; non-matching Tickets excluded | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
 | API-12 | API | AC-17, BR-32 | Category filter | Only Tickets in the requested Category are returned | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
@@ -108,11 +108,11 @@ fixtures invented per test.
 | UI-04 | UI | AC-06, BR-24 | No active Requesters | Explanatory empty state, not an empty dropdown | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
 | UI-05 | UI | AC-01, BR-19 | Guarded screens | With no selection, a ticket screen renders the selection screen instead | `client/tests/lab-02/AppShell.test.tsx` | Pass |
 | UI-06 | UI | AC-04, BR-22 | Change Requester | New name shown; previous Requester's tickets are cleared from the DOM | `client/tests/lab-02/AppShell.test.tsx` | Pass |
-| UI-07 | UI | AC-10 | Reference data source | Category and Related System options come from the mocked API response, not literals | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| UI-08 | UI | AC-11, BR-44 | Client-side validation | Message appears beneath Summary; the API client is never called | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| UI-09 | UI | AC-13, BR-43 | Duplicate submission guard | Submit is disabled and shows busy; two rapid clicks produce one API call | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| UI-10 | UI | AC-14, BR-45, BR-46 | Submission failure | Safe error message shown and every entered value is still in the form | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| UI-11 | UI | AC-07 | Success state | The returned Ticket Number and the next action are displayed | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
+| UI-07 | UI | AC-10 | Reference data source | Category and Related System options come from the mocked API response, not literals | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-08 | UI | AC-11, BR-44 | Client-side validation | Message appears beneath Summary; the API client is never called | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-09 | UI | AC-13, BR-43 | Duplicate submission guard | Submit is disabled and shows busy; two rapid clicks produce one API call | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-10 | UI | AC-14, BR-45, BR-46 | Submission failure | Safe error message shown and every entered value is still in the form | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-11 | UI | AC-07 | Success state | The returned Ticket Number and the next action are displayed | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-12 | UI | AC-15 | List rendering | Rows reflect the API response, not hard-coded markup | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
 | UI-13 | UI | AC-16 | Search interaction | Typing a term issues a request carrying that search parameter | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
 | UI-14 | UI | AC-21, BR-57 | Empty state | "No tickets yet" wording with a create action | `client/tests/lab-02/MyTickets.test.tsx` | Planned |

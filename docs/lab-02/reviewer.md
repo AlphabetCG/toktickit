@@ -76,6 +76,18 @@ Reviewer approved on that basis ("fix it on the feature side").
 
 - **Approval:** `APPROVED` by @copter549365; PR #22 merged into `lab2-staging` (2026-09-05).
 
+### PR #23 — feat: Development Requester context (Issue #14)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/23
+- **Base:** `lab2-staging` ← **Head:** `feature/4-requester-context`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-09-05 — "เรียบร้อยดีตาม
+  Acceptance criteria" (all good against the acceptance criteria). PR merged into
+  `lab2-staging`.
+
+No changes requested. The PR called out two review-focus questions (the
+identical-401 contract for all four rejection cases, and keying the scoped
+subtree by requester id for BR-22); the reviewer accepted both as delivered.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
