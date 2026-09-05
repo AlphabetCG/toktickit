@@ -415,3 +415,49 @@ body {
     width: auto;
   }
 }
+
+/* ------------------------------------------------------- selection screen  */
+
+.zg-page-title {
+  font-size: var(--zg-fs-page-title);
+  font-weight: var(--zg-fw-semibold);
+  line-height: var(--zg-lh-tight);
+  margin: 0 0 var(--zg-space-5);
+}
+
+/* Centred card on the page background (ui-spec §8.1). */
+.zg-select-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--zg-space-5);
+}
+
+.zg-select-card {
+  width: 100%;
+  max-width: 28rem;
+  padding: var(--zg-space-6);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-lg);
+  box-shadow: var(--zg-shadow);
+}
+
+.zg-select-title {
+  margin: 0 0 var(--zg-space-3);
+  font-size: var(--zg-fs-page-title);
+  font-weight: var(--zg-fw-semibold);
+  text-align: center;
+}
+
+.zg-select-intro {
+  margin: 0 0 var(--zg-space-5);
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-select-continue {
+  width: 100%;
+  margin-top: var(--zg-space-2);
+}

@@ -51,22 +51,58 @@ Result after fixes: client **35/35** (13 new), `tsc --noEmit` clean, `npm run bu
 
 - **PR:** https://github.com/AlphabetCG/toktickit/pull/22
 - **Base:** `lab2-staging` ← **Head:** `feature/3-data-model-seed`
-- **Status:** opened 2026-09-05 — awaiting peer review.
+- **Review verdict:** `COMMENTED` then `APPROVED`, 2026-09-05; PR merged into `lab2-staging`.
 
-Requested review focus in the PR description:
+#### Reviewer comment
 
-1. Do the composite indexes `(requesterId, ticketDate DESC)` and
-   `(requesterId, currentStatus)` match how My Tickets will query in #16?
-2. Are the seeded requester identities and emails sensible fixtures for the
-   ownership tests in #14?
+The `TicketNumberSequence` schema is correct (one row per year), **but** it warns
+about the *implementation* to come in #15: if ticket-number allocation is written
+as a non-atomic read-then-write (read current value → add 1 in app code → write
+back) instead of `UPDATE … RETURNING` inside the same transaction that creates the
+Ticket, two requests colliding in a short window produce a race condition and a
+duplicate number (violating BR-01).
 
-_Reviewer comment, author reply, and approval to be recorded here once the
-exchange happens._
+#### Author reply & resolution
+
+Agreed. The concern is about #15 (Create Ticket), not the #13 schema, which the
+reviewer confirmed is correct. The contract already mandates the safe approach —
+`specification.md` §7.3 says the sequence row is "updated inside the creation
+transaction … keeps allocation atomic under concurrency." Replied on the PR that
+it will be fixed with the ticket-creation feature: allocation will run as an
+atomic `UPDATE … RETURNING` (or an equivalent single-statement increment) inside
+the same transaction that inserts the Ticket. **Carried forward as a commitment
+for Issue #15** — recorded here so it is not lost when Create Ticket is built.
+Reviewer approved on that basis ("fix it on the feature side").
+
+- **Approval:** `APPROVED` by @copter549365; PR #22 merged into `lab2-staging` (2026-09-05).
 
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
 
-_To be completed: review a PR on `copter549365/toktickit`, leave a substantive
-comment tied to an acceptance criterion, and record the exchange and approval
-here._
+Partner repo: `copter549365/toktickit`.
+
+### PR #22 — feat: implement My Tickets screen (search/filter/sort/pagination)
+
+- **PR:** https://github.com/copter549365/toktickit/pull/22
+- **Review verdict:** `CHANGES_REQUESTED` by @AlphabetCG, 2026-09-05.
+
+Tests were green (client 26/26, server 59/59) and most of the work was sound, but
+I flagged **two data-affecting defects** to fix first:
+
+1. **`server/tests/lab-02/my-tickets.api.test.ts:6`** — a fixture leaves randomly
+   numbered tickets in the DB, so `getNextTicketNumber()` (which uses `MAX + 1`)
+   is permanently skewed; a single test run on a fresh DB jumps the sequence to
+   `TKT-2026-939750`, and at the ceiling it produces `TKT-2026-1000000`, which
+   breaks BR-01 and the `TICKET_NUMBER_REGEX`.
+2. **`client/src/screens/MyTickets.tsx:79`** — `loadTickets` has no ignore
+   flag / `AbortController`, so a slow earlier response can overwrite the list
+   (request page 2 then quickly page 3 → the table sticks on page 2's data).
+
+Plus four to address this round if possible, otherwise the next PR: empty
+`?categoryId=` returns an empty list (`ticketQuery.ts:55`); `%`/`_` in search act
+as SQL wildcards (`app.ts:211`); pagination renders every page number and
+overflows on mobile (`MyTickets.tsx:389`); keyboard focus is lost on every
+refetch (`MyTickets.tsx:84`).
+
+- **Resolution:** awaiting @copter549365's fixes and reply.

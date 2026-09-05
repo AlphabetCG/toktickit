@@ -68,8 +68,8 @@ fixtures invented per test.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| API-01 | API | AC-02, BR-13, BR-20 | Active Requester list | 200; only active Requesters; the seeded inactive Requester is absent | `server/tests/lab-02/requester-context.api.test.ts` | Planned |
-| API-02 | API | AC-01, BR-19 | Requester context header | Missing, malformed, unknown, and inactive `X-Requester-Id` each return 401 | `server/tests/lab-02/requester-context.api.test.ts` | Planned |
+| API-01 | API | AC-02, BR-13, BR-20 | Active Requester list | 200; only active Requesters; the seeded inactive Requester is absent | `server/tests/lab-02/requester-context.api.test.ts` | Pass |
+| API-02 | API | AC-01, BR-19 | Requester context header | Missing, malformed, unknown, and inactive `X-Requester-Id` each return 401 | `server/tests/lab-02/requester-context.api.test.ts` | Pass |
 | API-03 | API | AC-10, BR-41 | Reference data endpoints | 200; active Categories and the seeded Related Systems returned from the database | `server/tests/lab-02/requester-context.api.test.ts` | Planned |
 | API-04 | API | AC-07 | Create a valid Ticket | 201; one Ticket saved; official Ticket Number returned | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
 | API-05 | API | AC-08, BR-02, BR-18 | Created Ticket ownership and defaults | Stored row has `requesterId` of the header Requester and `currentStatus = NEW` | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
@@ -102,12 +102,12 @@ fixtures invented per test.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| UI-01 | UI | AC-02 | Selector contents | Only active Requesters appear as options | `client/tests/lab-02/RequesterSelection.test.tsx` | Planned |
-| UI-02 | UI | AC-03, BR-21 | Selection persistence | A stored selection is restored on mount and the shell shows the name | `client/tests/lab-02/RequesterSelection.test.tsx` | Planned |
-| UI-03 | UI | AC-05, BR-23 | Requester load failure | Safe message plus a retry action; the app cannot be entered | `client/tests/lab-02/RequesterSelection.test.tsx` | Planned |
-| UI-04 | UI | AC-06, BR-24 | No active Requesters | Explanatory empty state, not an empty dropdown | `client/tests/lab-02/RequesterSelection.test.tsx` | Planned |
-| UI-05 | UI | AC-01, BR-19 | Guarded screens | With no selection, a ticket screen renders the selection screen instead | `client/tests/lab-02/AppShell.test.tsx` | Planned |
-| UI-06 | UI | AC-04, BR-22 | Change Requester | New name shown; previous Requester's tickets are cleared from the DOM | `client/tests/lab-02/AppShell.test.tsx` | Planned |
+| UI-01 | UI | AC-02 | Selector contents | Only active Requesters appear as options | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
+| UI-02 | UI | AC-03, BR-21 | Selection persistence | A stored selection is restored on mount and the shell shows the name | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
+| UI-03 | UI | AC-05, BR-23 | Requester load failure | Safe message plus a retry action; the app cannot be entered | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
+| UI-04 | UI | AC-06, BR-24 | No active Requesters | Explanatory empty state, not an empty dropdown | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
+| UI-05 | UI | AC-01, BR-19 | Guarded screens | With no selection, a ticket screen renders the selection screen instead | `client/tests/lab-02/AppShell.test.tsx` | Pass |
+| UI-06 | UI | AC-04, BR-22 | Change Requester | New name shown; previous Requester's tickets are cleared from the DOM | `client/tests/lab-02/AppShell.test.tsx` | Pass |
 | UI-07 | UI | AC-10 | Reference data source | Category and Related System options come from the mocked API response, not literals | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
 | UI-08 | UI | AC-11, BR-44 | Client-side validation | Message appears beneath Summary; the API client is never called | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
 | UI-09 | UI | AC-13, BR-43 | Duplicate submission guard | Submit is disabled and shows busy; two rapid clicks produce one API call | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |

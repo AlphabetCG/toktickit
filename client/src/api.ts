@@ -1,18 +1,16 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-export interface Category {
+export interface Requester {
   id: number;
   name: string;
+  email: string;
 }
 
-// Confirms the backend is up (health), then returns the seeded categories.
-// Throws if either request fails, so the UI can show a single Offline state.
-export async function checkSystem(): Promise<Category[]> {
-  const health = await fetch(`${API_URL}/api/health`);
-  if (!health.ok) throw new Error(`Health check failed: HTTP ${health.status}`);
-
-  const res = await fetch(`${API_URL}/api/categories`);
-  if (!res.ok) throw new Error(`Categories request failed: HTTP ${res.status}`);
-
+// Active Development Requesters for the selection screen. Public endpoint — the
+// selector must load before any Requester exists in the client's state. Throws
+// on failure so the selector can show its error state with a retry (BR-23).
+export async function getRequesters(): Promise<Requester[]> {
+  const res = await fetch(`${API_URL}/api/requesters`);
+  if (!res.ok) throw new Error(`Requesters request failed: HTTP ${res.status}`);
   return res.json();
 }
