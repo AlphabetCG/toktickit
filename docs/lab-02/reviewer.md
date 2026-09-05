@@ -65,11 +65,14 @@ duplicate number (violating BR-01).
 #### Author reply & resolution
 
 Agreed. The concern is about #15 (Create Ticket), not the #13 schema, which the
-reviewer confirmed is correct. Replied on the PR that it will be fixed together
-with the ticket-creation feature: allocation will run as an atomic
-`UPDATE … RETURNING` inside the ticket-creation transaction. **Carried forward as
-a commitment for Issue #15** — recorded so it is not lost when Create Ticket is
-implemented. Reviewer approved on that basis ("fix it on the feature side").
+reviewer confirmed is correct. The contract already mandates the safe approach —
+`specification.md` §7.3 says the sequence row is "updated inside the creation
+transaction … keeps allocation atomic under concurrency." Replied on the PR that
+it will be fixed with the ticket-creation feature: allocation will run as an
+atomic `UPDATE … RETURNING` (or an equivalent single-statement increment) inside
+the same transaction that inserts the Ticket. **Carried forward as a commitment
+for Issue #15** — recorded here so it is not lost when Create Ticket is built.
+Reviewer approved on that basis ("fix it on the feature side").
 
 - **Approval:** `APPROVED` by @copter549365; PR #22 merged into `lab2-staging` (2026-09-05).
 
