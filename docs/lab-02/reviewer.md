@@ -116,6 +116,17 @@ intake flow, and the Part 6 valid/invalid-attachment evidence is captured there.
 Recorded as **D-12** in `specification.md` and noted in `ui-spec.md` §8.2 so the
 deferral is explicit. No code change to #15.
 
+### PR #25 — feat: My Tickets owned list (Issue #16)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/25
+- **Base:** `lab2-staging` ← **Head:** `feature/6-my-tickets`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-09-06 — "ตรงตาม Acceptance
+  criteria ที่เขียนมาครับ" (matches the acceptance criteria). PR merged into
+  `lab2-staging`.
+
+No changes requested. Review-focus questions (completeness of the query-fallback
+table, and the un-windowed pager) accepted as delivered.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
@@ -170,6 +181,34 @@ raised, both hardening rather than blockers:
    ownership leak). A strict `^\d+$` / `Number.isInteger` check returning 404 on
    non-numeric input is tighter.
 
-- **Resolution:** awaiting @copter549365's reply.
+- **Resolution:** @copter549365 addressed the points; approved on re-review and
+  PR #23 merged.
 
-- **Resolution:** awaiting @copter549365's fixes and reply.
+### PR #24 — test: Playwright E2E + responsive visual suite, and two UI fixes
+
+- **PR:** https://github.com/copter549365/toktickit/pull/24
+- **Review verdict:** `CHANGES_REQUESTED` by @AlphabetCG, 2026-09-06.
+
+Ran the whole suite against real PostgreSQL + dev servers: Playwright **14/14**
+(E2E-01…05, RESP-01…03, all viewports), client **33/33**, server **70/71**. The
+E2E coverage, the 42 captured screenshots, and the two real defects fixed by the
+visual review (no keyboard focus indicator on `.btn-zg-*`; filenames crushed to
+one character at narrow widths) are all sound. One blocker for a release-prep PR
+heading to `main`:
+
+- **API-08b in `my-tickets.api.test.ts:136` is red.** The DoD (`specification.md`
+  §10) requires all tests to pass on `main` with none skipped, and Part 3
+  evidence attaches a run from `main`. The failure comes from a search fixture
+  `"…100% CPU spike_"` where `%`/`_` act as SQL-LIKE wildcards — the same
+  wildcard-escaping issue raised on PR #22. Fix (escape the term or adjust the
+  fixture) before merge rather than flag it in `tests.md`.
+
+Non-blocking: `playwright.config.ts` `reuseExistingServer: true` should be
+`!process.env.CI`; and the E2E specs create real tickets without cleanup, which
+accumulates in the dev DB across runs.
+
+- **Resolution:** awaiting @copter549365's fix of API-08b, then approval.
+
+> Note: a duplicate `CHANGES_REQUESTED` was posted from this account at 08:27
+> (raising the same API-08b blocker) before the 05:56 review was noticed. The
+> 05:56 review above is the authoritative one.
