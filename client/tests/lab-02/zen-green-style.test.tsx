@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -8,6 +8,13 @@ import { AppShell } from "../../src/components/AppShell.js";
 import { PriorityBadge, RemovedBadge, StatusBadge } from "../../src/components/Badge.js";
 import { Button } from "../../src/components/Button.js";
 import { TextField } from "../../src/components/Field.js";
+import { MyTickets } from "../../src/screens/MyTickets.js";
+import { RequesterProvider } from "../../src/requester.js";
+import * as api from "../../src/api.js";
+
+// Mocking the API module is inert for the component-level tests below (none of
+// them import it) and lets the STYLE-02 test render My Tickets.
+vi.mock("../../src/api.js");
 
 // STYLE-04 and STYLE-05 from docs/lab-02/tests.md. The visual contract is
 // docs/lab-02/ui-spec.md sections 1, 2 and 4.
@@ -234,5 +241,58 @@ describe("Zen Green foundation", () => {
       renderShell();
       expect(screen.queryByRole("button", { name: "Change Requester" })).not.toBeInTheDocument();
     });
+  });
+});
+
+// STYLE-02 — AC-38: icon-only controls expose an accessible name and a tooltip.
+// My Tickets is where the icon-only controls live (sort direction, pager arrows).
+describe("STYLE-02: icon-only controls are labelled and have tooltips", () => {
+  const getTickets = vi.mocked(api.getTickets);
+  const getCategories = vi.mocked(api.getCategories);
+  const getRelatedSystems = vi.mocked(api.getRelatedSystems);
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    localStorage.setItem("toktickit.requester", JSON.stringify({ id: 1, name: "S", email: "s@t.test" }));
+    getCategories.mockResolvedValue([]);
+    getRelatedSystems.mockResolvedValue([]);
+    getTickets.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          ticketNumber: "TKT-2026-000001",
+          summary: "x",
+          category: { id: 1, name: "Hardware" },
+          relatedSystem: { id: 7, name: "Laptop" },
+          requestedPriority: "MEDIUM",
+          currentStatus: "NEW",
+          ticketDate: "2026-08-26T09:14:00.000Z",
+          updatedAt: "2026-08-26T09:14:00.000Z",
+        },
+      ],
+      page: 1,
+      pageSize: 10,
+      totalItems: 23,
+      totalPages: 3,
+    });
+  });
+
+  it("labels the sort-direction toggle and the pager arrows with a name and a title", async () => {
+    render(
+      <MemoryRouter initialEntries={["/tickets"]}>
+        <RequesterProvider>
+          <MyTickets />
+        </RequesterProvider>
+      </MemoryRouter>
+    );
+
+    const sort = await screen.findByRole("button", { name: /Sort direction/i });
+    expect(sort).toHaveAttribute("title");
+
+    for (const name of ["Previous page", "Next page"]) {
+      const btn = screen.getByRole("button", { name });
+      expect(btn).toHaveAttribute("title");
+    }
   });
 });

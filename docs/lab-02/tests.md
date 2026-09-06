@@ -60,8 +60,8 @@ fixtures invented per test.
 | UNIT-01 | Unit | AC-09, BR-14 | Ticket Number generator format | Matches `TKT-YYYY-NNNNNN` with the current year and zero padding | `server/tests/lab-02/ticket-number.unit.test.ts` | Pass |
 | UNIT-02 | Unit | AC-09, BR-14 | Sequence increments and restarts each year | Consecutive calls increment; a new year restarts at `000001` | `server/tests/lab-02/ticket-number.unit.test.ts` | Pass |
 | UNIT-03 | Unit | AC-12, BR-39, BR-40 | Summary and Description validators | Trimmed first; 4 and 151 chars rejected, 5 and 150 accepted; 19 and 5001 rejected, 20 and 5000 accepted | `server/tests/lab-02/validation.unit.test.ts` | Pass |
-| UNIT-04 | Unit | AC-27, AC-28, BR-04, BR-05, BR-51 | Attachment type and size validators | PDF/PNG/JPEG/WEBP accepted by detected MIME type; `.exe` rejected; 5 MB accepted, 5 MB + 1 byte rejected | `server/tests/lab-02/validation.unit.test.ts` | Planned |
-| UNIT-05 | Unit | BR-50 | Stored filename generation | Output is a server-generated UUID plus a validated extension; `../../etc/passwd` in the original name cannot escape the upload directory | `server/tests/lab-02/validation.unit.test.ts` | Planned |
+| UNIT-04 | Unit | AC-27, AC-28, BR-04, BR-05, BR-51 | Attachment type and size validators | PDF/PNG/JPEG/WEBP accepted by detected MIME type; `.exe` rejected; 5 MB accepted, 5 MB + 1 byte rejected | `server/tests/lab-02/validation.unit.test.ts` | Pass |
+| UNIT-05 | Unit | BR-50 | Stored filename generation | Output is a server-generated UUID plus a validated extension; `../../etc/passwd` in the original name cannot escape the upload directory | `server/tests/lab-02/validation.unit.test.ts` | Pass |
 | UNIT-06 | Unit | AC-20, BR-36 | List query parameter normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `order=sideways` each fall back to the documented default | `server/tests/lab-02/validation.unit.test.ts` | Pass |
 
 ### 2.2 API / integration
@@ -84,19 +84,19 @@ fixtures invented per test.
 | API-14 | API | AC-19, BR-33, BR-34 | Default sort and tiebreak | Ticket Date descending; Tickets sharing a date are ordered deterministically by id | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-15 | API | AC-20, BR-36 | Invalid query parameters | `page=0&pageSize=999&sort=bogus` succeeds using documented defaults | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-16 | API | BR-38 | Filters compose with ownership | A Category filter matching another Requester's Tickets still returns none of them | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
-| API-17 | API | AC-23 | Owned Ticket detail | 200; full Ticket with its attachment metadata | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| API-18 | API | AC-24, BR-28 | Cross-Requester Ticket access | 404; response body carries no Ticket data | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| API-19 | API | AC-25, BR-60 | Non-existent Ticket | Response is byte-identical to API-18 | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| API-20 | API | AC-26 | Valid upload | 201; attachment stored and listed as active | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-21 | API | AC-27, BR-04 | Unsupported type | 415 with a reason naming the unsupported type | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-22 | API | AC-28, BR-05 | Oversized upload | 413 with a reason naming the size limit | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-23 | API | AC-29, BR-06 | Attachment limit | A sixth active attachment returns 409 | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-24 | API | AC-30 | Download active attachment | 200; original filename and byte-identical content | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-25 | API | AC-31, BR-07, BR-54 | Soft removal | 200; row still exists with `removedAt`, remover, and reason recorded | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-26 | API | AC-32, BR-08 | Download a removed attachment | Refused; no file content returned | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-27 | API | AC-33, BR-53 | Removal without a reason | 400; the attachment stays active | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-28 | API | AC-34, BR-56 | Removed files free quota | After removing one of five, a new upload succeeds | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-29 | API | AC-35, BR-29 | Cross-Requester attachment access | 404 on direct attachment id from the wrong Requester | `server/tests/lab-02/attachments.api.test.ts` | Planned |
+| API-17 | API | AC-23 | Owned Ticket detail | 200; full Ticket with its attachment metadata | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-18 | API | AC-24, BR-28 | Cross-Requester Ticket access | 404; response body carries no Ticket data | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-19 | API | AC-25, BR-60 | Non-existent Ticket | Response is byte-identical to API-18 | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-20 | API | AC-26 | Valid upload | 201; attachment stored and listed as active | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-21 | API | AC-27, BR-04 | Unsupported type | 415 with a reason naming the unsupported type | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-22 | API | AC-28, BR-05 | Oversized upload | 413 with a reason naming the size limit | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-23 | API | AC-29, BR-06 | Attachment limit | A sixth active attachment returns 409 | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-24 | API | AC-30 | Download active attachment | 200; original filename and byte-identical content | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-25 | API | AC-31, BR-07, BR-54 | Soft removal | 200; row still exists with `removedAt`, remover, and reason recorded | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-26 | API | AC-32, BR-08 | Download a removed attachment | Refused; no file content returned | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-27 | API | AC-33, BR-53 | Removal without a reason | 400; the attachment stays active | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-28 | API | AC-34, BR-56 | Removed files free quota | After removing one of five, a new upload succeeds | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-29 | API | AC-35, BR-29 | Cross-Requester attachment access | 404 on direct attachment id from the wrong Requester | `server/tests/lab-02/attachments.api.test.ts` | Pass |
 
 ### 2.3 UI component
 
@@ -118,17 +118,17 @@ fixtures invented per test.
 | UI-14 | UI | AC-21, BR-57 | Empty state | "No tickets yet" wording with a create action | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-15 | UI | AC-22, BR-57, BR-58 | No-results state | Distinct wording from UI-14, plus a working Clear filters control | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-16 | UI | AC-18 | Pagination controls | Page controls reflect metadata and request the correct page | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
-| UI-17 | UI | AC-23, BR-59 | Read-only detail | No Ticket field is an enabled input or editable control | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Planned |
-| UI-18 | UI | AC-31, BR-55 | Removed attachment presentation | Still listed, badged Removed with its reason, and no download control | `client/tests/lab-02/AttachmentSection.test.tsx` | Planned |
-| UI-19 | UI | AC-33, BR-53 | Removal confirmation | Confirm stays disabled until a reason is entered | `client/tests/lab-02/AttachmentSection.test.tsx` | Planned |
-| UI-20 | UI | AC-27, AC-28, BR-52 | Rejected file feedback | The specific reason is shown — unsupported type, too large, or limit reached | `client/tests/lab-02/AttachmentSection.test.tsx` | Planned |
+| UI-17 | UI | AC-23, BR-59 | Read-only detail | No Ticket field is an enabled input or editable control | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Pass |
+| UI-18 | UI | AC-31, BR-55 | Removed attachment presentation | Still listed, badged Removed with its reason, and no download control | `client/tests/lab-02/AttachmentSection.test.tsx` | Pass |
+| UI-19 | UI | AC-33, BR-53 | Removal confirmation | Confirm stays disabled until a reason is entered | `client/tests/lab-02/AttachmentSection.test.tsx` | Pass |
+| UI-20 | UI | AC-27, AC-28, BR-52 | Rejected file feedback | The specific reason is shown — unsupported type, too large, or limit reached | `client/tests/lab-02/AttachmentSection.test.tsx` | Pass |
 
 ### 2.4 UI style
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
 | STYLE-01 | UI style | AC-37 | Required-field marking | Every required field renders the red asterisk **and** still produces a message on failure | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
-| STYLE-02 | UI style | AC-38 | Accessible labelling | Every icon-only control exposes an accessible name and a tooltip | `client/tests/lab-02/zen-green-style.test.tsx` | Planned |
+| STYLE-02 | UI style | AC-38 | Accessible labelling | Every icon-only control exposes an accessible name and a tooltip | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
 | STYLE-03 | UI style | AC-39 | Badge semantics | Status and Priority badges contain text; meaning never rests on colour alone | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
 | STYLE-04 | UI style | §6.1, §6.4 | Field-state classes | Editable and read-only fields carry distinct classes bound to theme tokens; no hardcoded hex in components | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |
 | STYLE-05 | UI style | BR-43 | Busy and disabled state | The submitting button carries both the disabled attribute and the busy indicator class | `client/tests/lab-02/zen-green-style.test.tsx` | **Pass** |

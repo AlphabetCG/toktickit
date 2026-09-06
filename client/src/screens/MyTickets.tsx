@@ -157,6 +157,7 @@ export function MyTickets() {
         <Button
           variant="secondary"
           aria-label={`Sort direction: ${query.order === "desc" ? "descending" : "ascending"}`}
+          title={`Sort direction: ${query.order === "desc" ? "descending" : "ascending"}`}
           onClick={() => update({ order: query.order === "desc" ? "asc" : "desc" })}
         >
           {query.order === "desc" ? "↓" : "↑"}
@@ -244,7 +245,7 @@ export function MyTickets() {
               {Math.min(data.page * data.pageSize, data.totalItems)} of {data.totalItems}
             </span>
             <div className="zg-pager" role="navigation" aria-label="Pagination">
-              <Button variant="secondary" disabled={data.page <= 1} aria-label="Previous page" onClick={() => update({ page: data.page - 1 })}>
+              <Button variant="secondary" disabled={data.page <= 1} aria-label="Previous page" title="Previous page" onClick={() => update({ page: data.page - 1 })}>
                 ‹
               </Button>
               {Array.from({ length: data.totalPages }, (_, i) => i + 1).map((p) => (
@@ -257,7 +258,7 @@ export function MyTickets() {
                   {p}
                 </Button>
               ))}
-              <Button variant="secondary" disabled={data.page >= data.totalPages} aria-label="Next page" onClick={() => update({ page: data.page + 1 })}>
+              <Button variant="secondary" disabled={data.page >= data.totalPages} aria-label="Next page" title="Next page" onClick={() => update({ page: data.page + 1 })}>
                 ›
               </Button>
             </div>
