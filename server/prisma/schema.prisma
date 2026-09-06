@@ -9,10 +9,110 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// The IT request categories shown on the TokTickIT page. `name` is unique so
-// the seed can upsert on it and stay safe to re-run.
+// Lab 2 fixes the Requested Priority set to three levels (specification §11 D-02).
+enum RequestedPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// A new Ticket is always NEW in Lab 2; status changes are excluded (BR-02, §7.3).
+// Declared with only NEW so no value is unreachable — Lab 3 extends this with
+// ALTER TYPE, which needs no data migration.
+enum TicketStatus {
+  NEW
+}
+
+// The IT request categories shown on the TokTickIT page. `name` is unique so the
+// seed can upsert on it and stay safe to re-run. `isActive` is added in Lab 2 so
+// the Create Ticket form can offer only live categories (FR-05, BR-41).
 model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// The systems a ticket can be raised against (Email, VPN, …). Seeded, filterable,
+// and offered on the Create Ticket form. `name` is unique for idempotent upserts.
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// The Development Requester. Not authentication (BR-03) — the selector uses this
+// to test multi-user ownership before Lab 3 adds real login. `email` is unique so
+// Lab 3 can attach credentials without restructuring the table (BR-63).
+model RequesterUser {
+  id        Int          @id @default(autoincrement())
+  name      String
+  email     String       @unique
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  tickets   Ticket[]
+  uploaded  Attachment[] @relation("UploadedBy")
+  removed   Attachment[] @relation("RemovedBy")
+}
+
+// One IT support ticket. Ticket Number, Ticket Date, and Current Status are set
+// by the server and never accepted from the client (BR-15, BR-16, BR-18).
+model Ticket {
+  id                Int               @id @default(autoincrement())
+  ticketNumber      String            @unique
+  requesterId       Int
+  categoryId        Int
+  relatedSystemId   Int
+  summary           String            @db.VarChar(150)
+  description       String            @db.Text
+  requestedPriority RequestedPriority
+  currentStatus     TicketStatus      @default(NEW)
+  ticketDate        DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  requester     RequesterUser @relation(fields: [requesterId], references: [id])
+  category      Category      @relation(fields: [categoryId], references: [id])
+  relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  attachments   Attachment[]
+
+  // Every My Tickets query filters by requesterId and sorts by ticketDate desc;
+  // the composite index satisfies both from one scan (§7.3). The second supports
+  // the most selective filter (BR-32).
+  @@index([requesterId, ticketDate(sort: Desc)])
+  @@index([requesterId, currentStatus])
+}
+
+// File attached to a ticket. Removal is soft: `removedAt IS NULL` means active,
+// which keeps one row per attachment for its whole life (BR-07, §7.3). The stored
+// filename is server-generated to prevent path traversal (BR-50).
+model Attachment {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  originalFilename String
+  storedFilename   String    @unique
+  mimeType         String
+  sizeBytes        Int
+  uploadedAt       DateTime  @default(now())
+  uploadedById     Int
+  removedAt        DateTime?
+  removedById      Int?
+  removalReason    String?   @db.VarChar(200)
+
+  ticket     Ticket         @relation(fields: [ticketId], references: [id])
+  uploadedBy RequesterUser  @relation("UploadedBy", fields: [uploadedById], references: [id])
+  removedBy  RequesterUser? @relation("RemovedBy", fields: [removedById], references: [id])
+
+  @@index([ticketId, removedAt])
+}
+
+// One row per year, updated inside the creation transaction, so Ticket Numbers
+// restart each year (BR-14) and allocation stays atomic under concurrency (§7.3).
+model TicketNumberSequence {
+  year      Int @id
+  lastValue Int @default(0)
 }
