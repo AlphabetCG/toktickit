@@ -92,7 +92,8 @@ subtree by requester id for BR-22); the reviewer accepted both as delivered.
 
 - **PR:** https://github.com/AlphabetCG/toktickit/pull/24
 - **Base:** `lab2-staging` ← **Head:** `feature/5-create-ticket`
-- **Review verdict:** `COMMENTED`, 2026-09-05 — awaiting re-review after the reply.
+- **Review verdict:** `COMMENTED` then `APPROVED`, 2026-09-05 — "แก้ไขได้โอเคครับ"
+  (the fix is fine) after the D-12 reply. PR merged into `lab2-staging`.
 
 #### Reviewer comment
 
@@ -143,5 +144,32 @@ Plus four to address this round if possible, otherwise the next PR: empty
 as SQL wildcards (`app.ts:211`); pagination renders every page number and
 overflows on mobile (`MyTickets.tsx:389`); keyboard focus is lost on every
 refetch (`MyTickets.tsx:84`).
+
+- **Resolution:** @copter549365 addressed the findings; PR #22 merged.
+
+### PR #23 — feat: Requester Ticket Detail screen & attachment lifecycle
+
+- **PR:** https://github.com/copter549365/toktickit/pull/23
+- **Review verdict:** `COMMENTED` by @AlphabetCG, 2026-09-05.
+
+The ownership handling is solid — `/api/tickets/:id`, `/api/attachments/:id`, and
+download all return an identical `ATTACHMENT_NOT_FOUND`/`TICKET_NOT_FOUND` for
+not-found, not-owned, and soft-removed alike, so removal cannot be probed
+(AC-24/AC-25); the removed-download guard has a passing test (API-23), and
+soft-remove requires a reason and returns 409 on a second removal. Two points
+raised, both hardening rather than blockers:
+
+1. **`isRemoved` and `removedAt` encode the same state in two columns.** The
+   DELETE sets both, which is correct today, but two fields that must always
+   agree can drift (a later code path or migration touching one), and the
+   download guard keys off `isRemoved`. A single source of truth —
+   `removedAt IS NULL` = active, with `isRemoved` derived at serialisation —
+   cannot disagree with itself.
+2. **Loose id parsing.** `parseInt(req.params.id, 10)` accepts `"7x"` as `7`, so
+   `/api/attachments/7x/download` resolves to id 7 (still requester-scoped, so no
+   ownership leak). A strict `^\d+$` / `Number.isInteger` check returning 404 on
+   non-numeric input is tighter.
+
+- **Resolution:** awaiting @copter549365's reply.
 
 - **Resolution:** awaiting @copter549365's fixes and reply.

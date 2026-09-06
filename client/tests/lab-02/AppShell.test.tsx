@@ -9,11 +9,22 @@ import * as api from "../../src/api.js";
 // Issue #12 shell tests handed off to. Contract: BR-19, BR-22.
 vi.mock("../../src/api.js");
 const getRequesters = vi.mocked(api.getRequesters);
+const getTickets = vi.mocked(api.getTickets);
+const getCategories = vi.mocked(api.getCategories);
+const getRelatedSystems = vi.mocked(api.getRelatedSystems);
 
 const ACTIVE = [
   { id: 1, name: "Somchai Prasert", email: "somchai.prasert@toktickit.test" },
   { id: 2, name: "Nadia Rahman", email: "nadia.rahman@toktickit.test" },
 ];
+
+const emptyList = {
+  items: [],
+  page: 1,
+  pageSize: 10,
+  totalItems: 0,
+  totalPages: 0,
+} satisfies api.TicketListResponse;
 
 function renderApp(path = "/tickets") {
   return render(
@@ -28,6 +39,9 @@ describe("Requester context in the app shell", () => {
     localStorage.clear();
     vi.clearAllMocks();
     getRequesters.mockResolvedValue(ACTIVE);
+    getTickets.mockResolvedValue(emptyList);
+    getCategories.mockResolvedValue([]);
+    getRelatedSystems.mockResolvedValue([]);
   });
 
   // UI-05 — AC-01, BR-19
@@ -41,21 +55,21 @@ describe("Requester context in the app shell", () => {
   });
 
   // UI-06 — AC-04, BR-22
-  it("UI-06: switching Requester shows the new name and clears the previous Requester's data", async () => {
+  it("UI-06: switching Requester shows the new name and clears the previous one", async () => {
     const user = userEvent.setup();
     localStorage.setItem("toktickit.requester", JSON.stringify(ACTIVE[0]));
     renderApp("/tickets");
 
-    // Started as Requester A — the scoped screen shows A's identity.
-    expect(await screen.findByText(/somchai\.prasert@toktickit\.test/)).toBeInTheDocument();
+    // Started as Requester A — the shell identity shows A's name.
+    expect(await screen.findByText("Somchai Prasert")).toBeInTheDocument();
 
     // Change Requester → selection screen → pick Requester B → Continue.
     await user.click(screen.getByRole("button", { name: "Change Requester" }));
     await user.selectOptions(await screen.findByLabelText(/Development Requester/), "2");
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
-    // B is shown; none of A's data survives on screen (BR-22).
-    expect(await screen.findByText(/nadia\.rahman@toktickit\.test/)).toBeInTheDocument();
-    expect(screen.queryByText(/somchai\.prasert@toktickit\.test/)).not.toBeInTheDocument();
+    // The shell now shows B; the keyed remount leaves none of A's identity behind.
+    expect(await screen.findByText("Nadia Rahman")).toBeInTheDocument();
+    expect(screen.queryByText("Somchai Prasert")).not.toBeInTheDocument();
   });
 });

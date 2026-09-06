@@ -69,6 +69,57 @@ export async function getRelatedSystems(requesterId: number): Promise<RelatedSys
   return res.json();
 }
 
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  requestedPriority: RequestedPriority;
+  currentStatus: string;
+  ticketDate: string;
+  updatedAt: string;
+}
+
+export interface TicketListResponse {
+  items: TicketListItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface TicketListParams {
+  search?: string;
+  categoryId?: string;
+  relatedSystemId?: string;
+  priority?: string;
+  status?: string;
+  sort?: string;
+  order?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// The selected Requester's Tickets, paginated. Accepts an AbortSignal so a slow
+// earlier response can be discarded rather than overwriting a newer one.
+export async function getTickets(
+  requesterId: number,
+  params: TicketListParams,
+  opts: { signal?: AbortSignal } = {}
+): Promise<TicketListResponse> {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") qs.set(key, String(value));
+  }
+  const res = await fetch(`${API_URL}/api/tickets?${qs.toString()}`, {
+    headers: scoped(requesterId),
+    signal: opts.signal,
+  });
+  if (!res.ok) throw new Error(`Tickets request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
 // Creates one Ticket. Throws ValidationError on a 400 so the form can show
 // per-field messages (BR-44), and a plain Error on any other failure so the form
 // can show a safe message while preserving entered values (BR-46).

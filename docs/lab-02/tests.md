@@ -62,7 +62,7 @@ fixtures invented per test.
 | UNIT-03 | Unit | AC-12, BR-39, BR-40 | Summary and Description validators | Trimmed first; 4 and 151 chars rejected, 5 and 150 accepted; 19 and 5001 rejected, 20 and 5000 accepted | `server/tests/lab-02/validation.unit.test.ts` | Pass |
 | UNIT-04 | Unit | AC-27, AC-28, BR-04, BR-05, BR-51 | Attachment type and size validators | PDF/PNG/JPEG/WEBP accepted by detected MIME type; `.exe` rejected; 5 MB accepted, 5 MB + 1 byte rejected | `server/tests/lab-02/validation.unit.test.ts` | Planned |
 | UNIT-05 | Unit | BR-50 | Stored filename generation | Output is a server-generated UUID plus a validated extension; `../../etc/passwd` in the original name cannot escape the upload directory | `server/tests/lab-02/validation.unit.test.ts` | Planned |
-| UNIT-06 | Unit | AC-20, BR-36 | List query parameter normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `order=sideways` each fall back to the documented default | `server/tests/lab-02/validation.unit.test.ts` | Planned |
+| UNIT-06 | Unit | AC-20, BR-36 | List query parameter normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `order=sideways` each fall back to the documented default | `server/tests/lab-02/validation.unit.test.ts` | Pass |
 
 ### 2.2 API / integration
 
@@ -77,13 +77,13 @@ fixtures invented per test.
 | API-07 | API | AC-12, BR-39 | Summary below minimum | 400 with a field-level message naming Summary | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-08 | API | BR-41 | Unknown or inactive reference id | 400; no Ticket is created | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-09 | API | BR-16 | Client-supplied read-only fields | `ticketNumber`, `ticketDate`, and `currentStatus` in the body are ignored; server values win | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
-| API-10 | API | AC-15, BR-27 | Owned-only listing | Requester B's list contains none of Requester A's Tickets | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-11 | API | AC-16, BR-31 | Search | Case-insensitive match on Summary and Ticket Number; non-matching Tickets excluded | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-12 | API | AC-17, BR-32 | Category filter | Only Tickets in the requested Category are returned | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-13 | API | AC-18, BR-37 | Pagination | Page 2 returns the next slice; `page`, `pageSize`, `totalItems`, `totalPages` are correct | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-14 | API | AC-19, BR-33, BR-34 | Default sort and tiebreak | Ticket Date descending; Tickets sharing a date are ordered deterministically by id | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-15 | API | AC-20, BR-36 | Invalid query parameters | `page=0&pageSize=999&sort=bogus` succeeds using documented defaults | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-16 | API | BR-38 | Filters compose with ownership | A Category filter matching another Requester's Tickets still returns none of them | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
+| API-10 | API | AC-15, BR-27 | Owned-only listing | Requester B's list contains none of Requester A's Tickets | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-11 | API | AC-16, BR-31 | Search | Case-insensitive match on Summary and Ticket Number; non-matching Tickets excluded | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-12 | API | AC-17, BR-32 | Category filter | Only Tickets in the requested Category are returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-13 | API | AC-18, BR-37 | Pagination | Page 2 returns the next slice; `page`, `pageSize`, `totalItems`, `totalPages` are correct | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-14 | API | AC-19, BR-33, BR-34 | Default sort and tiebreak | Ticket Date descending; Tickets sharing a date are ordered deterministically by id | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-15 | API | AC-20, BR-36 | Invalid query parameters | `page=0&pageSize=999&sort=bogus` succeeds using documented defaults | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-16 | API | BR-38 | Filters compose with ownership | A Category filter matching another Requester's Tickets still returns none of them | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-17 | API | AC-23 | Owned Ticket detail | 200; full Ticket with its attachment metadata | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
 | API-18 | API | AC-24, BR-28 | Cross-Requester Ticket access | 404; response body carries no Ticket data | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
 | API-19 | API | AC-25, BR-60 | Non-existent Ticket | Response is byte-identical to API-18 | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
@@ -113,11 +113,11 @@ fixtures invented per test.
 | UI-09 | UI | AC-13, BR-43 | Duplicate submission guard | Submit is disabled and shows busy; two rapid clicks produce one API call | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-10 | UI | AC-14, BR-45, BR-46 | Submission failure | Safe error message shown and every entered value is still in the form | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-11 | UI | AC-07 | Success state | The returned Ticket Number and the next action are displayed | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
-| UI-12 | UI | AC-15 | List rendering | Rows reflect the API response, not hard-coded markup | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
-| UI-13 | UI | AC-16 | Search interaction | Typing a term issues a request carrying that search parameter | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
-| UI-14 | UI | AC-21, BR-57 | Empty state | "No tickets yet" wording with a create action | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
-| UI-15 | UI | AC-22, BR-57, BR-58 | No-results state | Distinct wording from UI-14, plus a working Clear filters control | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
-| UI-16 | UI | AC-18 | Pagination controls | Page controls reflect metadata and request the correct page | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
+| UI-12 | UI | AC-15 | List rendering | Rows reflect the API response, not hard-coded markup | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-13 | UI | AC-16 | Search interaction | Typing a term issues a request carrying that search parameter | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-14 | UI | AC-21, BR-57 | Empty state | "No tickets yet" wording with a create action | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-15 | UI | AC-22, BR-57, BR-58 | No-results state | Distinct wording from UI-14, plus a working Clear filters control | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-16 | UI | AC-18 | Pagination controls | Page controls reflect metadata and request the correct page | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-17 | UI | AC-23, BR-59 | Read-only detail | No Ticket field is an enabled input or editable control | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Planned |
 | UI-18 | UI | AC-31, BR-55 | Removed attachment presentation | Still listed, badged Removed with its reason, and no download control | `client/tests/lab-02/AttachmentSection.test.tsx` | Planned |
 | UI-19 | UI | AC-33, BR-53 | Removal confirmation | Confirm stays disabled until a reason is entered | `client/tests/lab-02/AttachmentSection.test.tsx` | Planned |
