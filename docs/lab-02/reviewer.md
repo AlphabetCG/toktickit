@@ -127,6 +127,20 @@ deferral is explicit. No code change to #15.
 No changes requested. Review-focus questions (completeness of the query-fallback
 table, and the un-windowed pager) accepted as delivered.
 
+### PR #26 — feat: Ticket Detail and attachment lifecycle (Issue #17)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/26
+- **Base:** `lab2-staging` ← **Head:** `feature/7-ticket-detail-attachments`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-09-06 — "ดีมากเด้งดึ๋งไม่มี
+  อะไรต้องแก้ไข" (very good, nothing to fix). Approved on `0b0649d` and PR merged
+  into `lab2-staging`.
+
+No changes requested. The PR's review-focus notes — magic-byte MIME sniffing over
+extension trust (BR-51), UUID stored filenames so the original name is never a
+path segment (BR-50), ownership checked before validation so ids cannot be probed,
+and identical 404s for not-found/not-owned/soft-removed — were accepted as
+delivered.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
@@ -207,7 +221,11 @@ Non-blocking: `playwright.config.ts` `reuseExistingServer: true` should be
 `!process.env.CI`; and the E2E specs create real tickets without cleanup, which
 accumulates in the dev DB across runs.
 
-- **Resolution:** awaiting @copter549365's fix of API-08b, then approval.
+- **Resolution:** @copter549365 merged PR #24 into their `lab2-staging`
+  (2026-09-06). This was their last Lab 2 feature PR, so it is the latest PR
+  reviewed this cycle; no newer partner PR exists to review. The API-08b blocker
+  stands on record as a release-prep concern (all tests must be green on `main`,
+  DoD `specification.md` §10) for their release integration.
 
 > Note: a duplicate `CHANGES_REQUESTED` was posted from this account at 08:27
 > (raising the same API-08b blocker) before the 05:56 review was noticed. The

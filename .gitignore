@@ -14,6 +14,13 @@ server/uploads/
 # playwright
 test-results/
 playwright-report/
+blob-report/
+.playwright/
+# root lockfile — the E2E root package.json is committed, but per-package
+# lockfiles live in client/ and server/ only (AGENTS.md)
+/package-lock.json
+# claude skills lockfile (local tooling, not part of the lab)
+skills-lock.json
 # logs & OS
 *.log
 .DS_Store

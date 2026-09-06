@@ -55,8 +55,21 @@ and 5 development requesters (4 active, 1 inactive).
 ```bash
 cd server && npm test          # Vitest + Supertest (needs a migrated + seeded DB)
 cd client && npm test          # Vitest + Testing Library
-npx playwright test            # e2e (repo root)
+
+# End-to-end + responsive (from the repo root), needs a migrated + seeded DB:
+npm install                    # installs @playwright/test at the root
+npx playwright install chromium
+npm run test:e2e               # === npx playwright test
+npm run test:e2e:report        # open the last HTML report
 ```
+
+The Playwright config **starts both servers itself** (`server` on :3000 and the
+Vite client on :5173), so the suite runs against a real Express API and a real
+PostgreSQL — no mocks. It runs Chromium only, serially, and drives the five
+end-to-end journeys (`e2e/lab-02/requester-ticket-flow.spec.ts`) plus the
+responsive/no-overflow checks (`e2e/lab-02/responsive.spec.ts`). The responsive
+spec writes the desktop/tablet/mobile evidence to
+`artifacts/lab-02/screenshots/` (ui-spec §13).
 
 To rebuild the database from scratch: `cd server && npx prisma migrate reset --force`
 (re-applies every migration and re-seeds).

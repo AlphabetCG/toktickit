@@ -647,36 +647,43 @@ Implementation notes:
 
 ## 12. Visual Inspection Checklist
 
-Completed by hand against this document and the captured screenshots — **not
-from memory** — before the release PR. Automated tests cannot see clipping or
-overlap.
+Completed by hand for Issue #19 (2026-09-06) against this document and the 24
+captured screenshots under `artifacts/lab-02/screenshots/` — **not from memory**.
+Automated tests cannot see clipping or overlap. One defect was found and fixed
+(see the note below).
 
 ### Per screen × per viewport
 
 Repeat for Create Ticket, My Tickets, and Ticket Detail at desktop, tablet, and
 mobile:
 
-- [ ] No horizontal page scrolling
-- [ ] No clipped or truncated labels
-- [ ] No overlapping validation messages
-- [ ] No hidden or unreachable buttons
-- [ ] Attachment filenames readable
-- [ ] Filters, pagination, and attachment controls usable
-- [ ] Editable and read-only fields visually distinct
-- [ ] Validation messages beneath their own field
-- [ ] Consistent field heights and label weights
-- [ ] Button hierarchy correct; exactly one primary action
-- [ ] Zen Green tokens applied; no stray palette, no raw Bootstrap colours
+- [x] No horizontal page scrolling _(also RESP-01…03)_
+- [x] No clipped or truncated labels
+- [x] No overlapping validation messages
+- [x] No hidden or unreachable buttons
+- [x] Attachment filenames readable
+- [x] Filters, pagination, and attachment controls usable
+- [x] Editable and read-only fields visually distinct
+- [x] Validation messages beneath their own field
+- [x] Consistent field heights and label weights
+- [x] Button hierarchy correct; exactly one primary action
+- [x] Zen Green tokens applied; no stray palette, no raw Bootstrap colours
 
 ### Cross-cutting
 
-- [ ] Header, active-page indicator, and Requester identity present on every screen
-- [ ] Priority and Status badges consistent everywhere they appear
-- [ ] Empty and no-results states are visibly different from each other
-- [ ] Every screen state from §6 has been seen at least once
-- [ ] Removed attachments show metadata and reason, and expose no download control
-- [ ] Focus is visible on every control when tabbing through
-- [ ] Required fields show the asterisk and still produce a message on failure
+- [x] Header, active-page indicator, and Requester identity present on every screen
+- [x] Priority and Status badges consistent everywhere they appear
+- [x] Empty and no-results states are visibly different from each other
+- [x] Every screen state from §6 has been seen at least once
+- [x] Removed attachments show metadata and reason, and expose no download control
+- [x] Focus is visible on every control when tabbing through _(E2E-05 asserts `:focus-visible`)_
+- [x] Required fields show the asterisk and still produce a message on failure
+
+> **Fixed during this inspection:** the removal dialog's "Reason for removal"
+> label rendered beside the textarea instead of above it (§9.3), because the
+> dialog uses a raw label + textarea without the `Field` wrapper that stacks them
+> elsewhere. A `.zg-dialog`-scoped block/full-width rule in `theme.css` restores
+> the label-above layout; re-captured in `ticket-detail/desktop-remove-dialog.png`.
 
 ---
 
