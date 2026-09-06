@@ -4,6 +4,7 @@ import { AppShell } from "./components/AppShell.js";
 import { RequesterSelection } from "./screens/RequesterSelection.js";
 import { CreateTicket } from "./screens/CreateTicket.js";
 import { MyTickets } from "./screens/MyTickets.js";
+import { RequesterTicketDetail } from "./screens/RequesterTicketDetail.js";
 
 // The Requester-scoped half of the app. Rendered only once a Requester exists.
 function ScopedApp() {
@@ -26,6 +27,7 @@ function ScopedApp() {
       <Routes>
         <Route path="/tickets" element={<MyTickets />} />
         <Route path="/tickets/new" element={<CreateTicket />} />
+        <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         <Route path="*" element={<Navigate to="/tickets" replace />} />
       </Routes>
     </AppShell>

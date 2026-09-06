@@ -675,3 +675,140 @@ body {
     white-space: normal;
   }
 }
+
+/* ---------------------------------------------------- ticket detail  */
+
+.zg-back-link {
+  display: inline-block;
+  margin-bottom: var(--zg-space-3);
+  color: var(--zg-secondary);
+  text-decoration: none;
+  font-weight: var(--zg-fw-medium);
+}
+
+.zg-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+}
+
+.zg-detail-badges {
+  display: inline-flex;
+  gap: var(--zg-space-2);
+}
+
+.zg-detail-info {
+  text-align: left;
+  margin-bottom: var(--zg-space-5);
+}
+
+.zg-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--zg-space-3);
+  margin: 0 0 var(--zg-space-4);
+}
+
+@media (max-width: 767px) {
+  .zg-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zg-info {
+  margin: 0;
+}
+
+.zg-info__label {
+  font-size: var(--zg-fs-label);
+  font-weight: var(--zg-fw-medium);
+  color: var(--zg-text-muted);
+}
+
+.zg-info__value {
+  margin: 0;
+}
+
+.zg-detail-text {
+  line-height: var(--zg-lh-body);
+  white-space: pre-wrap;
+}
+
+/* ------------------------------------------------------- attachments  */
+
+.zg-attachments {
+  text-align: left;
+}
+
+.zg-attachment-list {
+  list-style: none;
+  margin: var(--zg-space-3) 0 0;
+  padding: 0;
+}
+
+.zg-attachment {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zg-space-3);
+  padding: var(--zg-space-3);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-md);
+  margin-bottom: var(--zg-space-2);
+}
+
+.zg-attachment__name {
+  font-weight: var(--zg-fw-medium);
+  word-break: break-word;
+  flex: 1 1 12rem;
+}
+
+.zg-attachment__meta,
+.zg-attachment__reason {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-attachment__actions {
+  display: inline-flex;
+  gap: var(--zg-space-2);
+  margin-left: auto;
+}
+
+.zg-attachment--removed {
+  background: var(--zg-disabled-bg);
+}
+
+.zg-attachment-removed {
+  margin-top: var(--zg-space-4);
+}
+
+.zg-btn--disabled {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-disabled-text);
+  cursor: not-allowed;
+}
+
+/* Modal removal dialog. */
+.zg-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--zg-space-4);
+  background: rgba(28, 43, 36, 0.45);
+}
+
+.zg-dialog {
+  width: 100%;
+  max-width: 30rem;
+  padding: var(--zg-space-5);
+  background: var(--zg-surface);
+  border-radius: var(--zg-radius-lg);
+  box-shadow: var(--zg-shadow);
+  text-align: left;
+}
