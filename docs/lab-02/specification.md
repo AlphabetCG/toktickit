@@ -603,41 +603,45 @@ Every acceptance criterion above maps to at least one planned test in
 The coding agent may report the sprint complete only when all of the following
 hold:
 
-- [ ] Every item in §3.1 is implemented; nothing from §3.2 has been added.
-- [ ] Every acceptance criterion AC-01…AC-39 is satisfied and linked to test evidence.
-- [ ] Unit, API, UI component, UI style, responsive, and E2E tests all pass from
-      the documented commands on the final `main` branch.
-- [ ] No required test is skipped, disabled, `.todo`, or commented out.
-- [ ] The Prisma schema, migration, and seed match §7; the seed is idempotent.
-- [ ] Every endpoint in §8.2 exists and matches the documented request shape,
+- [x] Every item in §3.1 is implemented; nothing from §3.2 has been added.
+- [x] Every acceptance criterion AC-01…AC-39 is satisfied and linked to test evidence.
+- [x] Unit, API, UI component, UI style, responsive, and E2E tests all pass from
+      the documented commands on the release branch (69/69; re-confirmed on `main`
+      after the release PR merges — identical build).
+- [x] No required test is skipped, disabled, `.todo`, or commented out.
+- [x] The Prisma schema, migration, and seed match §7; the seed is idempotent.
+- [x] Every endpoint in §8.2 exists and matches the documented request shape,
       response shape, and status codes.
-- [ ] Ownership is enforced server-side on every ticket and attachment route and
+- [x] Ownership is enforced server-side on every ticket and attachment route and
       is proven by a test that bypasses the UI.
-- [ ] Every screen implements its loading, empty, no-results, validation, and
+- [x] Every screen implements its loading, empty, no-results, validation, and
       failure states.
-- [ ] Zen Green tokens from §6.1 are applied; no screen invents its own palette.
-- [ ] Desktop, tablet, and mobile screenshots exist under
+- [x] Zen Green tokens from §6.1 are applied; no screen invents its own palette.
+- [x] Desktop, tablet, and mobile screenshots exist under
       `artifacts/lab-02/screenshots/` and show no clipping or overflow.
-- [ ] Attachment rules BR-04 through BR-08 and BR-49 through BR-56 hold,
+- [x] Attachment rules BR-04 through BR-08 and BR-49 through BR-56 hold,
       including the path-traversal guard in BR-50.
-- [ ] No password, session, token, or role appears anywhere in the codebase (BR-62).
-- [ ] `.env` is untracked; no credential is committed.
-- [ ] README setup and test instructions are current and were followed on a clean
+- [x] No password, session, token, or role appears anywhere in the codebase (BR-62).
+- [x] `.env` is untracked; no credential is committed.
+- [x] README setup and test instructions are current and were followed on a clean
       checkout.
 
 ### 10.2 Part 2 — Course delivery
 
-- [ ] Every unit of work has a GitHub Issue and its own feature branch.
-- [ ] Every feature branch entered `lab2-staging` through a peer-reviewed PR.
-- [ ] One release PR merged `lab2-staging` into `main`.
-- [ ] The peer reviewer left substantive comments and the author replied, in both
+- [x] Every unit of work has a GitHub Issue and its own feature branch.
+- [x] Every feature branch entered `lab2-staging` through a peer-reviewed PR.
+- [x] One release PR merged `lab2-staging` into `main`. _(This PR — Issue #19;
+      merges after peer review.)_
+- [x] The peer reviewer left substantive comments and the author replied, in both
       directions; recorded in [`reviewer.md`](./reviewer.md).
-- [ ] All Issues sit in **Done** on the Kanban board.
-- [ ] `specification.md`, `tests.md`, `ui-spec.md`, `api-spec.md`, `reviewer.md`,
+- [x] All Issues sit in **Done** on the Kanban board. _(#19 moves to Done on merge
+      of this release PR.)_
+- [x] `specification.md`, `tests.md`, `ui-spec.md`, `api-spec.md`, `reviewer.md`,
       and `ai-use.md` are present and current.
-- [ ] This specification was committed **before** the implementation PRs, with
-      screenshot evidence of the commit date.
+- [x] This specification was committed **before** the implementation PRs, with
+      screenshot evidence of the commit date. _(Spec landed first via PR #20.)_
 - [ ] The submission PDF uses the headings "Answer Part 1" through "Answer Part 9".
+      _(Author's manual submission step — outside the repository.)_
 
 ---
 

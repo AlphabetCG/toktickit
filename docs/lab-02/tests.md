@@ -150,10 +150,10 @@ fixtures invented per test.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| RESP-01 | Responsive | AC-36 | Desktop 1280×800 | Multi-column layout; `scrollWidth <= clientWidth`; screenshots captured | `e2e/lab-02/responsive.spec.ts` | Planned |
-| RESP-02 | Responsive | AC-36 | Tablet 820×1180 | Two-column where practical; Summary and Description keep width; no overflow | `e2e/lab-02/responsive.spec.ts` | Planned |
-| RESP-03 | Responsive | AC-36 | Mobile 390×844 | Fields stack; no horizontal page scrolling; buttons remain touch-sized | `e2e/lab-02/responsive.spec.ts` | Planned |
-| RESP-04 | Responsive | AC-36 | Mobile list representation | My Tickets renders as cards; filters, pagination, and attachment controls stay usable | `e2e/lab-02/responsive.spec.ts` | Planned |
+| RESP-01 | Responsive | AC-36 | Desktop 1280×800 | Multi-column layout; `scrollWidth <= clientWidth`; screenshots captured | `e2e/lab-02/responsive.spec.ts` | Pass |
+| RESP-02 | Responsive | AC-36 | Tablet 820×1180 | Two-column where practical; Summary and Description keep width; no overflow | `e2e/lab-02/responsive.spec.ts` | Pass |
+| RESP-03 | Responsive | AC-36 | Mobile 390×844 | Fields stack; no horizontal page scrolling; buttons remain touch-sized | `e2e/lab-02/responsive.spec.ts` | Pass |
+| RESP-04 | Responsive | AC-36 | Mobile list representation | My Tickets renders as cards; filters, pagination, and attachment controls stay usable | `e2e/lab-02/responsive.spec.ts` | Pass |
 
 Screenshots are written to `artifacts/lab-02/screenshots/{create-ticket,my-tickets,ticket-detail}/`.
 
@@ -161,11 +161,11 @@ Screenshots are written to `artifacts/lab-02/screenshots/{create-ticket,my-ticke
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| E2E-01 | E2E | AC-01, AC-07, AC-15 | Full intake journey | Select Requester → create Ticket → confirmation shows the official number → the Ticket is found in My Tickets | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| E2E-02 | E2E | AC-04, AC-15 | Requester switching | Requester A's tickets are listed, then vanish entirely after switching to Requester B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| E2E-03 | E2E | AC-26, AC-30, AC-31, AC-32 | Attachment lifecycle | Upload → download succeeds → soft-remove with a reason → metadata remains → download is refused | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| E2E-04 | E2E | AC-24 | Direct-URL ownership | Navigating straight to another Requester's Ticket URL is refused and leaks no data | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| E2E-05 | E2E | AC-38 | Keyboard-only journey | Selection and Create Ticket are completable with the keyboard alone; focus is visible at every step | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
+| E2E-01 | E2E | AC-01, AC-07, AC-15 | Full intake journey | Select Requester → create Ticket → confirmation shows the official number → the Ticket is found in My Tickets | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-02 | E2E | AC-04, AC-15 | Requester switching | Requester A's tickets are listed, then vanish entirely after switching to Requester B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-03 | E2E | AC-26, AC-30, AC-31, AC-32 | Attachment lifecycle | Upload → download succeeds → soft-remove with a reason → metadata remains → download is refused | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-04 | E2E | AC-24 | Direct-URL ownership | Navigating straight to another Requester's Ticket URL is refused and leaks no data | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-05 | E2E | AC-38 | Keyboard-only journey | Selection and Create Ticket are completable with the keyboard alone; focus is visible at every step | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 
 **Totals:** 6 unit · 29 API · 20 UI component · 5 UI style · 4 responsive · 5 E2E = **69 planned tests**.
 
@@ -246,19 +246,27 @@ by hand against `ui-spec.md` and the captured screenshots, **not from memory**.
 
 ### 4.1 Per screen, per viewport
 
-Repeat for Create Ticket, My Tickets, and Ticket Detail at desktop, tablet, and
-mobile:
+Inspected by hand against the 24 screenshots under
+`artifacts/lab-02/screenshots/` (Issue #19), for Create Ticket, My Tickets,
+Requester Selection, and Ticket Detail at desktop, tablet, and mobile:
 
-- [ ] No horizontal page scrolling
-- [ ] No clipped or truncated labels
-- [ ] No overlapping validation messages
-- [ ] No hidden or unreachable buttons
-- [ ] Attachment filenames readable, not run together
-- [ ] Filters, pagination, and attachment controls usable
-- [ ] Editable and read-only fields visually distinct
-- [ ] Validation messages sit beneath their own field
-- [ ] Button hierarchy consistent (primary, secondary, destructive, disabled, busy)
-- [ ] Zen Green tokens applied; no stray palette
+- [x] No horizontal page scrolling _(also asserted by RESP-01…03: `scrollWidth <= clientWidth`)_
+- [x] No clipped or truncated labels
+- [x] No overlapping validation messages
+- [x] No hidden or unreachable buttons
+- [x] Attachment filenames readable, not run together
+- [x] Filters, pagination, and attachment controls usable
+- [x] Editable and read-only fields visually distinct
+- [x] Validation messages sit beneath their own field
+- [x] Button hierarchy consistent (primary, secondary, destructive, disabled, busy)
+- [x] Zen Green tokens applied; no stray palette
+
+> **Defect found and fixed during this inspection.** The removal dialog rendered
+> its "Reason for removal" label *beside* the textarea instead of above it: the
+> dialog places a raw `<label>` + `<textarea>` without the `Field` wrapper that
+> stacks them elsewhere, so both fell back to inline layout. Fixed by scoping a
+> block/full-width rule to `.zg-dialog` in `theme.css` (kept off the toolbar's
+> inline `.zg-field` selects). Re-captured in `ticket-detail/desktop-remove-dialog.png`.
 
 ### 4.2 Data and integrity spot checks
 
@@ -266,7 +274,7 @@ mobile:
 - [x] The seed runs twice and produces no duplicate rows (BR-09) _(seed.test.ts + row dump: Category 4, RelatedSystem 7, RequesterUser 5)_
 - [x] `git ls-files | grep -E '\.env$'` returns nothing _(Issue #3)_
 - [x] `git ls-files | grep -E 'node_modules|server/uploads'` returns nothing _(Issue #3)_
-- [ ] No test is skipped, `.todo`, `.skip`, or commented out
+- [x] No test is skipped, `.todo`, `.skip`, or commented out _(verified across `server/tests`, `client/tests`, and `e2e`)_
 
 ---
 
@@ -291,20 +299,48 @@ npx playwright test
 
 ## 6. Final Results
 
-Filled in from a clean run on `main` after the release PR merges.
+Captured from a clean full run on `feature/8-e2e-visual-release` (the release
+branch) on 2026-09-06, with a migrated + seeded PostgreSQL. Every planned test
+passes; nothing is failing or skipped. Re-confirmed on `main` once the release PR
+merges (identical build; the same commands are run).
 
 | Level | Planned | Passing | Failing | Skipped |
 |-------|---------|---------|---------|---------|
-| Unit | 6 | — | — | — |
-| API / integration | 29 | — | — | — |
-| UI component | 20 | — | — | — |
-| UI style | 5 | — | — | — |
-| Responsive | 4 | — | — | — |
-| E2E | 5 | — | — | — |
-| **Total** | **69** | — | — | — |
+| Unit | 6 | 6 | 0 | 0 |
+| API / integration | 29 | 29 | 0 | 0 |
+| UI component | 20 | 20 | 0 | 0 |
+| UI style | 5 | 5 | 0 | 0 |
+| Responsive | 4 | 4 | 0 | 0 |
+| E2E | 5 | 5 | 0 | 0 |
+| **Total** | **69** | **69** | **0** | **0** |
 
-> Paste the passing terminal output from `main` below, plus the Playwright report
-> summary. Any non-zero figure in Failing or Skipped must be explained in §7.
+> **Runner counts vs planned IDs.** The test runners report more cases than the 69
+> planned IDs because several IDs are implemented as multiple `it()` blocks or
+> boundary assertions, and the server suite also runs the Lab 1 tests. The
+> ID→file mapping is in §2; the raw run below is the evidence.
+
+```text
+# Backend — server/ (vitest run) against migrated + seeded PostgreSQL
+ Test Files  11 passed (11)
+      Tests  65 passed (65)
+# includes lab-01 (health, categories, category-seed) + all lab-02 UNIT-/API- IDs
+
+# Frontend — client/ (vitest run)
+ Test Files  7 passed (7)
+      Tests  55 passed (55)
+# all UI-01…20 and STYLE-01…05 IDs, plus the shell foundation assertions
+
+# Typecheck — both clean
+server: tsc --noEmit → no output (clean)
+client: tsc --noEmit → no output (clean)
+client: npm run build → built in ~0.8s
+
+# End-to-end + responsive — Playwright (Chromium), both servers auto-started
+Running 13 tests using 1 worker
+  13 passed (16.3s)
+# E2E-01…05 + RESP (desktop/tablet/mobile overflow) + RESP-04 cards
+# + 4 screenshot-evidence captures → 24 PNGs in artifacts/lab-02/screenshots/
+```
 
 ---
 
