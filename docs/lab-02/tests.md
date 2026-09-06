@@ -353,4 +353,5 @@ Running 13 tests using 1 worker
 | Authentication, sessions, roles | Excluded | Lab 3 scope; the requester header is not a security boundary (BR-03) |
 | Concurrent Ticket Number allocation under load | Not load-tested | Allocation is transactional per §7.3; verifying contention needs load tooling outside this sprint |
 | Cross-browser E2E | Chromium only | Playwright is configured for one browser to keep the lab run time reasonable |
+| E2E leaves Tickets in the dev DB | Not cleaned up | There is no ticket-delete endpoint in Lab 2 scope, so the specs cannot tear down through the API. Each run uses a unique per-run token so tests never collide; the residue only advances the dev ticket sequence. A cleanup hook with direct Prisma access is a Lab 3 improvement. |
 | Timezone rendering | Not tested | Timestamps are stored in UTC and rendered in the browser locale; no assertion is made about locale formatting |
