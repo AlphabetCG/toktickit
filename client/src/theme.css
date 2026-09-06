@@ -812,3 +812,21 @@ body {
   box-shadow: var(--zg-shadow);
   text-align: left;
 }
+
+/* The removal dialog places a raw label + textarea + message without the Field
+   wrapper that stacks them elsewhere, so stack them here (ui-spec §9.3: the label
+   sits above its control). Scoped to the dialog so the toolbar's inline .zg-field
+   selects keep sizing to their content. */
+.zg-dialog .zg-label {
+  display: block;
+  margin-bottom: var(--zg-space-1);
+}
+
+.zg-dialog .zg-field {
+  display: block;
+  width: 100%;
+}
+
+.zg-dialog .zg-field-message {
+  margin-top: var(--zg-space-2);
+}

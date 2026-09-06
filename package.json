@@ -1,0 +1,13 @@
+{
+  "name": "toktickit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root workspace for the TokTickIT lab — hosts the Playwright end-to-end and responsive suite that drives the client and server together.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}
