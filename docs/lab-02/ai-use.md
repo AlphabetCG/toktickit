@@ -80,76 +80,96 @@ Do not claim completion with skipped, .todo, or unrelated tests.
 
 ---
 
-## My Reflection
+## บทสะท้อนการใช้ AI (My Reflection)
 
-_(Adjust this into your own words before submitting — the points below are what
-actually happened.)_
+สรุปจากประสบการณ์จริงตลอด Lab 2 — ทั้งจุดที่การใช้ AI ช่วยได้จริง และจุดที่ผม
+ต้องเข้าไปควบคุมมันเอง
 
-Three things made my prompts better across this sprint.
+### สิ่งที่ทำให้ prompt ของผมดีขึ้นตลอด sprint นี้
 
-**Asking for a plan before code.** Prompt 1 explicitly said to summarise what I
-needed to do rather than start building. That gave me the sequencing insight that
-mattered most — that Lab 2 grades the specification separately, and the commit
-timestamp is part of the evidence. Had I opened with "implement Lab 2", the spec
-would have been written afterwards and Part 2 would have been unrecoverable.
+**ขอให้วางแผนก่อนลงมือเขียนโค้ด.** Prompt แรกผมสั่งให้มัน "สรุปว่าผมต้องทำอะไรบ้าง"
+แทนที่จะให้เริ่มสร้างเลย ตรงนี้ทำให้ผมเห็นลำดับงานที่สำคัญที่สุด — ว่า Lab 2 ให้คะแนน
+ตัว specification แยกต่างหาก และ commit timestamp ของ spec ก็เป็นหลักฐานส่วนหนึ่ง ถ้า
+ผมเปิดด้วยคำสั่งว่า "implement Lab 2" ไปเลย spec จะถูกเขียนทีหลัง แล้ว Part 2 จะกู้คืน
+ไม่ได้อีก
 
-**Asking the agent to separate what was given from what it invented.** In prompt
-2 I asked it to list the handout's rules *and* recommend additions. It came back
-with the 3 stated rules, 10 more that were fixed but scattered across other
-sections, and 50 proposals clearly marked as needing my approval. That separation
-is what let me review the set honestly instead of accepting 63 rules as if the
-handout had supplied them all.
+**ให้ AI แยก "สิ่งที่โจทย์ให้มา" ออกจาก "สิ่งที่มันคิดเพิ่มเอง".** ตอนถาม business rules
+ผมสั่งให้มันลิสต์กฎจากใบแลปพร้อมกับเสนอเพิ่ม มันแยกกลับมาเป็น 3 กฎที่โจทย์บอกตรง ๆ,
+อีก 10 กฎที่ตายตัวแต่กระจายอยู่ในหัวข้ออื่น, และอีก 50 ข้อที่ทำเครื่องหมายชัดว่า "ต้องรอ
+ผมอนุมัติ" การแยกแบบนี้ทำให้ผมรีวิวได้อย่างซื่อสัตย์ แทนที่จะรับกฎทั้ง 63 ข้อมาเหมือน
+ใบแลปให้มาเองทั้งหมด
 
-**Making it name its open decisions.** Rather than filling gaps silently, the
-agent listed ten choices it could not make for me — ticket-number format, storage
-strategy, field limits, and whether cross-Requester access should return 403 or
-404. I chose them, and each now has a documented rationale in §11 that I can
-defend.
+**บังคับให้มันบอก decision ที่มันตัดสินใจแทนผมไม่ได้.** แทนที่จะเติมช่องว่างเงียบ ๆ AI
+ลิสต์สิบเรื่องที่มันเลือกแทนผมไม่ได้ — รูปแบบเลขที่ตั๋ว, วิธีเก็บไฟล์แนบ, ความยาวฟิลด์,
+และการเข้าถึงข้ามผู้ใช้ควรตอบ 403 หรือ 404 ผมเป็นคนเลือกเอง และทุกข้อมีเหตุผลบันทึกไว้
+ใน §11 ที่ผมอธิบายป้องกันได้
 
-**Where I had to correct it.** The agent wrote the first `AGENTS.md` directly on
-the `main` branch, which breaks the branch discipline this course requires. I
-deleted the file and made it redo the work on a proper feature branch off
-`lab2-staging`. A related slip in the same session created GitHub issue #17 twice
-(#18 was the duplicate); I had it close the duplicate and repair the
-cross-reference in #17. Both were process errors rather than content errors, and
-both confirm the labsheet's point — the agent produces the artifact, but the
-engineering discipline around it stays my responsibility.
+**ตรวจสอบสถานะจริงก่อนจะประกาศว่าเสร็จ.** ทุก Issue ผมให้มันรัน test / tsc / build
+จริงและแนบผลก่อนบอกว่าเสร็จ — เช่น เทียบ token ใน `theme.css` กับ `ui-spec §1.1`,
+ยิง smoke test สด, หรือใน #17 ที่ curl เจอปัญหา multipart บน Windows มันก็ไปพิสูจน์
+ด้วย Node `fetch` แทน ไม่ได้เชื่อว่า "โค้ดน่าจะถูก" เฉย ๆ
 
-**What I would keep doing.** Asking the agent to verify state before declaring
-success. In Lab 1 this caught a client test suite that failed because no test
-file existed; in Lab 2 it caught the cross-document consistency I would not have
-checked by hand — that all 39 acceptance criteria appear in the traceability
-table and that every endpoint, BR, AC, and test id referenced across four
-documents actually resolves.
+### จุดที่ผมต้องเข้าไปแก้/ควบคุม AI (เป็น process error ไม่ใช่ content error)
 
-### Implementation-phase notes (Issues #12–#13)
+- **เขียน `AGENTS.md` ลงบน `main` โดยตรง** ซึ่งผิดวินัยเรื่อง branch ของวิชานี้ ผมลบทิ้ง
+  แล้วให้มันทำใหม่บน feature branch ที่แตกจาก `lab2-staging`
+- **สร้าง GitHub issue #17 ซ้ำเป็น #18** ในเซสชันเดียวกัน ผมให้มันปิดตัวซ้ำและซ่อม
+  cross-reference ใน #17
+- **แตก branch เร็วเกินไป** — `feature/3-data-model-seed` ถูกตัดไว้ก่อน spec/UI merge เลย
+  ว่างเปล่าและตามหลัง staging อยู่ 8 commit; และตอน #15 มัน commit ผิด branch ครั้งหนึ่ง
+  ทั้งสองครั้งต้อง recut branch ใหม่จาก staging ที่อัปเดตแล้ว
+- **โพสต์รีวิว PR #24 ของเพื่อนซ้ำ** โดยไม่ได้เช็คว่าผมเคยรีวิวไปแล้วก่อนหน้า เกิด
+  `CHANGES_REQUESTED` ซ้ำสองอัน ผมบันทึกไว้อย่างโปร่งใสใน `reviewer.md` และยึดฉบับแรก
+  เป็นฉบับจริง — บทเรียนคือ **ต้องเช็ครีวิวที่มีอยู่ก่อนโพสต์เสมอ**
 
-**Making the agent triage a peer review against scope.** For the PR #12 review I
-did not just say "fix the comments" — I told the agent to implement the ones that
-fit the Issue and, for any that did not, prepare a written non-fix instead of
-silently ignoring or blindly obeying them. That produced two real fixes (a missing
-`max-height`, and a test that locks the colour tokens to the spec) and one
-reasoned refusal (the IT-Priority badge is excluded by `specification §3.2`). The
-refusal is worth as much as the fixes — it shows the review was read against the
-contract, not treated as a checklist.
+ทั้งหมดนี้ยืนยันประเด็นของใบแลป: AI ผลิตชิ้นงานได้ แต่วินัยทางวิศวกรรมรอบ ๆ ชิ้นงาน
+ยังเป็นความรับผิดชอบของผมเอง
 
-**A test that enforces the token rule mechanically.** The reviewer noticed that
-"no literal colour in a component" only proves a component uses a class, not that
-the class holds the right value. The fix was a test that reads `theme.css` and
-asserts each fixed token equals its `ui-spec §1.1` hex, so a typo now fails the
-suite. This is the pattern I want to repeat: turn a reviewer's "did you check…"
-into an automated check rather than a one-time manual answer.
+### บทเรียนเฉพาะช่วง implementation (Issues #12–#19)
 
-**Catching a branch that was cut too early.** `feature/3-data-model-seed` already
-existed from earlier planning, but it had been branched before the spec and the
-UI foundation merged, so it was empty and eight commits behind `lab2-staging`.
-The agent flagged this instead of building on it, and recut the branch fresh from
-the updated staging — exactly the "branch off staging only after the previous
-Issue merged" rule in `AGENTS.md §8`.
+**คัดกรอง peer review ตาม scope ไม่ใช่ทำตามทุกข้อ (#12).** สำหรับรีวิว PR #21 ผมไม่ได้
+สั่งแค่ "แก้ตาม comment" แต่สั่งให้ทำเฉพาะข้อที่อยู่ใน scope ของ Issue และข้อที่อยู่นอก
+scope ให้เขียน **non-fix ที่มีเหตุผล** แทนการเงียบหรือทำตามหมด ได้ผลเป็นการแก้จริงสองข้อ
+(เพิ่ม `max-height`, และ test ที่ล็อกค่าสี token) กับการปฏิเสธหนึ่งข้อที่มีเหตุผล (badge
+IT-Priority ถูกกันออกโดย `specification §3.2`) — การปฏิเสธมีค่าเท่ากับการแก้ เพราะแสดงว่า
+รีวิวถูกอ่านเทียบกับ contract จริง ๆ
 
-**Additive migrations protect existing data.** For the data model I had the agent
-confirm the migration added `Category.isActive` with `ALTER TABLE … ADD COLUMN`
-(default `true`) rather than rebuilding the table, and then prove the four Lab 1
-`Category` rows still existed afterwards. Verifying the generated SQL and the row
-counts — not just "the migration ran" — is what makes the survive-the-migration
-claim defensible.
+**เปลี่ยนคำถามของรีวิวเวอร์ให้เป็น test เชิงกลไก (#12).** รีวิวเวอร์ทักว่า "ไม่มีสีดิบใน
+component" พิสูจน์แค่ว่า component ใช้ class ไม่ได้พิสูจน์ว่า class ถือค่าที่ถูก ผมจึงให้เพิ่ม
+test ที่อ่าน `theme.css` แล้ว assert ว่า token ตายตัวทุกตัวตรงกับค่า hex ใน `ui-spec §1.1`
+พิมพ์ผิดเมื่อไรก็ test แดงทันที — นี่คือ pattern ที่ผมอยากทำซ้ำ: เปลี่ยน "เช็คหรือยัง" เป็น
+การเช็คอัตโนมัติ ไม่ใช่คำตอบครั้งเดียว
+
+**migration แบบ additive ปกป้องข้อมูลเดิม (#13).** ผมให้มันยืนยันว่า migration เพิ่ม
+`Category.isActive` ด้วย `ALTER TABLE … ADD COLUMN` (default `true`) แทนการสร้างตาราง
+ใหม่ แล้วพิสูจน์ว่าแถว `Category` เดิมจาก Lab 1 ยังอยู่ครบสี่แถว — การตรวจ SQL ที่ถูก
+generate และนับจำนวนแถวจริง ไม่ใช่แค่ "migration รันผ่าน" คือสิ่งที่ทำให้เชื่อได้
+
+**การจองเลขที่ตั๋วต้อง atomic ตามที่รับปากไว้ในรีวิว (#15).** รีวิวเวอร์ PR #22 เตือนเรื่อง
+race condition ตั้งแต่ตอน schema ผมบันทึกเป็น commitment แล้วพอถึง Create Ticket ก็ให้
+จัดสรรเลขด้วย `upsert … { increment }` **ภายใน transaction เดียวกับที่สร้างตั๋ว** — ปิด
+ช่องที่สองคำขอพร้อมกันจะได้เลขซ้ำ
+
+**ownership เป็นเรื่องของ backend และต้องพิสูจน์ด้วย test ที่ข้าม UI (#14/#16/#17).** ทุก
+route ที่ผูกกับผู้ใช้ ผมให้เขียน test ที่ยิง API ตรง ๆ ด้วย header ของผู้ใช้คนอื่น และคาดหวัง
+404 ที่เหมือนกันหมดสำหรับ "ไม่มี / ไม่ใช่เจ้าของ / ถูกลบ" เพราะปุ่มที่ซ่อนไว้ไม่ใช่การพิสูจน์
+ความปลอดภัย
+
+**ความปลอดภัยของไฟล์แนบ (#17).** ตรวจชนิดไฟล์จาก **magic byte** ของเนื้อไฟล์ ไม่ใช่
+นามสกุล (BR-51), เก็บไฟล์ด้วยชื่อ UUID ที่ server สร้าง เพื่อไม่ให้ชื่อไฟล์เดิมกลายเป็นส่วน
+ของ path (กัน path traversal, BR-50), และเช็ค ownership ก่อน validation เพื่อไม่ให้เดา id
+ได้ — สิ่งเหล่านี้ตรวจจากภายนอกด้วย test เสมอ
+
+**E2E + การตรวจด้วยตาจริง เจอบั๊กที่ test อัตโนมัติมองไม่เห็น (#19).** ผมให้เขียน E2E ที่
+รันกับ server และ PostgreSQL จริง (ไม่ mock) และให้ทำ visual inspection ตาม `ui-spec §12`
+เทียบกับ screenshot 24 รูปด้วยมือ — ซึ่งเจอว่า dialog ลบไฟล์วาง label ไว้ข้าง textarea
+แทนที่จะอยู่บน (เพราะไม่ได้ห่อด้วย `Field` component) จึงแก้ CSS scoped เฉพาะ `.zg-dialog`
+test อัตโนมัติผ่านหมดแต่จับ layout แบบนี้ไม่ได้ ต้องใช้ตาคน
+
+### สิ่งที่ผมจะทำต่อไปใน Lab หน้า
+
+ยึดสามอย่างที่ได้ผล: (1) ให้ AI วางแผนและระบุ decision ที่ยังเปิดอยู่ก่อนเขียนโค้ด,
+(2) เปลี่ยนข้อสังเกตของรีวิวเวอร์ให้เป็น automated test เมื่อทำได้, และ (3) บังคับให้พิสูจน์
+สถานะจริง (รัน test/build จริง, ตรวจ SQL/row count จริง) ก่อนสรุปว่าเสร็จ — และเพิ่มนิสัย
+ใหม่จาก sprint นี้คือ **เช็คสถานะฝั่ง GitHub (review/issue/branch) ที่มีอยู่ก่อนลงมือ** เพื่อ
+ไม่ให้เกิดงานซ้ำอย่างที่พลาดใน PR #24
