@@ -46,9 +46,29 @@ npm run dev                                     # :3000
 cd client && npm install && cp .env.example .env && npm run dev   # :5173
 ```
 
-The seed upserts on natural keys (category/related-system `name`, requester
-`email`), so it is safe to re-run. It creates 4 categories, 7 related systems,
-and 5 development requesters (4 active, 1 inactive).
+The seed upserts on natural keys (category/related-system `name`, user `email`),
+so it is safe to re-run. It creates 4 categories, 7 related systems, 10 users, and
+8 demo tickets spanning every status.
+
+### Development credentials (Lab 3)
+
+Every seeded account shares one **development-only** password — it is not a real
+secret (BR-65). Sign in with any seeded email plus this password:
+
+```
+Password for all seeded accounts:  ChangeMe123!
+```
+
+| Role | Example accounts |
+|------|------------------|
+| Requester | `somchai.prasert@toktickit.test`, `nadia.rahman@toktickit.test`, `anong.srisai@toktickit.test`, `peter.chen@toktickit.test` (+ 1 inactive) |
+| IT Staff | `isara.thongchai@toktickit.test`, `malee.boonmee@toktickit.test`, `decha.phumipat@toktickit.test` (+ 1 inactive) |
+| Administrator | `arthit.admin@toktickit.test` |
+
+Emails are stored lower-cased. The Lab 3 migration **renames** Lab 2's
+`RequesterUser` table to `User` rather than recreating it, so every existing
+Ticket and Attachment is preserved; run `npx prisma migrate reset --force` to
+rebuild and re-seed from scratch.
 
 ## Tests
 
