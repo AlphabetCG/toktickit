@@ -36,6 +36,7 @@ async function freshTicket(requesterId = requesterA): Promise<number> {
       categoryId,
       relatedSystemId: systemId,
       requestedPriority: "LOW",
+      itPriority: "LOW",
       summary: "Attachment test ticket",
       description: "A description long enough to satisfy the twenty character minimum.",
     },
@@ -49,7 +50,7 @@ const uploadTo = (ticketId: number, buf: Buffer, filename: string, id = requeste
 
 describe("Attachment lifecycle", () => {
   beforeAll(async () => {
-    const actives = await prisma.requesterUser.findMany({ where: { isActive: true }, orderBy: { id: "asc" } });
+    const actives = await prisma.user.findMany({ where: { isActive: true, role: "REQUESTER" }, orderBy: { id: "asc" } });
     requesterA = actives[0].id;
     requesterB = actives[1].id;
     categoryId = (await prisma.category.findFirstOrThrow({ where: { isActive: true } })).id;

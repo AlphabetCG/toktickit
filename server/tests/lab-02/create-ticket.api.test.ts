@@ -25,8 +25,8 @@ const post = (body: object, id: number = requesterId) =>
 
 describe("POST /api/tickets", () => {
   beforeAll(async () => {
-    const actives = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    const actives = await prisma.user.findMany({
+      where: { isActive: true, role: "REQUESTER" },
       orderBy: { id: "asc" },
     });
     requesterId = actives[0].id;

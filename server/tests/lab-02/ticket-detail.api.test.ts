@@ -13,7 +13,7 @@ let ticketId: number;
 
 describe("GET /api/tickets/:id", () => {
   beforeAll(async () => {
-    const actives = await prisma.requesterUser.findMany({ where: { isActive: true }, orderBy: { id: "asc" } });
+    const actives = await prisma.user.findMany({ where: { isActive: true, role: "REQUESTER" }, orderBy: { id: "asc" } });
     requesterA = actives[0].id;
     requesterB = actives[1].id;
     const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
@@ -25,6 +25,7 @@ describe("GET /api/tickets/:id", () => {
         categoryId: category.id,
         relatedSystemId: system.id,
         requestedPriority: "MEDIUM",
+        itPriority: "MEDIUM",
         summary: "Ticket detail test row",
         description: "A description long enough to satisfy the twenty character minimum.",
       },

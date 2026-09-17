@@ -24,9 +24,12 @@ declare global {
 const UNAUTHORIZED = { error: "No Development Requester selected" };
 
 /**
- * Resolves X-Requester-Id to an **active** RequesterUser and attaches it to the
- * request, or returns 401. The four rejection cases — header absent, not an
- * integer, no such Requester, and inactive Requester — return the same body.
+ * Resolves X-Requester-Id to an **active** User with the REQUESTER role and
+ * attaches it to the request, or returns 401. The four rejection cases — header
+ * absent, not an integer, no such Requester, and inactive Requester — return the
+ * same body. (Lab 3's User table now also holds IT Staff and Administrators, so
+ * the role filter keeps this Lab 2 mechanism requester-only until Issue #31
+ * replaces it with real authentication.)
  */
 export async function requireRequester(req: Request, res: Response, next: NextFunction) {
   const raw = req.header("X-Requester-Id");
@@ -38,8 +41,8 @@ export async function requireRequester(req: Request, res: Response, next: NextFu
   }
 
   try {
-    const requester = await getPrisma().requesterUser.findFirst({
-      where: { id: Number(raw), isActive: true },
+    const requester = await getPrisma().user.findFirst({
+      where: { id: Number(raw), isActive: true, role: "REQUESTER" },
       select: { id: true, name: true, email: true },
     });
 
