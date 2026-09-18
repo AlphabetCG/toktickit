@@ -59,11 +59,14 @@ secret (BR-65). Sign in with any seeded email plus this password:
 Password for all seeded accounts:  ChangeMe123!
 ```
 
-| Role | Example accounts |
-|------|------------------|
-| Requester | `somchai.prasert@toktickit.test`, `nadia.rahman@toktickit.test`, `anong.srisai@toktickit.test`, `peter.chen@toktickit.test` (+ 1 inactive) |
-| IT Staff | `isara.thongchai@toktickit.test`, `malee.boonmee@toktickit.test`, `decha.phumipat@toktickit.test` (+ 1 inactive) |
-| Administrator | `arthit.admin@toktickit.test` |
+| Role | Example accounts | First login |
+|------|------------------|-------------|
+| Requester | `somchai.prasert@toktickit.test`, `nadia.rahman@toktickit.test`, `anong.srisai@toktickit.test`, `peter.chen@toktickit.test` (+ 1 inactive) | **prompted to change password** (migrated from Lab 2, BR-60) |
+| IT Staff | `isara.thongchai@toktickit.test`, `malee.boonmee@toktickit.test`, `decha.phumipat@toktickit.test` (+ 1 inactive) | ready to use |
+| Administrator | `arthit.admin@toktickit.test` | ready to use |
+
+Requesters carry `mustChangePassword = true`, so any requester account also
+demonstrates the mandatory first-login password-change flow.
 
 Emails are stored lower-cased. The Lab 3 migration **renames** Lab 2's
 `RequesterUser` table to `User` rather than recreating it, so every existing

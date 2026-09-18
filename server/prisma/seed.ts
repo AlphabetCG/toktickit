@@ -226,14 +226,19 @@ export async function seedRelatedSystems(prisma: PrismaClient) {
 }
 
 // Keyed on `email`. Role and activation state are re-applied on update so the seed
-// is the source of truth (BR-63). Every account gets the documented dev password;
-// mustChangePassword is false so the credentials are immediately usable (BR-65).
+// is the source of truth (BR-63). Every account gets the documented dev password
+// (BR-65). Requesters carry the Lab 2 identities that the migration brought over,
+// so they stay flagged for a password change (BR-60) — this is also the account
+// set that demonstrates the mandatory first-login change (Part 5 evidence). IT
+// Staff and the Administrator are freshly provisioned here and are immediately
+// usable, so their demos need no change step.
 export async function seedUsers(prisma: PrismaClient, passwordHash: string) {
   for (const { name, email, role, isActive } of USERS) {
+    const mustChangePassword = role === Role.REQUESTER;
     await prisma.user.upsert({
       where: { email },
-      update: { name, role, isActive, passwordHash, mustChangePassword: false },
-      create: { name, email, role, isActive, passwordHash, mustChangePassword: false },
+      update: { name, role, isActive, passwordHash, mustChangePassword },
+      create: { name, email, role, isActive, passwordHash, mustChangePassword },
     });
   }
 }

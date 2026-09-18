@@ -104,12 +104,15 @@ describe("Lab 3 data migration", () => {
       expect(migrationSql).not.toMatch(/UPDATE "User" SET "isActive"/i);
     });
 
-    it("keeps the Lab 2 requesters as REQUESTER with their original activation state", async () => {
+    it("keeps the Lab 2 requesters as REQUESTER, with activation state and a change flag", async () => {
       for (const r of REQUESTERS) {
         const user = await prisma.user.findUnique({ where: { email: r.email } });
         expect(user, r.email).not.toBeNull();
         expect(user!.role).toBe("REQUESTER");
         expect(user!.isActive).toBe(r.isActive);
+        // BR-60: migrated Requesters are flagged for a password change, which also
+        // gives the mandatory first-login-change flow a demonstrable account.
+        expect(user!.mustChangePassword).toBe(true);
       }
     });
   });
