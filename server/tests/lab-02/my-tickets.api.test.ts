@@ -34,6 +34,7 @@ async function makeTicket(opts: {
       categoryId: opts.categoryId,
       relatedSystemId: systemId,
       requestedPriority: "MEDIUM",
+      itPriority: "MEDIUM",
       summary: opts.summary,
       description: DESC,
       ticketDate: opts.ticketDate,
@@ -43,8 +44,8 @@ async function makeTicket(opts: {
 
 describe("GET /api/tickets", () => {
   beforeAll(async () => {
-    const actives = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    const actives = await prisma.user.findMany({
+      where: { isActive: true, role: "REQUESTER" },
       orderBy: { id: "asc" },
     });
     requesterA = actives[0].id;

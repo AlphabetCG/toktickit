@@ -12,7 +12,7 @@ describe("GET /api/categories", () => {
   let requesterId: number;
 
   beforeAll(async () => {
-    const active = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const active = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER" } });
     requesterId = active!.id;
     await prisma.$disconnect();
   });

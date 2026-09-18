@@ -86,8 +86,8 @@ app.get("/api/health", (_req: Request, res: Response) => {
 // Public (api-spec §1.6); inactive Requesters never appear (BR-13, BR-20).
 app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
-    const requesters = await getPrisma().requesterUser.findMany({
-      where: { isActive: true },
+    const requesters = await getPrisma().user.findMany({
+      where: { isActive: true, role: "REQUESTER" },
       orderBy: { id: "asc" },
       select: { id: true, name: true, email: true },
     });
@@ -177,6 +177,9 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
           categoryId,
           relatedSystemId,
           requestedPriority,
+          // IT Priority starts as a copy of the Requested Priority (BR-30, BR-31);
+          // IT Staff can change it independently in a later Lab 3 issue.
+          itPriority: requestedPriority,
           summary: String(summary).trim(),
           description: String(description).trim(),
         },

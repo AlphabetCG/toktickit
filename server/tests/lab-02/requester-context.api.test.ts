@@ -15,8 +15,8 @@ describe("Requester context", () => {
   let inactiveId: number;
 
   beforeAll(async () => {
-    const active = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const inactive = await prisma.requesterUser.findUnique({ where: { email: inactiveEmail } });
+    const active = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER" } });
+    const inactive = await prisma.user.findUnique({ where: { email: inactiveEmail } });
     activeId = active!.id;
     inactiveId = inactive!.id;
   });
