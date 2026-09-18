@@ -24,6 +24,34 @@ No changes requested. The specification, test plan, REST contract, and UI spec
 (`docs/lab-03/`) were accepted as the Lab 3 engineering contract, committed before
 any implementation PR.
 
+### PR #38 — feat: Lab 3 data model, migration, and seed (Issue #30)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/38
+- **Base:** `lab3-staging` ← **Head:** `feature/2-data-model-migration`
+- **Review verdict:** `CHANGES_REQUESTED` by @copter549365, 2026-09-17 (four points).
+
+#### Reviewer comment (4 points)
+
+1. Every seeded account had `mustChangePassword: false`, so nothing demonstrates
+   the mandatory first-login password-change flow (Part 5 evidence).
+2. `migration.api.test.ts` proves the rename via a static SQL regex check, not a
+   runtime before/after replay — suggested noting this in `tests.md` for grading.
+3. The seven `ALTER TYPE … ADD VALUE` lines share the migration transaction —
+   confirm `prisma migrate reset` runs clean on a live DB before merge.
+4. `passwordHash` uses a transient `''` default then `DROP DEFAULT`; any row
+   migrated from Lab 2 but not covered by the seed would keep `''` (non-blocking).
+
+#### Author reply & resolution (`c91935d`)
+
+| Point | Resolution |
+|-------|-----------|
+| 1 | **Fixed.** Under-implemented BR-60 — seeded Requesters now carry `mustChangePassword = true` (they are the migrated Lab 2 identities and give a demonstrable first-login-change account); IT Staff/Admin stay usable. REG-04 now runtime-asserts the flag; README documents it. |
+| 2 | **Fixed (docs).** `tests.md` now states REG-01/02/04/05 are a static SQL-mechanism check **plus** runtime seeded invariants (not a replay), with preservation additionally proven by `prisma migrate diff` reporting no drift. |
+| 3 | **Confirmed (no fix).** Re-ran `prisma migrate reset --force` on PostgreSQL 18.3; migration applies and the seed (which uses the new statuses) succeeds — the migrate transaction commits before the separate seed process runs. |
+| 4 | **Non-fix (safe by design).** On a fresh reset only seeded rows exist, all with real hashes; a stray non-seeded row keeps `''`, which no valid bcrypt hash can match, so it cannot authenticate (BR-01) — a fail-safe, not a silent risk. |
+
+- **Resolution:** fixes pushed; awaiting re-review. Verified: server 74/74, tsc clean.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
