@@ -70,30 +70,30 @@ path itself is exercised on every request rather than stubbed.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| UNIT-01 | Unit | BR-04, D-02 | Password hashing | `hash()` output is not the plaintext, differs across calls for the same input, and `verify()` accepts only the original | `server/tests/lab-03/password.unit.test.ts` | Planned |
-| UNIT-02 | Unit | BR-12 | Email normalisation | `  Somchai@KMUTT.AC.TH ` normalises to `somchai@kmutt.ac.th` before storage and comparison | `server/tests/lab-03/password.unit.test.ts` | Planned |
-| UNIT-03 | Unit | AC-08, BR-10 | Password policy boundaries | 11 chars rejected, 12 accepted, 128 accepted, 129 rejected; a blocklisted value rejected; a value equal to the current password rejected | `server/tests/lab-03/password.unit.test.ts` | Planned |
+| UNIT-01 | Unit | BR-04, D-02 | Password hashing | `hash()` output is not the plaintext, differs across calls for the same input, and `verify()` accepts only the original | `server/tests/lab-03/password.unit.test.ts` | Pass |
+| UNIT-02 | Unit | BR-12 | Email normalisation | `  Somchai@KMUTT.AC.TH ` normalises to `somchai@kmutt.ac.th` before storage and comparison | `server/tests/lab-03/password.unit.test.ts` | Pass |
+| UNIT-03 | Unit | AC-08, BR-10 | Password policy boundaries | 11 chars rejected, 12 accepted, 128 accepted, 129 rejected; a blocklisted value rejected; a value equal to the current password rejected | `server/tests/lab-03/password.unit.test.ts` | Pass |
 | UNIT-04 | Unit | AC-26, BR-44 | Comment and note body rules | Trimmed first; `"   "` rejected, 1 char accepted, 2000 accepted, 2001 rejected | `server/tests/lab-03/validation.unit.test.ts` | Planned |
 | UNIT-05 | Unit | AC-31, §9.3 | Queue query normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `status=NOPE`, `ownerId=abc` each fall back to the documented default | `server/tests/lab-03/validation.unit.test.ts` | Planned |
 | UNIT-06 | Unit | AC-37, BR-35 | Permitted transitions | Every ✅ cell of the §5.7 matrix is accepted | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
 | UNIT-07 | Unit | AC-38, BR-35 | Forbidden transitions | Every — cell of the §5.7 matrix is rejected, including `RESOLVED → IN_PROGRESS` | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
 | UNIT-08 | Unit | AC-39, BR-36 | Terminal statuses | No transition leaves `CLOSED` or `CANCELLED` | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
-| UNIT-09 | Unit | BR-08, D-03 | Session token | 32 bytes of entropy, tokens differ across calls, only the SHA-256 digest is persisted, and an expired row is treated as absent | `server/tests/lab-03/session.unit.test.ts` | Planned |
+| UNIT-09 | Unit | BR-08, D-03 | Session token | 32 bytes of entropy, tokens differ across calls, only the SHA-256 digest is persisted, and an expired row is treated as absent | `server/tests/lab-03/session.unit.test.ts` | Pass |
 
 ### 2.2 API / integration
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| API-01 | API | AC-01 | Valid login | 200; session established; response carries identity and role and **no** password field | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-02 | API | AC-02, BR-02 | Password change outstanding | Login succeeds, but a protected route returns 403 with `passwordChangeRequired: true` until the change is saved | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-03 | API | AC-03, BR-05 | Wrong password | 401 with the uniform message; no session issued | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-04 | API | AC-04, BR-05 | Unknown email | Response byte-identical to API-03 | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-05 | API | AC-05, BR-06 | Deactivated, correct password | Refused with the deactivation message; no session issued | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-06 | API | AC-06, BR-06 | Deactivated, wrong password | Response byte-identical to API-03; deactivation not revealed | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-07 | API | AC-07, BR-08 | Logout | 200; the session row is gone and the next protected request returns 401 | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-08 | API | AC-08 | Weak new password | 400 with a field-level message; the old password still authenticates | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-09 | API | AC-09, BR-11 | Password change invalidates siblings | A second session for the same user returns 401 afterwards; the new password authenticates | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| API-10 | API | AC-11, BR-09 | Cookie flags | `Set-Cookie` carries `HttpOnly`, `SameSite=Lax`, and `Path=/` | `server/tests/lab-03/auth.api.test.ts` | Planned |
+| API-01 | API | AC-01 | Valid login | 200; session established; response carries identity and role and **no** password field | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-02 | API | AC-02, BR-02 | Password change outstanding | Login succeeds, but a protected route returns 403 with `passwordChangeRequired: true` until the change is saved | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-03 | API | AC-03, BR-05 | Wrong password | 401 with the uniform message; no session issued | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-04 | API | AC-04, BR-05 | Unknown email | Response byte-identical to API-03 | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-05 | API | AC-05, BR-06 | Deactivated, correct password | Refused with the deactivation message; no session issued | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-06 | API | AC-06, BR-06 | Deactivated, wrong password | Response byte-identical to API-03; deactivation not revealed | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-07 | API | AC-07, BR-08 | Logout | 200; the session row is gone and the next protected request returns 401 | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-08 | API | AC-08 | Weak new password | 400 with a field-level message; the old password still authenticates | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-09 | API | AC-09, BR-11 | Password change invalidates siblings | A second session for the same user returns 401 afterwards; the new password authenticates | `server/tests/lab-03/auth.api.test.ts` | Pass |
+| API-10 | API | AC-11, BR-09 | Cookie flags | `Set-Cookie` carries `HttpOnly`, `SameSite=Lax`, and `Path=/` | `server/tests/lab-03/auth.api.test.ts` | Pass |
 | API-11 | API | AC-20, BR-31 | Authenticated ticket creation | 201; stored against the authenticated user; `itPriority` equals `requestedPriority` | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
 | API-12 | API | AC-22, BR-43 | Requester posts a Public Comment | 201; author and timestamp set by the server; visible to IT Staff on the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
 | API-13 | API | AC-25, BR-23 | Resolution signal | 200; `resolutionSignalledAt` and the signalling user recorded; `currentStatus` unchanged | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
@@ -130,8 +130,8 @@ wrong role or the wrong user. None of them render a component (BR-16).
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| AUTHZ-01 | Authorization | AC-10, BR-13 | Unauthenticated access | Every protected route returns 401 with no session, and no resource is read | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| AUTHZ-02 | Authorization | AC-12, BR-03 | Client-supplied identity ignored | A Requester sending another user's id in the body, query, or an `X-Requester-Id` header still receives only their own data | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| AUTHZ-01 | Authorization | AC-10, BR-13 | Unauthenticated access | Every protected route returns 401 with no session, and no resource is read | `server/tests/lab-03/authorization.api.test.ts` | Pass |
+| AUTHZ-02 | Authorization | AC-12, BR-03 | Client-supplied identity ignored | A Requester sending another user's id in the body, query, or an `X-Requester-Id` header still receives only their own data | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-03 | Authorization | AC-13, BR-14 | Requester → queue | 403; no queue data in the body | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-04 | Authorization | AC-14 | Requester → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-05 | Authorization | AC-15, BR-18 | IT Staff → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
@@ -152,10 +152,10 @@ inspected — not against rows created after the migration.
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
 | REG-01 | Migration | AC-18, BR-58 | Tickets survive | Every pre-migration Ticket id and Ticket Number still exists and still resolves to the same submitting user | `server/tests/lab-03/migration.api.test.ts` | Pass |
 | REG-02 | Migration | AC-19, BR-58 | Attachments survive | Attachment rows, their `ticketId`, `uploadedById`, and soft-removal state are unchanged | `server/tests/lab-03/migration.api.test.ts` | Pass |
-| REG-03 | Migration | AC-21, FR-10 | Selector removed | No source file references `X-Requester-Id`, `RequesterProvider`, or the `/select` route | `server/tests/lab-03/migration.api.test.ts` | Planned (Issue #32) |
+| REG-03 | Migration | AC-21, FR-10 | Selector removed | No source file references `X-Requester-Id`, `RequesterProvider`, or the `/select` route | `server/tests/lab-03/migration.api.test.ts` | Pass |
 | REG-04 | Migration | BR-60 | Migrated credentials | Every migrated Requester holds the `REQUESTER` role, keeps its original activation state, and is flagged for a password change | `server/tests/lab-03/migration.api.test.ts` | Pass |
 | REG-05 | Migration | BR-31 | IT Priority backfill | Every pre-existing Ticket has `itPriority` equal to its `requestedPriority` after migration | `server/tests/lab-03/migration.api.test.ts` | Pass |
-| REG-06 | Regression | BR-61 | Lab 2 behaviour intact | The Lab 2 owned-list contract still holds under authentication: ownership scoping, search, filter, sort, pagination metadata | `server/tests/lab-03/migration.api.test.ts` | Planned (Issue #32) |
+| REG-06 | Regression | BR-61 | Lab 2 behaviour intact | The Lab 2 owned-list contract still holds under authentication: ownership scoping, search, filter, sort, pagination metadata | `server/tests/lab-03/migration.api.test.ts` | Pass |
 | REG-07 | Regression | BR-62 | Seed idempotency | Running the seed twice creates no duplicate user, category, related system, comment, or note | `server/tests/lab-03/migration.api.test.ts` | Pass |
 
 > **How the migration regressions are evidenced (REG-01, REG-02, REG-04, REG-05).**
@@ -178,19 +178,19 @@ inspected — not against rows created after the migration.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| UI-01 | UI | AC-01 | Login success path | Valid submission calls the API once and routes into the application | `client/tests/lab-03/Login.test.tsx` | Planned |
-| UI-02 | UI | FR-23 | Login validation | Empty email or password shows a field-level message and makes no API call | `client/tests/lab-03/Login.test.tsx` | Planned |
-| UI-03 | UI | BR-43 | Login busy state | Submit is disabled and `aria-busy` while in flight; a double click produces one call | `client/tests/lab-03/Login.test.tsx` | Planned |
-| UI-04 | UI | AC-03 | Login failure | The uniform message is shown and the entered email is preserved | `client/tests/lab-03/Login.test.tsx` | Planned |
-| UI-05 | UI | AC-05 | Deactivated account | The deactivation message is shown, distinct from the credential failure message | `client/tests/lab-03/Login.test.tsx` | Planned |
-| UI-06 | UI | AC-02 | Mandatory change mode | With `mustChangePassword`, the change screen renders and no application navigation is reachable | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
-| UI-07 | UI | BR-10 | Rules shown up front | The length rule is visible before submission, not only after failure | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
-| UI-08 | UI | FR-23 | Confirmation mismatch | A mismatched confirmation shows a field-level message and makes no API call | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
-| UI-09 | UI | AC-02 | Successful change | On success the application becomes reachable | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
-| UI-10 | UI | AC-53, FR-08 | Requester navigation | My Tickets and Create Ticket present; queue and User Management absent from the DOM | `client/tests/lab-03/RoleNavigation.test.tsx` | Planned |
-| UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Planned |
-| UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Planned |
-| UI-13 | UI | §7.1 | Shell identity and logout | The authenticated name and role badge render, and Logout calls the API and clears the session | `client/tests/lab-03/RoleNavigation.test.tsx` | Planned |
+| UI-01 | UI | AC-01 | Login success path | Valid submission calls the API once and routes into the application | `client/tests/lab-03/Login.test.tsx` | Pass |
+| UI-02 | UI | FR-23 | Login validation | Empty email or password shows a field-level message and makes no API call | `client/tests/lab-03/Login.test.tsx` | Pass |
+| UI-03 | UI | BR-43 | Login busy state | Submit is disabled and `aria-busy` while in flight; a double click produces one call | `client/tests/lab-03/Login.test.tsx` | Pass |
+| UI-04 | UI | AC-03 | Login failure | The uniform message is shown and the entered email is preserved | `client/tests/lab-03/Login.test.tsx` | Pass |
+| UI-05 | UI | AC-05 | Deactivated account | The deactivation message is shown, distinct from the credential failure message | `client/tests/lab-03/Login.test.tsx` | Pass |
+| UI-06 | UI | AC-02 | Mandatory change mode | With `mustChangePassword`, the change screen renders and no application navigation is reachable | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
+| UI-07 | UI | BR-10 | Rules shown up front | The length rule is visible before submission, not only after failure | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
+| UI-08 | UI | FR-23 | Confirmation mismatch | A mismatched confirmation shows a field-level message and makes no API call | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
+| UI-09 | UI | AC-02 | Successful change | On success the application becomes reachable | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
+| UI-10 | UI | AC-53, FR-08 | Requester navigation | My Tickets and Create Ticket present; queue and User Management absent from the DOM | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
+| UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
+| UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
+| UI-13 | UI | §7.1 | Shell identity and logout | The authenticated name and role badge render, and Logout calls the API and clears the session | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-14 | UI | AC-22 | Requester posts a comment | The composer submits, clears, and the new comment appears | `client/tests/lab-03/RequesterComments.test.tsx` | Planned |
 | UI-15 | UI | AC-25 | Resolution signal | The action confirms, then shows the signalled state; the status badge is unchanged | `client/tests/lab-03/RequesterComments.test.tsx` | Planned |
 | UI-16 | UI | AC-24, BR-24 | No notes for a Requester | The Requester detail renders no Internal Notes region and no note composer | `client/tests/lab-03/RequesterComments.test.tsx` | Planned |

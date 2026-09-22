@@ -50,7 +50,8 @@ any implementation PR.
 | 3 | **Confirmed (no fix).** Re-ran `prisma migrate reset --force` on PostgreSQL 18.3; migration applies and the seed (which uses the new statuses) succeeds — the migrate transaction commits before the separate seed process runs. |
 | 4 | **Non-fix (safe by design).** On a fresh reset only seeded rows exist, all with real hashes; a stray non-seeded row keeps `''`, which no valid bcrypt hash can match, so it cannot authenticate (BR-01) — a fail-safe, not a silent risk. |
 
-- **Resolution:** fixes pushed; awaiting re-review. Verified: server 74/74, tsc clean.
+- **Resolution:** fixes pushed; @copter549365 **`APPROVED`** on 2026-09-18 and PR #38
+  merged into `lab3-staging`. Verified before merge: server 74/74, tsc clean.
 
 ---
 
@@ -94,4 +95,41 @@ Minor: the placeholder `passwordHash` is not a structurally valid bcrypt string 
 `bcrypt.compare` returns false for it (safe), but a well-formed sentinel avoids
 any edge case.
 
-- **Resolution:** awaiting @copter549365's confirmation on points 1–2, then approval.
+- **Resolution:** @copter549365 addressed the points; PR #43 merged.
+
+### PR #50 — feat: Administrator User Management & Safety Rules (Issue 7)
+
+- **PR:** https://github.com/copter549365/toktickit/pull/50
+- **Review verdict:** `COMMENTED` by @AlphabetCG, 2026-09-22.
+
+Reviewed their Admin User Management (their latest open PR): the
+`/api/admin/users` CRUD + reset-password endpoints, the safety rules, and
+`serializeUser`. The work is strong:
+
+- The three-gate order is correct on every endpoint
+  (`requireAuth → requirePasswordChangeCompleted → requireRole('ADMINISTRATOR')`) —
+  the password gate precedes authorization (api-spec §1.3).
+- `wouldRemoveLastActiveAdministrator` covers **both** demotion and deactivation
+  and only fires when the target is genuinely the last active admin (BR-19);
+  self-deactivation is blocked (BR-18); email uniqueness is case-insensitive with
+  a 409 and is re-checked only when the email actually changes (BR-17).
+- `serializeUser` returns an explicit field list, so `passwordHash` never leaks
+  from the list or create/update responses. Search escapes LIKE wildcards.
+
+One substantive point and one minor:
+
+1. **Session revocation on admin reset/deactivate.** Neither reset-password nor
+   deactivate/demote deletes the target's existing `Session` rows. This is safe
+   *only if* `requireAuth` reloads the user and re-checks `isActive`, and the
+   password gate re-reads `mustChangePassword`, on **every** request — then a
+   deactivated user 401s next request and a reset user is bounced to the change
+   screen. If `requireAuth` trusts the session row without re-checking, a
+   deactivated/reset user keeps working on the old cookie until expiry, against
+   BR-09/AC-09's intent. Asked them to confirm `requireAuth`'s behaviour, and to
+   `session.deleteMany({ where: { userId }})` on deactivate/reset if it does not
+   re-check.
+2. Minor: create-user trusts a client-supplied `initialPassword` (validated for
+   complexity). Fine, unless the spec wants the server to generate and reveal it
+   once.
+
+- **Resolution:** awaiting @copter549365's confirmation on the session-revocation point.
