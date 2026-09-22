@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import { app } from "../../src/app.js";
+import { ensureUser, loginCookie } from "../helpers/auth.js";
 
 // Requires a migrated and seeded database. API-10…API-16. A per-run TOKEN in
 // every summary isolates this test's tickets from any others in the database, so
@@ -12,13 +13,15 @@ const DESC = "A sufficiently long description for the seeded My Tickets test row
 
 let requesterA: number;
 let requesterB: number;
+let cookieA: string;
+let cookieB: string;
 let cat1: number;
 let cat2: number;
 let systemId: number;
 const base = new Date("2027-03-01T00:00:00.000Z").getTime();
 
-const get = (id: number, query = "") =>
-  request(app).get(`/api/tickets${query}`).set("X-Requester-Id", String(id));
+const get = (sessionCookie: string, query = "") =>
+  request(app).get(`/api/tickets${query}`).set("Cookie", sessionCookie);
 
 async function makeTicket(opts: {
   n: string;
@@ -44,12 +47,12 @@ async function makeTicket(opts: {
 
 describe("GET /api/tickets", () => {
   beforeAll(async () => {
-    const actives = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
-      orderBy: { id: "asc" },
-    });
-    requesterA = actives[0].id;
-    requesterB = actives[1].id;
+    const a = await ensureUser(prisma, { email: "lab2.mytickets.a@toktickit.test", role: "REQUESTER" });
+    const b = await ensureUser(prisma, { email: "lab2.mytickets.b@toktickit.test", role: "REQUESTER" });
+    requesterA = a.id;
+    requesterB = b.id;
+    cookieA = await loginCookie("lab2.mytickets.a@toktickit.test");
+    cookieB = await loginCookie("lab2.mytickets.b@toktickit.test");
     const cats = await prisma.category.findMany({ where: { isActive: true }, orderBy: { id: "asc" } });
     cat1 = cats[0].id;
     cat2 = cats[1].id;
@@ -81,7 +84,7 @@ describe("GET /api/tickets", () => {
 
   // API-10 — AC-15, BR-27
   it("returns only the selected Requester's Tickets", async () => {
-    const res = await get(requesterB, `?search=${TOKEN}&pageSize=50`);
+    const res = await get(cookieB, `?search=${TOKEN}&pageSize=50`);
     expect(res.status).toBe(200);
     const numbers = res.body.items.map((t: { ticketNumber: string }) => t.ticketNumber);
     expect(numbers).toEqual([`${TOKEN}-B`]); // none of A's 14
@@ -89,23 +92,23 @@ describe("GET /api/tickets", () => {
 
   // API-11 — AC-16, BR-31
   it("searches Ticket Number and Summary case-insensitively", async () => {
-    const bySummary = await get(requesterA, `?search=${TOKEN.toLowerCase()} item 3`);
+    const bySummary = await get(cookieA, `?search=${TOKEN.toLowerCase()} item 3`);
     expect(bySummary.body.items.map((t: { ticketNumber: string }) => t.ticketNumber)).toEqual([`${TOKEN}-3`]);
 
-    const byNumber = await get(requesterA, `?search=${TOKEN}-7`);
+    const byNumber = await get(cookieA, `?search=${TOKEN}-7`);
     expect(byNumber.body.items.map((t: { ticketNumber: string }) => t.ticketNumber)).toEqual([`${TOKEN}-7`]);
   });
 
   // API-12 — AC-17, BR-32
   it("filters by Category", async () => {
-    const res = await get(requesterA, `?search=${TOKEN}&categoryId=${cat1}&pageSize=50`);
+    const res = await get(cookieA, `?search=${TOKEN}&categoryId=${cat1}&pageSize=50`);
     expect(res.body.items).toHaveLength(6);
     expect(res.body.items.every((t: { category: { id: number } }) => t.category.id === cat1)).toBe(true);
   });
 
   // API-13 — AC-18, BR-37
   it("paginates with correct metadata", async () => {
-    const res = await get(requesterA, `?search=${TOKEN}&pageSize=10&page=2`);
+    const res = await get(cookieA, `?search=${TOKEN}&pageSize=10&page=2`);
     expect(res.body.page).toBe(2);
     expect(res.body.pageSize).toBe(10);
     expect(res.body.totalItems).toBe(14); // 12 + 2 tie tickets
@@ -115,7 +118,7 @@ describe("GET /api/tickets", () => {
 
   // API-14 — AC-19, BR-33, BR-34
   it("defaults to Ticket Date descending with an id-descending tiebreak", async () => {
-    const res = await get(requesterA, `?search=${TOKEN}&pageSize=50`);
+    const res = await get(cookieA, `?search=${TOKEN}&pageSize=50`);
     const numbers = res.body.items.map((t: { ticketNumber: string }) => t.ticketNumber);
     // The two tie tickets share the latest date; the higher id must come first.
     expect(numbers[0]).toBe(`${TOKEN}-tieHigh`);
@@ -126,7 +129,7 @@ describe("GET /api/tickets", () => {
 
   // API-15 — AC-20, BR-36
   it("applies documented defaults for invalid query parameters instead of failing", async () => {
-    const res = await get(requesterA, `?search=${TOKEN}&page=0&pageSize=999&sort=bogus&order=sideways`);
+    const res = await get(cookieA, `?search=${TOKEN}&page=0&pageSize=999&sort=bogus&order=sideways`);
     expect(res.status).toBe(200);
     expect(res.body.page).toBe(1);
     expect(res.body.pageSize).toBe(10);
@@ -135,7 +138,7 @@ describe("GET /api/tickets", () => {
   // API-16 — BR-38
   it("composes filters with ownership; a filter cannot widen beyond the owner", async () => {
     // cat1 holds 6 of A's tickets and 1 of B's; as B, only B's own may return.
-    const res = await get(requesterB, `?search=${TOKEN}&categoryId=${cat1}&pageSize=50`);
+    const res = await get(cookieB, `?search=${TOKEN}&categoryId=${cat1}&pageSize=50`);
     const numbers = res.body.items.map((t: { ticketNumber: string }) => t.ticketNumber);
     expect(numbers).toEqual([`${TOKEN}-B`]);
   });

@@ -1,26 +1,30 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import { app } from "../../src/app.js";
 import { CATEGORY_NAMES } from "../../prisma/seed.js";
+import { ensureUser, loginCookie } from "../helpers/auth.js";
 
 // Requires a migrated and seeded database (npm run prisma:migrate && prisma:seed).
-// GET /api/categories became a scoped route in Lab 2 (api-spec §1.6), so it now
-// needs a valid X-Requester-Id — resolved from a seeded active Requester.
+// GET /api/categories became an authenticated route in Lab 3 (api-spec §1.7), so
+// it now needs a valid session cookie rather than X-Requester-Id.
 describe("GET /api/categories", () => {
   const prisma = new PrismaClient();
-  let requesterId: number;
+  let cookie: string;
 
   beforeAll(async () => {
-    const active = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER" } });
-    requesterId = active!.id;
+    await ensureUser(prisma, { email: "lab1.categories@toktickit.test", role: "REQUESTER" });
+    cookie = await loginCookie("lab1.categories@toktickit.test");
+  });
+
+  afterAll(async () => {
     await prisma.$disconnect();
   });
 
   it("returns the four seeded categories in id order", async () => {
     const res = await request(app)
       .get("/api/categories")
-      .set("X-Requester-Id", String(requesterId));
+      .set("Cookie", cookie);
 
     expect(res.status).toBe(200);
     expect(res.body.map((c: { name: string }) => c.name)).toEqual(CATEGORY_NAMES);

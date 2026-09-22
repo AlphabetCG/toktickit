@@ -830,3 +830,82 @@ body {
 .zg-dialog .zg-field-message {
   margin-top: var(--zg-space-2);
 }
+
+/* --- Lab 3: authentication screens and role identity --- */
+.zg-auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--zg-space-5);
+  background: var(--zg-page-bg);
+}
+
+.zg-auth-card {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-3);
+  padding: var(--zg-space-6);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-lg);
+  box-shadow: var(--zg-shadow);
+}
+
+.zg-auth-title {
+  margin: 0;
+  font-size: var(--zg-fs-page-title);
+  font-weight: var(--zg-fw-semibold);
+  color: var(--zg-primary);
+  text-align: center;
+}
+
+.zg-auth-subtitle {
+  margin: 0 0 var(--zg-space-2);
+  text-align: center;
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-auth-submit {
+  width: 100%;
+  margin-top: var(--zg-space-2);
+}
+
+.zg-callout--info {
+  background: var(--zg-pale);
+  border: var(--zg-border-w) solid var(--zg-secondary);
+  color: var(--zg-text);
+  border-radius: var(--zg-radius-md);
+  padding: var(--zg-space-3);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-callout--success {
+  background: var(--zg-pale);
+  border: var(--zg-border-w) solid var(--zg-success);
+  color: var(--zg-success);
+  border-radius: var(--zg-radius-md);
+  padding: var(--zg-space-3);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-identity__name {
+  font-weight: var(--zg-fw-medium);
+}
+
+/* Role badges reuse the shared badge chip; text always carries the meaning. */
+.zg-badge--role-requester {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-text-muted);
+}
+.zg-badge--role-it_staff {
+  background: var(--zg-pale);
+  color: var(--zg-primary);
+}
+.zg-badge--role-administrator {
+  background: var(--zg-warning-surface);
+  color: var(--zg-warning);
+}

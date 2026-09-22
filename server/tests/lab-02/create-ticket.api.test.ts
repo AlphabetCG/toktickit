@@ -3,12 +3,14 @@ import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import { app } from "../../src/app.js";
 import { TICKET_NUMBER_REGEX } from "../../src/ticketNumber.js";
+import { ensureUser, loginCookie } from "../helpers/auth.js";
 
-// Requires a migrated and seeded database. API-04…API-09.
+// Requires a migrated and seeded database. API-04…API-09, now under session auth.
 const prisma = new PrismaClient();
 
 let requesterId: number;
 let otherRequesterId: number;
+let cookie: string;
 let categoryId: number;
 let relatedSystemId: number;
 
@@ -20,17 +22,16 @@ const validBody = () => ({
   description: "The battery drops from 100% to 20% in about an hour even on a browser.",
 });
 
-const post = (body: object, id: number = requesterId) =>
-  request(app).post("/api/tickets").set("X-Requester-Id", String(id)).send(body);
+const post = (body: object, sessionCookie: string = cookie) =>
+  request(app).post("/api/tickets").set("Cookie", sessionCookie).send(body);
 
 describe("POST /api/tickets", () => {
   beforeAll(async () => {
-    const actives = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
-      orderBy: { id: "asc" },
-    });
-    requesterId = actives[0].id;
-    otherRequesterId = actives[1].id;
+    const a = await ensureUser(prisma, { email: "lab2.create.a@toktickit.test", role: "REQUESTER" });
+    const b = await ensureUser(prisma, { email: "lab2.create.b@toktickit.test", role: "REQUESTER" });
+    requesterId = a.id;
+    otherRequesterId = b.id;
+    cookie = await loginCookie("lab2.create.a@toktickit.test");
     categoryId = (await prisma.category.findFirstOrThrow({ where: { isActive: true } })).id;
     relatedSystemId = (await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })).id;
   });

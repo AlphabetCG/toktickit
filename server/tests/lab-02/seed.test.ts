@@ -40,11 +40,16 @@ describe("lab 2 seed", () => {
     expect(activeRequesters).toHaveLength(4);
     expect(inactiveRequesters).toHaveLength(1);
 
-    // Lab 3 renamed RequesterUser → User and added IT Staff / Administrator rows,
-    // so the requester assertions are now scoped by role.
-    expect(await prisma.user.count({ where: { role: "REQUESTER" } })).toBe(REQUESTERS.length);
-    expect(await prisma.user.count({ where: { role: "REQUESTER", isActive: true } })).toBe(4);
-    expect(await prisma.user.count({ where: { role: "REQUESTER", isActive: false } })).toBe(1);
+    // Scoped to the seeded emails, since Lab 3 API tests create their own
+    // additional requester accounts in the shared database.
+    const seeded = await prisma.user.findMany({
+      where: { email: { in: REQUESTERS.map((r) => r.email) } },
+      select: { email: true, role: true, isActive: true },
+    });
+    expect(seeded).toHaveLength(REQUESTERS.length);
+    expect(seeded.every((u) => u.role === "REQUESTER")).toBe(true);
+    expect(seeded.filter((u) => u.isActive)).toHaveLength(4);
+    expect(seeded.filter((u) => !u.isActive)).toHaveLength(1);
   });
 
   it("keeps the inactive requester flagged inactive after a re-run (BR-13)", async () => {

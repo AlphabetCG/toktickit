@@ -3,11 +3,21 @@ import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { CreateTicket } from "../../src/screens/CreateTicket.js";
-import { RequesterProvider } from "../../src/requester.js";
 import * as api from "../../src/api.js";
 
 // UI-07…UI-11 from docs/lab-02/tests.md. Behaviour contract: ui-spec §8.2.
 vi.mock("../../src/api.js");
+// The screen reads the acting user from the auth context (Lab 3).
+vi.mock("../../src/auth.js", () => ({
+  useAuth: () => ({
+    user: { id: 1, name: "Somchai Prasert", email: "somchai@toktickit.test", role: "REQUESTER", mustChangePassword: false },
+    loading: false,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children?: unknown }) => children,
+}));
 const getCategories = vi.mocked(api.getCategories);
 const getRelatedSystems = vi.mocked(api.getRelatedSystems);
 const createTicket = vi.mocked(api.createTicket);
@@ -20,15 +30,11 @@ const SYSTEMS = [
   { id: 7, name: "Corporate Laptop" },
   { id: 3, name: "VPN" },
 ];
-const REQUESTER = { id: 1, name: "Somchai Prasert", email: "somchai@toktickit.test" };
 
 function renderForm() {
-  localStorage.setItem("toktickit.requester", JSON.stringify(REQUESTER));
   return render(
     <MemoryRouter initialEntries={["/tickets/new"]}>
-      <RequesterProvider>
-        <CreateTicket />
-      </RequesterProvider>
+      <CreateTicket />
     </MemoryRouter>
   );
 }

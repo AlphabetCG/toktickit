@@ -8,7 +8,7 @@ import {
   type Category,
   type RelatedSystem,
 } from "../api.js";
-import { useRequester } from "../requester.js";
+import { useAuth } from "../auth.js";
 import { Button } from "../components/Button.js";
 import { PriorityBadge, StatusBadge } from "../components/Badge.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
@@ -53,8 +53,8 @@ const INITIAL: Query = {
 type Load = "loading" | "ready" | "error";
 
 export function MyTickets() {
-  const { requester } = useRequester();
-  const requesterId = requester!.id;
+  const { user } = useAuth();
+  const requesterId = user!.id; // re-scopes the fetch effects when the user changes
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -67,7 +67,7 @@ export function MyTickets() {
   // Filter dropdown options, loaded once. If they fail the list's own error state
   // still covers the screen; filters simply have fewer options.
   useEffect(() => {
-    Promise.all([getCategories(requesterId), getRelatedSystems(requesterId)])
+    Promise.all([getCategories(), getRelatedSystems()])
       .then(([c, s]) => {
         setCategories(c);
         setSystems(s);
@@ -88,7 +88,7 @@ export function MyTickets() {
   useEffect(() => {
     const controller = new AbortController();
     setLoad("loading");
-    getTickets(requesterId, query, { signal: controller.signal })
+    getTickets(query, { signal: controller.signal })
       .then((res) => {
         setData(res);
         setLoad("ready");

@@ -2,12 +2,15 @@ import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import { app } from "../../src/app.js";
+import { ensureUser, loginCookie } from "../helpers/auth.js";
 
 // Requires a migrated and seeded database. API-20…API-29. Each test gets a fresh
 // ticket so attachment counts are independent; rows are cleaned up afterwards.
 const prisma = new PrismaClient();
 
 let requesterA: number;
+let cookieA: string;
+let cookieB: string;
 let requesterB: number;
 let categoryId: number;
 let systemId: number;
@@ -45,14 +48,17 @@ async function freshTicket(requesterId = requesterA): Promise<number> {
   return t.id;
 }
 
-const uploadTo = (ticketId: number, buf: Buffer, filename: string, id = requesterA) =>
-  request(app).post(`/api/tickets/${ticketId}/attachments`).set("X-Requester-Id", String(id)).attach("file", buf, filename);
+const uploadTo = (ticketId: number, buf: Buffer, filename: string, sessionCookie = cookieA) =>
+  request(app).post(`/api/tickets/${ticketId}/attachments`).set("Cookie", sessionCookie).attach("file", buf, filename);
 
 describe("Attachment lifecycle", () => {
   beforeAll(async () => {
-    const actives = await prisma.user.findMany({ where: { isActive: true, role: "REQUESTER" }, orderBy: { id: "asc" } });
-    requesterA = actives[0].id;
-    requesterB = actives[1].id;
+    const a = await ensureUser(prisma, { email: "lab2.att.a@toktickit.test", role: "REQUESTER" });
+    const b = await ensureUser(prisma, { email: "lab2.att.b@toktickit.test", role: "REQUESTER" });
+    requesterA = a.id;
+    requesterB = b.id;
+    cookieA = await loginCookie("lab2.att.a@toktickit.test");
+    cookieB = await loginCookie("lab2.att.b@toktickit.test");
     categoryId = (await prisma.category.findFirstOrThrow({ where: { isActive: true } })).id;
     systemId = (await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })).id;
   });
@@ -115,7 +121,7 @@ describe("Attachment lifecycle", () => {
     const up = await uploadTo(ticketId, content, "report.pdf");
     const dl = await request(app)
       .get(`/api/attachments/${up.body.id}/download`)
-      .set("X-Requester-Id", String(requesterA))
+      .set("Cookie", cookieA)
       .responseType("blob");
 
     expect(dl.status).toBe(200);
@@ -129,7 +135,7 @@ describe("Attachment lifecycle", () => {
     const up = await uploadTo(ticketId, png(), "wrong.png");
     const res = await request(app)
       .delete(`/api/attachments/${up.body.id}`)
-      .set("X-Requester-Id", String(requesterA))
+      .set("Cookie", cookieA)
       .send({ reason: "Uploaded the wrong screenshot" });
 
     expect(res.status).toBe(200);
@@ -145,9 +151,9 @@ describe("Attachment lifecycle", () => {
   it("refuses to download a removed attachment (404)", async () => {
     const ticketId = await freshTicket();
     const up = await uploadTo(ticketId, png(), "gone.png");
-    await request(app).delete(`/api/attachments/${up.body.id}`).set("X-Requester-Id", String(requesterA)).send({ reason: "no longer needed" });
+    await request(app).delete(`/api/attachments/${up.body.id}`).set("Cookie", cookieA).send({ reason: "no longer needed" });
 
-    const dl = await request(app).get(`/api/attachments/${up.body.id}/download`).set("X-Requester-Id", String(requesterA));
+    const dl = await request(app).get(`/api/attachments/${up.body.id}/download`).set("Cookie", cookieA);
     expect(dl.status).toBe(404);
     expect(dl.body).toEqual({ error: "Attachment not found" });
   });
@@ -156,7 +162,7 @@ describe("Attachment lifecycle", () => {
   it("rejects removal without a reason (400), leaving the attachment active", async () => {
     const ticketId = await freshTicket();
     const up = await uploadTo(ticketId, png(), "keep.png");
-    const res = await request(app).delete(`/api/attachments/${up.body.id}`).set("X-Requester-Id", String(requesterA)).send({});
+    const res = await request(app).delete(`/api/attachments/${up.body.id}`).set("Cookie", cookieA).send({});
     expect(res.status).toBe(400);
     expect(res.body.fields.reason).toBeDefined();
 
@@ -174,7 +180,7 @@ describe("Attachment lifecycle", () => {
     }
     expect((await uploadTo(ticketId, png(), "sixth.png")).status).toBe(409);
 
-    await request(app).delete(`/api/attachments/${firstId}`).set("X-Requester-Id", String(requesterA)).send({ reason: "make room" });
+    await request(app).delete(`/api/attachments/${firstId}`).set("Cookie", cookieA).send({ reason: "make room" });
     expect((await uploadTo(ticketId, png(), "after-removal.png")).status).toBe(201);
   });
 
@@ -183,16 +189,16 @@ describe("Attachment lifecycle", () => {
     const ticketId = await freshTicket(requesterA);
     const up = await uploadTo(ticketId, png(), "a-owned.png");
 
-    const asB = await request(app).get(`/api/attachments/${up.body.id}/download`).set("X-Requester-Id", String(requesterB));
+    const asB = await request(app).get(`/api/attachments/${up.body.id}/download`).set("Cookie", cookieB);
     expect(asB.status).toBe(404);
 
-    const delB = await request(app).delete(`/api/attachments/${up.body.id}`).set("X-Requester-Id", String(requesterB)).send({ reason: "not mine to remove" });
+    const delB = await request(app).delete(`/api/attachments/${up.body.id}`).set("Cookie", cookieB).send({ reason: "not mine to remove" });
     expect(delB.status).toBe(404);
   });
 
   it("rejects an upload to another Requester's ticket with 404 (BR-30)", async () => {
     const ticketId = await freshTicket(requesterA);
-    const res = await uploadTo(ticketId, png(), "intruder.png", requesterB);
+    const res = await uploadTo(ticketId, png(), "intruder.png", cookieB);
     expect(res.status).toBe(404);
   });
 });

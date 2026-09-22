@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTicket, NotFoundError, type TicketDetail } from "../api.js";
-import { useRequester } from "../requester.js";
+import { useAuth } from "../auth.js";
 import { PriorityBadge, StatusBadge } from "../components/Badge.js";
 import { AttachmentSection } from "../components/AttachmentSection.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
@@ -30,19 +30,19 @@ function Info({ label, children }: { label: string; children: React.ReactNode })
 
 export function RequesterTicketDetail() {
   const { id } = useParams();
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const ticketId = Number(id);
 
   const [load, setLoad] = useState<Load>("loading");
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
 
   function loadTicket() {
-    if (!requester || !Number.isInteger(ticketId)) {
+    if (!user || !Number.isInteger(ticketId)) {
       setLoad("notfound");
       return;
     }
     setLoad("loading");
-    getTicket(requester.id, ticketId)
+    getTicket(ticketId)
       .then((t) => {
         setTicket(t);
         setLoad("ready");
@@ -50,7 +50,7 @@ export function RequesterTicketDetail() {
       .catch((err) => setLoad(err instanceof NotFoundError ? "notfound" : "error"));
   }
 
-  useEffect(loadTicket, [requester, ticketId]);
+  useEffect(loadTicket, [user, ticketId]);
 
   if (load === "loading") return <LoadingSkeleton rows={6} label="Loading ticket…" />;
 
@@ -102,7 +102,7 @@ export function RequesterTicketDetail() {
         </div>
       </div>
 
-      <AttachmentSection requesterId={requester!.id} ticketId={ticket.id} initial={ticket.attachments} />
+      <AttachmentSection ticketId={ticket.id} initial={ticket.attachments} />
     </section>
   );
 }
