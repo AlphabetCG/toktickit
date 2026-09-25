@@ -122,6 +122,7 @@ path itself is exercised on every request rather than stubbed.
 | API-36 | API | AC-50, BR-56 | Last active Administrator | Deactivating **or** demoting the only active Administrator returns 409 | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-37 | API | AC-51, BR-53 | New initial password | The target user is re-flagged and the new password authenticates | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-38 | API | AC-52, BR-53 | Initial password invalidates sessions | The target user's existing session returns 401 afterwards | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
+| API-39 | API | api-spec §2.4, BR-01 | Wrong current password on change | 400 naming `currentPassword`; the password is unchanged, so the old one still authenticates and the proposed one does not | `server/tests/lab-03/auth.api.test.ts` | **Pass** |
 
 ### 2.3 Authorization
 
@@ -187,6 +188,7 @@ inspected — not against rows created after the migration.
 | UI-07 | UI | BR-10 | Rules shown up front | The length rule is visible before submission, not only after failure | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-08 | UI | FR-23 | Confirmation mismatch | A mismatched confirmation shows a field-level message and makes no API call | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-09 | UI | AC-02 | Successful change | On success the application becomes reachable | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
+| UI-31 | UI | BR-10 | Password policy shared across packages | The screen's `PASSWORD_MIN` equals the server's; the two are declared in separate packages and nothing else prevents drift | `client/tests/lab-03/ChangePassword.test.tsx` | **Pass** |
 | UI-10 | UI | AC-53, FR-08 | Requester navigation | My Tickets and Create Ticket present; queue and User Management absent from the DOM | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
@@ -244,8 +246,8 @@ Screenshots are written to
 | E2E-07 | E2E | AC-46, AC-51 | Create and first login | An Administrator creates a user, then that user logs in and is forced through the password change | `e2e/lab-03/user-administration.spec.ts` | Planned |
 | E2E-08 | E2E | AC-49, AC-50 | Administrator guards | Self-deactivation and last-Administrator removal are both refused with a visible message | `e2e/lab-03/user-administration.spec.ts` | Planned |
 
-**Totals:** 9 unit · 38 API · 12 authorization · 7 migration/regression ·
-30 UI component · 5 UI style · 4 responsive · 8 E2E = **113 planned tests**.
+**Totals:** 9 unit · 39 API · 12 authorization · 7 migration/regression ·
+31 UI component · 5 UI style · 4 responsive · 8 E2E = **115 planned tests**.
 
 ---
 
@@ -321,6 +323,8 @@ Rules whose evidence sits outside the AC table:
 
 | BR | Rule | Covering test |
 |----|------|---------------|
+| BR-01 | A password change re-verifies the current password | API-39 |
+| BR-10 | The client's minimum cannot drift from the server's policy | UI-31 |
 | BR-12 | Email normalised and compared case-insensitively | UNIT-02, API-33 |
 | BR-19, BR-55 | No self role change | AUTHZ-12 |
 | BR-31 | IT Priority backfilled for existing Tickets | REG-05 |
@@ -398,14 +402,14 @@ Filled in from a clean run on `main` after the release PR merges.
 | Level | Planned | Passing | Failing | Skipped |
 |-------|---------|---------|---------|---------|
 | Unit | 9 | — | — | — |
-| API / integration | 38 | — | — | — |
+| API / integration | 39 | — | — | — |
 | Authorization | 12 | — | — | — |
 | Migration / regression | 7 | — | — | — |
-| UI component | 30 | — | — | — |
+| UI component | 31 | — | — | — |
 | UI style | 5 | — | — | — |
 | Responsive | 4 | — | — | — |
 | E2E | 8 | — | — | — |
-| **Total** | **113** | — | — | — |
+| **Total** | **115** | — | — | — |
 
 > Paste the passing terminal output from `main` below, plus the Playwright report
 > summary. Any non-zero figure in Failing or Skipped must be explained in §7.

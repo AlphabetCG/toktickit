@@ -14,6 +14,7 @@ const E = {
   sessions: "auth.sessions@toktickit.test",
   weak: "auth.weak@toktickit.test",
   unknown: "auth.nobody@toktickit.test",
+  wrongCurrent: "auth.wrongcurrent@toktickit.test",
 };
 
 const login = (email: string, password: string) =>
@@ -25,6 +26,7 @@ beforeAll(async () => {
   await ensureUser(prisma, { email: E.deact, role: "REQUESTER", isActive: false });
   await ensureUser(prisma, { email: E.sessions, role: "REQUESTER" });
   await ensureUser(prisma, { email: E.weak, role: "REQUESTER" });
+  await ensureUser(prisma, { email: E.wrongCurrent, role: "REQUESTER" });
 });
 
 afterAll(async () => {
@@ -118,6 +120,24 @@ it("API-08: a weak new password is rejected and the old one still authenticates"
   expect(res.body.fields.newPassword).toMatch(/12/);
   // The old password still works.
   expect((await login(E.weak, TEST_PASSWORD)).status).toBe(200);
+});
+
+// API-39 — api-spec §2.4, BR-01. Raised by peer review on PR #39: the refusal was
+// implemented but nothing asserted it.
+it("API-39: a wrong current password is refused and changes nothing", async () => {
+  const cookie = await loginCookie(E.wrongCurrent);
+  const res = await request(app)
+    .post("/api/auth/password")
+    .set("Cookie", cookie)
+    .send({ currentPassword: "NotTheRightOne!2026", newPassword: "PerfectlyValid!2026" });
+
+  expect(res.status).toBe(400);
+  expect(res.body.fields.currentPassword).toBeTruthy();
+  // The message names only the field; it confirms nothing about the account.
+  expect(JSON.stringify(res.body)).not.toMatch(/hash|exists|unknown/i);
+  // The password is unchanged: the old one still authenticates, the new one does not.
+  expect((await login(E.wrongCurrent, TEST_PASSWORD)).status).toBe(200);
+  expect((await login(E.wrongCurrent, "PerfectlyValid!2026")).status).toBe(401);
 });
 
 // API-09 — AC-09, BR-11

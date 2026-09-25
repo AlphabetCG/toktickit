@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -80,5 +82,22 @@ describe("Change Password", () => {
 
     expect(changePassword).toHaveBeenCalledWith("ChangeMe123!", "BrandNewPass!2026");
     expect(await screen.findByText("My Tickets Screen")).toBeInTheDocument();
+  });
+
+  // The policy is the server's (BR-10). The screen repeats the minimum only so it
+  // can show the rule up front (ui-spec §6.2) and fail locally before a round
+  // trip. The two constants are declared in separate npm packages, so nothing but
+  // this assertion stops them drifting apart when the policy changes.
+  it("keeps its PASSWORD_MIN in step with the server's policy", () => {
+    const declared = (source: string, name: string): number => {
+      const match = new RegExp(`${name}\\s*=\\s*(\\d+)`).exec(source);
+      if (!match) throw new Error(`${name} is no longer declared as a literal — update this test`);
+      return Number(match[1]);
+    };
+
+    const client = readFileSync(join(process.cwd(), "src/screens/ChangePassword.tsx"), "utf8");
+    const server = readFileSync(join(process.cwd(), "../server/src/password.ts"), "utf8");
+
+    expect(declared(client, "PASSWORD_MIN")).toBe(declared(server, "PASSWORD_MIN"));
   });
 });
