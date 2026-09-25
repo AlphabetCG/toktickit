@@ -2,20 +2,26 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import { app } from "../../src/app.js";
+import { ensureUser, loginCookie } from "../helpers/auth.js";
 
 // Requires a migrated and seeded database. API-17…API-19.
 const prisma = new PrismaClient();
 const NUM = `TDT${Date.now()}`;
 
 let requesterA: number;
+let cookieA: string;
+let cookieB: string;
 let requesterB: number;
 let ticketId: number;
 
 describe("GET /api/tickets/:id", () => {
   beforeAll(async () => {
-    const actives = await prisma.user.findMany({ where: { isActive: true, role: "REQUESTER" }, orderBy: { id: "asc" } });
-    requesterA = actives[0].id;
-    requesterB = actives[1].id;
+    const a = await ensureUser(prisma, { email: "lab2.detail.a@toktickit.test", role: "REQUESTER" });
+    const b = await ensureUser(prisma, { email: "lab2.detail.b@toktickit.test", role: "REQUESTER" });
+    requesterA = a.id;
+    requesterB = b.id;
+    cookieA = await loginCookie("lab2.detail.a@toktickit.test");
+    cookieB = await loginCookie("lab2.detail.b@toktickit.test");
     const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
     const system = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
     const ticket = await prisma.ticket.create({
@@ -40,7 +46,7 @@ describe("GET /api/tickets/:id", () => {
 
   // API-17 — AC-23
   it("returns the full owned Ticket with an attachments array", async () => {
-    const res = await request(app).get(`/api/tickets/${ticketId}`).set("X-Requester-Id", String(requesterA));
+    const res = await request(app).get(`/api/tickets/${ticketId}`).set("Cookie", cookieA);
     expect(res.status).toBe(200);
     expect(res.body.ticketNumber).toBe(NUM);
     expect(res.body.description).toBeTruthy();
@@ -50,20 +56,20 @@ describe("GET /api/tickets/:id", () => {
 
   // API-18 — AC-24, BR-28
   it("returns 404 with no Ticket data for another Requester's Ticket", async () => {
-    const res = await request(app).get(`/api/tickets/${ticketId}`).set("X-Requester-Id", String(requesterB));
+    const res = await request(app).get(`/api/tickets/${ticketId}`).set("Cookie", cookieB);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Ticket not found" });
   });
 
   // API-19 — AC-25, BR-60
   it("returns a byte-identical 404 for a non-existent Ticket", async () => {
-    const res = await request(app).get(`/api/tickets/999999999`).set("X-Requester-Id", String(requesterA));
+    const res = await request(app).get(`/api/tickets/999999999`).set("Cookie", cookieA);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Ticket not found" });
   });
 
   it("returns the same 404 for a non-integer id", async () => {
-    const res = await request(app).get(`/api/tickets/abc`).set("X-Requester-Id", String(requesterA));
+    const res = await request(app).get(`/api/tickets/abc`).set("Cookie", cookieA);
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Ticket not found" });
   });

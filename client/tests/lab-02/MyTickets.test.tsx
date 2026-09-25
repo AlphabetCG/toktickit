@@ -3,11 +3,20 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { MyTickets } from "../../src/screens/MyTickets.js";
-import { RequesterProvider } from "../../src/requester.js";
 import * as api from "../../src/api.js";
 
 // UI-12…UI-16 from docs/lab-02/tests.md. Behaviour contract: ui-spec §8.3.
 vi.mock("../../src/api.js");
+vi.mock("../../src/auth.js", () => ({
+  useAuth: () => ({
+    user: { id: 1, name: "Somchai Prasert", email: "somchai@toktickit.test", role: "REQUESTER", mustChangePassword: false },
+    loading: false,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children?: unknown }) => children,
+}));
 const getTickets = vi.mocked(api.getTickets);
 const getCategories = vi.mocked(api.getCategories);
 const getRelatedSystems = vi.mocked(api.getRelatedSystems);
@@ -37,12 +46,9 @@ const listResponse = (overrides: Partial<api.TicketListResponse> = {}): api.Tick
 });
 
 function renderList() {
-  localStorage.setItem("toktickit.requester", JSON.stringify(REQUESTER));
   return render(
     <MemoryRouter initialEntries={["/tickets"]}>
-      <RequesterProvider>
         <MyTickets />
-      </RequesterProvider>
     </MemoryRouter>
   );
 }
@@ -80,7 +86,6 @@ describe("My Tickets", () => {
 
     await waitFor(() =>
       expect(getTickets).toHaveBeenCalledWith(
-        REQUESTER.id,
         expect.objectContaining({ search: "laptop" }),
         expect.anything()
       )
@@ -114,7 +119,6 @@ describe("My Tickets", () => {
     expect(screen.getByLabelText("Search tickets")).toHaveValue("");
     await waitFor(() =>
       expect(getTickets).toHaveBeenLastCalledWith(
-        REQUESTER.id,
         expect.objectContaining({ search: "" }),
         expect.anything()
       )
@@ -139,7 +143,6 @@ describe("My Tickets", () => {
     await userEvent.click(screen.getByRole("button", { name: "2" }));
     await waitFor(() =>
       expect(getTickets).toHaveBeenLastCalledWith(
-        REQUESTER.id,
         expect.objectContaining({ page: 2 }),
         expect.anything()
       )

@@ -1,7 +1,10 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import request from "supertest";
 import { PrismaClient } from "@prisma/client";
+import { app } from "../../src/app.js";
+import { ensureUser, loginCookie } from "../helpers/auth.js";
 import {
   seed,
   USERS,
@@ -149,12 +152,103 @@ describe("Lab 3 data migration", () => {
       await seed(prisma); // second run
       const after = await counts();
 
+      // Idempotency: a second run changes no row counts.
       expect(after).toEqual(before);
-      // And the seeded totals match the source of truth.
-      const [users, categories, systems] = after;
-      expect(users).toBe(USERS.length);
+      // Seeded totals match the source of truth. Users are scoped to the seeded
+      // emails because Lab 2/3 API tests create their own accounts in the shared DB.
+      const seededUsers = await prisma.user.count({ where: { email: { in: USERS.map((u) => u.email) } } });
+      expect(seededUsers).toBe(USERS.length);
+      const [, categories, systems] = after;
       expect(categories).toBe(CATEGORY_NAMES.length);
       expect(systems).toBe(RELATED_SYSTEM_NAMES.length);
     });
+  });
+});
+
+// REG-03 — AC-21, FR-10: the Lab 2 selector mechanism is gone from the source.
+describe("REG-03: the Requester selector is removed from the source", () => {
+  const roots = [
+    join(process.cwd(), "src"),
+    join(process.cwd(), "..", "client", "src"),
+  ];
+  const banned = ["X-Requester-Id", "RequesterProvider", "requesterContext", '"/select"', "'/select'"];
+
+  function walk(dir: string): string[] {
+    const out: string[] = [];
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (/\.(ts|tsx)$/.test(name)) out.push(full);
+    }
+    return out;
+  }
+
+  it("references no X-Requester-Id, RequesterProvider, requesterContext, or /select route", () => {
+    const offenders: string[] = [];
+    for (const root of roots) {
+      for (const file of walk(root)) {
+        const text = readFileSync(file, "utf8");
+        for (const token of banned) {
+          if (text.includes(token)) offenders.push(`${file}: ${token}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+// REG-06 — BR-61: the Lab 2 owned-list contract still holds under authentication.
+describe("REG-06: Lab 2 list contract holds under authentication", () => {
+  const prisma2 = new PrismaClient();
+  const TOKEN = `REG06${Date.now()}`;
+  let cookieA: string;
+  let cookieB: string;
+  let idA: number;
+  let idB: number;
+
+  beforeAll(async () => {
+    idA = (await ensureUser(prisma2, { email: "reg06.a@toktickit.test", role: "REQUESTER" })).id;
+    idB = (await ensureUser(prisma2, { email: "reg06.b@toktickit.test", role: "REQUESTER" })).id;
+    cookieA = await loginCookie("reg06.a@toktickit.test");
+    cookieB = await loginCookie("reg06.b@toktickit.test");
+    const category = await prisma2.category.findFirstOrThrow({ where: { isActive: true } });
+    const system = await prisma2.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
+    const mk = (owner: number, n: string) =>
+      prisma2.ticket.create({
+        data: {
+          ticketNumber: n,
+          requesterId: owner,
+          categoryId: category.id,
+          relatedSystemId: system.id,
+          requestedPriority: "MEDIUM",
+          itPriority: "MEDIUM",
+          summary: `${TOKEN} ${n}`,
+          description: "A sufficiently long description for the REG-06 regression rows.",
+        },
+      });
+    await mk(idA, `${TOKEN}-A1`);
+    await mk(idA, `${TOKEN}-A2`);
+    await mk(idB, `${TOKEN}-B1`);
+  });
+
+  afterAll(async () => {
+    await prisma2.ticket.deleteMany({ where: { ticketNumber: { startsWith: TOKEN } } });
+    await prisma2.$disconnect();
+  });
+
+  it("scopes the list to the caller with correct pagination metadata", async () => {
+    const res = await request(app).get(`/api/tickets?search=${TOKEN}&pageSize=10`).set("Cookie", cookieA);
+    expect(res.status).toBe(200);
+    expect(res.body.totalItems).toBe(2); // only A's two, never B's
+    expect(res.body.page).toBe(1);
+    expect(res.body.pageSize).toBe(10);
+    expect(res.body.totalPages).toBe(1);
+    const numbers = res.body.items.map((t: { ticketNumber: string }) => t.ticketNumber).sort();
+    expect(numbers).toEqual([`${TOKEN}-A1`, `${TOKEN}-A2`]);
+  });
+
+  it("never returns another requester's tickets, even with a matching search", async () => {
+    const res = await request(app).get(`/api/tickets?search=${TOKEN}`).set("Cookie", cookieB);
+    expect(res.body.items.map((t: { ticketNumber: string }) => t.ticketNumber)).toEqual([`${TOKEN}-B1`]);
   });
 });

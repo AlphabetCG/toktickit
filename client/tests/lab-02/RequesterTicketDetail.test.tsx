@@ -2,11 +2,19 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { RequesterTicketDetail } from "../../src/screens/RequesterTicketDetail.js";
-import { RequesterProvider } from "../../src/requester.js";
 import * as api from "../../src/api.js";
 
 // UI-17 from docs/lab-02/tests.md. Contract: ui-spec §8.4, AC-23/BR-59.
 vi.mock("../../src/api.js");
+// The user object is hoisted so its identity is stable across renders — the
+// detail screen's load effect depends on it.
+vi.mock("../../src/auth.js", () => {
+  const user = { id: 1, name: "Somchai Prasert", email: "somchai@toktickit.test", role: "REQUESTER" as const, mustChangePassword: false };
+  return {
+    useAuth: () => ({ user, loading: false, signIn: vi.fn(), signOut: vi.fn(), refresh: vi.fn() }),
+    AuthProvider: ({ children }: { children?: unknown }) => children,
+  };
+});
 const getTicket = vi.mocked(api.getTicket);
 
 const REQUESTER = { id: 1, name: "Somchai", email: "s@toktickit.test" };
@@ -28,14 +36,11 @@ const TICKET: api.TicketDetail = {
 };
 
 function renderDetail() {
-  localStorage.setItem("toktickit.requester", JSON.stringify(REQUESTER));
   return render(
     <MemoryRouter initialEntries={["/tickets/1"]}>
-      <RequesterProvider>
         <Routes>
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         </Routes>
-      </RequesterProvider>
     </MemoryRouter>
   );
 }

@@ -1,23 +1,43 @@
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import type { Role } from "../api.js";
 import { Button } from "./Button.js";
 
 interface AppShellProps {
-  /** Name of the selected Development Requester, when one has been chosen. */
-  requesterName?: string;
-  onChangeRequester?: () => void;
+  userName: string;
+  role: Role;
+  onLogout: () => void;
   children: ReactNode;
 }
 
-const NAV = [
-  { to: "/tickets", label: "My Tickets" },
-  { to: "/tickets/new", label: "Create Ticket" },
-];
+interface NavItem {
+  to: string;
+  label: string;
+  end?: boolean;
+}
 
-// Application shell: identity, navigation, active-page indication, Requester
-// identity, and responsive mobile navigation (ui-spec section 7).
-export function AppShell({ requesterName, onChangeRequester, children }: AppShellProps) {
+// Role-specific destinations (ui-spec §6/§7, AC-53). Only the acting role's items
+// are rendered, so another role's destinations are absent from the DOM entirely.
+const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+  REQUESTER: [
+    { to: "/tickets", label: "My Tickets", end: true },
+    { to: "/tickets/new", label: "Create Ticket" },
+  ],
+  IT_STAFF: [{ to: "/staff/tickets", label: "Ticket Queue" }],
+  ADMINISTRATOR: [{ to: "/admin/users", label: "User Management" }],
+};
+
+const ROLE_LABEL: Record<Role, string> = {
+  REQUESTER: "Requester",
+  IT_STAFF: "IT Staff",
+  ADMINISTRATOR: "Administrator",
+};
+
+// Application shell: identity, role-specific navigation, active-page indication,
+// role badge, logout, and responsive mobile navigation (ui-spec §7.1).
+export function AppShell({ userName, role, onLogout, children }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
+  const nav = NAV_BY_ROLE[role];
 
   return (
     <div className="zg-shell">
@@ -35,21 +55,16 @@ export function AppShell({ requesterName, onChangeRequester, children }: AppShel
             Menu
           </Button>
 
-          {/* Visibility is a CSS concern, not the `hidden` attribute — `hidden`
-              would drop the navigation from the accessibility tree at every
-              width, not just while the mobile disclosure is collapsed. */}
           <nav
             id="zg-primary-nav"
             className={`zg-nav${navOpen ? " zg-nav--open" : ""}`}
             aria-label="Primary"
           >
-            {NAV.map(({ to, label }) => (
+            {nav.map(({ to, label, end }) => (
               <NavLink
                 key={to}
                 to={to}
-                end
-                /* NavLink sets aria-current="page"; the underline class marks it
-                   visually, so the active page is never colour alone. */
+                end={end}
                 className={({ isActive }) =>
                   `zg-nav-link${isActive ? " zg-nav-link--active" : ""}`
                 }
@@ -60,16 +75,13 @@ export function AppShell({ requesterName, onChangeRequester, children }: AppShel
             ))}
           </nav>
 
-          {requesterName && (
-            <div className="zg-identity">
-              <span>{requesterName}</span>
-              {onChangeRequester && (
-                <Button variant="tertiary" onClick={onChangeRequester}>
-                  Change Requester
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="zg-identity">
+            <span className="zg-identity__name">{userName}</span>
+            <span className={`zg-badge zg-badge--role-${role.toLowerCase()}`}>{ROLE_LABEL[role]}</span>
+            <Button variant="tertiary" onClick={onLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 

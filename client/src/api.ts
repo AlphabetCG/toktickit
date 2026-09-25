@@ -1,9 +1,17 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-export interface Requester {
+// Every request sends the session cookie; the acting user is derived from it on
+// the server, never from a client-supplied id (Lab 3 auth, BR-03).
+const CREDENTIALS: RequestCredentials = "include";
+
+export type Role = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  role: Role;
+  mustChangePassword: boolean;
 }
 
 export interface Category {
@@ -37,37 +45,106 @@ export interface CreatedTicket {
 /** Thrown when the backend rejects a submission with per-field messages (400). */
 export class ValidationError extends Error {
   fields: Record<string, string>;
-  constructor(fields: Record<string, string>) {
-    super("Validation failed");
+  constructor(fields: Record<string, string>, message = "Validation failed") {
+    super(message);
     this.name = "ValidationError";
     this.fields = fields;
   }
 }
 
-// Every scoped request carries the Development Requester identity as a header,
-// shaped like the auth header Lab 3 will replace it with (api-spec §1.2).
-function scoped(requesterId: number, extra: HeadersInit = {}): HeadersInit {
-  return { "X-Requester-Id": String(requesterId), ...extra };
+/** Thrown on a 401 so callers can route to the login screen. */
+export class UnauthenticatedError extends Error {
+  constructor() {
+    super("Not signed in");
+    this.name = "UnauthenticatedError";
+  }
 }
 
-// Active Development Requesters for the selection screen. Public endpoint.
-export async function getRequesters(): Promise<Requester[]> {
-  const res = await fetch(`${API_URL}/api/requesters`);
-  if (!res.ok) throw new Error(`Requesters request failed: HTTP ${res.status}`);
+/** Thrown on a 403 password-gate refusal so the app can route to Change Password. */
+export class PasswordChangeRequiredError extends Error {
+  constructor() {
+    super("Password change required");
+    this.name = "PasswordChangeRequiredError";
+  }
+}
+
+/** Thrown on a 404 so Ticket Detail can show its not-found state distinctly. */
+export class NotFoundError extends Error {
+  constructor() {
+    super("Not found");
+    this.name = "NotFoundError";
+  }
+}
+
+async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${API_URL}${path}`, { credentials: CREDENTIALS, ...init });
+}
+
+function jsonInit(method: string, body: unknown): RequestInit {
+  return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+}
+
+// --- Authentication ----------------------------------------------------------
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const res = await request("/api/auth/login", jsonInit("POST", { email, password }));
+  if (res.status === 400) {
+    const body = await res.json().catch(() => ({}));
+    throw new ValidationError(body.fields ?? {});
+  }
+  if (res.status === 401) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Email or password is incorrect.");
+  }
+  if (!res.ok) throw new Error(`Login failed: HTTP ${res.status}`);
   return res.json();
 }
 
-export async function getCategories(requesterId: number): Promise<Category[]> {
-  const res = await fetch(`${API_URL}/api/categories`, { headers: scoped(requesterId) });
+export async function logout(): Promise<void> {
+  await request("/api/auth/logout", { method: "POST" });
+}
+
+// Returns the signed-in user, or null when there is no valid session.
+export async function getMe(): Promise<AuthUser | null> {
+  const res = await request("/api/auth/me");
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`Session check failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await request("/api/auth/password", jsonInit("POST", { currentPassword, newPassword }));
+  if (res.status === 400) {
+    const body = await res.json().catch(() => ({}));
+    throw new ValidationError(body.fields ?? {});
+  }
+  if (!res.ok) throw new Error(`Change password failed: HTTP ${res.status}`);
+}
+
+// Maps a protected-route response to the shared error types so screens can react
+// to auth/gate refusals uniformly.
+function guard(res: Response): void {
+  if (res.status === 401) throw new UnauthenticatedError();
+  if (res.status === 403) throw new PasswordChangeRequiredError();
+}
+
+// --- Reference data ----------------------------------------------------------
+
+export async function getCategories(): Promise<Category[]> {
+  const res = await request("/api/categories");
+  guard(res);
   if (!res.ok) throw new Error(`Categories request failed: HTTP ${res.status}`);
   return res.json();
 }
 
-export async function getRelatedSystems(requesterId: number): Promise<RelatedSystem[]> {
-  const res = await fetch(`${API_URL}/api/related-systems`, { headers: scoped(requesterId) });
+export async function getRelatedSystems(): Promise<RelatedSystem[]> {
+  const res = await request("/api/related-systems");
+  guard(res);
   if (!res.ok) throw new Error(`Related systems request failed: HTTP ${res.status}`);
   return res.json();
 }
+
+// --- Tickets -----------------------------------------------------------------
 
 export interface TicketListItem {
   id: number;
@@ -101,10 +178,7 @@ export interface TicketListParams {
   pageSize?: number;
 }
 
-// The selected Requester's Tickets, paginated. Accepts an AbortSignal so a slow
-// earlier response can be discarded rather than overwriting a newer one.
 export async function getTickets(
-  requesterId: number,
   params: TicketListParams,
   opts: { signal?: AbortSignal } = {}
 ): Promise<TicketListResponse> {
@@ -112,10 +186,8 @@ export async function getTickets(
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") qs.set(key, String(value));
   }
-  const res = await fetch(`${API_URL}/api/tickets?${qs.toString()}`, {
-    headers: scoped(requesterId),
-    signal: opts.signal,
-  });
+  const res = await request(`/api/tickets?${qs.toString()}`, { signal: opts.signal });
+  guard(res);
   if (!res.ok) throw new Error(`Tickets request failed: HTTP ${res.status}`);
   return res.json();
 }
@@ -147,37 +219,28 @@ export interface TicketDetail {
   attachments: Attachment[];
 }
 
-/** Thrown on a 404 so Ticket Detail can show its not-found state distinctly. */
-export class NotFoundError extends Error {
-  constructor() {
-    super("Not found");
-    this.name = "NotFoundError";
-  }
-}
-
-export async function getTicket(requesterId: number, id: number): Promise<TicketDetail> {
-  const res = await fetch(`${API_URL}/api/tickets/${id}`, { headers: scoped(requesterId) });
+export async function getTicket(id: number): Promise<TicketDetail> {
+  const res = await request(`/api/tickets/${id}`);
+  guard(res);
   if (res.status === 404) throw new NotFoundError();
   if (!res.ok) throw new Error(`Ticket request failed: HTTP ${res.status}`);
   return res.json();
 }
 
-export async function getTicketAttachments(requesterId: number, ticketId: number): Promise<Attachment[]> {
-  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, { headers: scoped(requesterId) });
+export async function getTicketAttachments(ticketId: number): Promise<Attachment[]> {
+  const res = await request(`/api/tickets/${ticketId}/attachments`);
+  guard(res);
   if (!res.ok) throw new Error(`Attachments request failed: HTTP ${res.status}`);
   return res.json();
 }
 
 // Maps the server's rejection statuses to the specific reason the row must show
 // (BR-52), so the user never sees a generic "upload failed".
-export async function uploadAttachment(requesterId: number, ticketId: number, file: File): Promise<Attachment> {
+export async function uploadAttachment(ticketId: number, file: File): Promise<Attachment> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
-    method: "POST",
-    headers: scoped(requesterId), // no Content-Type — the browser sets the multipart boundary
-    body: form,
-  });
+  const res = await request(`/api/tickets/${ticketId}/attachments`, { method: "POST", body: form });
+  guard(res);
   if (!res.ok) {
     const messages: Record<number, string> = {
       413: "File exceeds the 5 MB limit.",
@@ -189,20 +252,18 @@ export async function uploadAttachment(requesterId: number, ticketId: number, fi
   return res.json();
 }
 
-export async function removeAttachment(requesterId: number, attachmentId: number, reason: string): Promise<Attachment> {
-  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
-    method: "DELETE",
-    headers: scoped(requesterId, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ reason }),
-  });
+export async function removeAttachment(attachmentId: number, reason: string): Promise<Attachment> {
+  const res = await request(`/api/attachments/${attachmentId}`, jsonInit("DELETE", { reason }));
+  guard(res);
   if (!res.ok) throw new Error(`Remove failed: HTTP ${res.status}`);
   return res.json();
 }
 
-// Fetches the bytes with the requester header (a plain <a href> cannot carry it)
+// Fetches the bytes with the session cookie (a plain <a href> cannot guarantee it)
 // and triggers a browser save.
-export async function downloadAttachment(requesterId: number, attachmentId: number, filename: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/download`, { headers: scoped(requesterId) });
+export async function downloadAttachment(attachmentId: number, filename: string): Promise<void> {
+  const res = await request(`/api/attachments/${attachmentId}/download`);
+  guard(res);
   if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -216,18 +277,10 @@ export async function downloadAttachment(requesterId: number, attachmentId: numb
 }
 
 // Creates one Ticket. Throws ValidationError on a 400 so the form can show
-// per-field messages (BR-44), and a plain Error on any other failure so the form
-// can show a safe message while preserving entered values (BR-46).
-export async function createTicket(
-  requesterId: number,
-  input: CreateTicketInput
-): Promise<CreatedTicket> {
-  const res = await fetch(`${API_URL}/api/tickets`, {
-    method: "POST",
-    headers: scoped(requesterId, { "Content-Type": "application/json" }),
-    body: JSON.stringify(input),
-  });
-
+// per-field messages (BR-44).
+export async function createTicket(input: CreateTicketInput): Promise<CreatedTicket> {
+  const res = await request("/api/tickets", jsonInit("POST", input));
+  guard(res);
   if (res.status === 400) {
     const body = await res.json().catch(() => ({}));
     throw new ValidationError(body.fields ?? {});

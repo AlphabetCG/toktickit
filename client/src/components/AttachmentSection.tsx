@@ -19,12 +19,11 @@ function formatSize(bytes: number): string {
 }
 
 interface Props {
-  requesterId: number;
   ticketId: number;
   initial: Attachment[];
 }
 
-export function AttachmentSection({ requesterId, ticketId, initial }: Props) {
+export function AttachmentSection({ ticketId, initial }: Props) {
   const [items, setItems] = useState<Attachment[]>(initial);
   const [fileError, setFileError] = useState<string>();
   const [uploading, setUploading] = useState(false);
@@ -50,7 +49,7 @@ export function AttachmentSection({ requesterId, ticketId, initial }: Props) {
     setFileError(undefined);
     setUploading(true);
     try {
-      const created = await uploadAttachment(requesterId, ticketId, file);
+      const created = await uploadAttachment(ticketId, file);
       setItems((prev) => [...prev, created]);
     } catch (uploadErr) {
       setFileError((uploadErr as Error).message);
@@ -62,7 +61,7 @@ export function AttachmentSection({ requesterId, ticketId, initial }: Props) {
   async function onDownload(a: Attachment) {
     setDownloadingId(a.id);
     try {
-      await downloadAttachment(requesterId, a.id, a.originalFilename);
+      await downloadAttachment(a.id, a.originalFilename);
     } catch {
       setFileError(`Unable to download "${a.originalFilename}".`);
     } finally {
@@ -76,7 +75,7 @@ export function AttachmentSection({ requesterId, ticketId, initial }: Props) {
     if (removingId === null || !reasonValid) return;
     setBusyRemove(true);
     try {
-      const updated = await removeAttachment(requesterId, removingId, reason.trim());
+      const updated = await removeAttachment(removingId, reason.trim());
       setItems((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
       setRemovingId(null);
       setReason("");

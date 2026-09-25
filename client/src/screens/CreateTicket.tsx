@@ -10,7 +10,7 @@ import {
   type RequestedPriority,
   type CreatedTicket,
 } from "../api.js";
-import { useRequester } from "../requester.js";
+import { useAuth } from "../auth.js";
 import { Field, TextField, fieldClass } from "../components/Field.js";
 import { Button } from "../components/Button.js";
 import { LoadingSkeleton, ErrorCallout } from "../components/States.js";
@@ -51,8 +51,7 @@ type SubmitState = "idle" | "submitting" | "error";
 
 export function CreateTicket() {
   const navigate = useNavigate();
-  const { requester } = useRequester();
-  const requesterId = requester!.id;
+  const { user } = useAuth();
 
   const [refLoad, setRefLoad] = useState<RefLoad>("loading");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,8 +71,8 @@ export function CreateTicket() {
     setRefLoad("loading");
     try {
       const [cats, sys] = await Promise.all([
-        getCategories(requesterId),
-        getRelatedSystems(requesterId),
+        getCategories(),
+        getRelatedSystems(),
       ]);
       setCategories(cats);
       setSystems(sys);
@@ -100,7 +99,7 @@ export function CreateTicket() {
     setFieldErrors({});
     setSubmitState("submitting");
     try {
-      const ticket = await createTicket(requesterId, {
+      const ticket = await createTicket({
         categoryId: Number(categoryId),
         relatedSystemId: Number(relatedSystemId),
         requestedPriority: priority,
@@ -176,7 +175,7 @@ export function CreateTicket() {
           <TextField id="ticketNumber" label="Ticket Number" readOnly value="" hint="Generated on save" />
           <TextField id="ticketDate" label="Ticket Date" readOnly value="" hint="Set on save" />
         </div>
-        <TextField id="requester" label="Requester" readOnly value={requester!.name} />
+        <TextField id="requester" label="Requester" readOnly value={user!.name} />
 
         <h2 className="zg-section-title">Classification</h2>
         <div className="zg-field-row">
