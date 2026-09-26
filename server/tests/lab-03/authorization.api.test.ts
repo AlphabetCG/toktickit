@@ -11,15 +11,29 @@ const prisma = new PrismaClient();
 let categoryId: number;
 let relatedSystemId: number;
 let cookieA: string;
+let cookieB: string;
 let otherUserId: number;
 
 beforeAll(async () => {
   await ensureUser(prisma, { email: "authz.a@toktickit.test", role: "REQUESTER" });
   otherUserId = (await ensureUser(prisma, { email: "authz.b@toktickit.test", role: "REQUESTER" })).id;
   cookieA = await loginCookie("authz.a@toktickit.test");
+  cookieB = await loginCookie("authz.b@toktickit.test");
   categoryId = (await prisma.category.findFirstOrThrow({ where: { isActive: true } })).id;
   relatedSystemId = (await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })).id;
 });
+
+// A ticket owned by requester B, for the cross-owner refusal tests.
+async function ticketOwnedByB(): Promise<number> {
+  const res = await request(app).post("/api/tickets").set("Cookie", cookieB).send({
+    categoryId,
+    relatedSystemId,
+    requestedPriority: "LOW",
+    summary: "Owned strictly by requester B",
+    description: "Only B may reach this ticket; A must get an identical 404.",
+  });
+  return res.body.id;
+}
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -83,5 +97,36 @@ describe("AUTHZ-02: client-supplied identity is ignored", () => {
       select: { requesterId: true },
     });
     expect(owned.every((t) => t.requesterId === me.body.id)).toBe(true);
+  });
+});
+
+// AUTHZ-06 — AC-16, BR-15: another requester's ticket is byte-identical to a
+// missing one, so existence never leaks.
+describe("AUTHZ-06: a Requester cannot distinguish another's ticket from a missing one", () => {
+  it("returns an identical 404 for a not-owned ticket and a non-existent id", async () => {
+    const bTicket = await ticketOwnedByB();
+    const notOwned = await request(app).get(`/api/tickets/${bTicket}`).set("Cookie", cookieA);
+    const missing = await request(app).get(`/api/tickets/999999999`).set("Cookie", cookieA);
+
+    expect(notOwned.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(notOwned.body).toEqual(missing.body); // byte-identical
+  });
+});
+
+// AUTHZ-08 — AC-23: commenting on a ticket you do not own is a 404, and writes nothing.
+describe("AUTHZ-08: a Requester cannot comment on a ticket they do not own", () => {
+  it("returns 404 and writes no comment", async () => {
+    const bTicket = await ticketOwnedByB();
+    const before = await prisma.publicComment.count({ where: { ticketId: bTicket } });
+
+    const res = await request(app)
+      .post(`/api/tickets/${bTicket}/comments`)
+      .set("Cookie", cookieA)
+      .send({ body: "I should not be able to post this." });
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Ticket not found" });
+
+    expect(await prisma.publicComment.count({ where: { ticketId: bTicket } })).toBe(before);
   });
 });
