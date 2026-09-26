@@ -73,7 +73,7 @@ path itself is exercised on every request rather than stubbed.
 | UNIT-01 | Unit | BR-04, D-02 | Password hashing | `hash()` output is not the plaintext, differs across calls for the same input, and `verify()` accepts only the original | `server/tests/lab-03/password.unit.test.ts` | Pass |
 | UNIT-02 | Unit | BR-12 | Email normalisation | `  Somchai@KMUTT.AC.TH ` normalises to `somchai@kmutt.ac.th` before storage and comparison | `server/tests/lab-03/password.unit.test.ts` | Pass |
 | UNIT-03 | Unit | AC-08, BR-10 | Password policy boundaries | 11 chars rejected, 12 accepted, 128 accepted, 129 rejected; a blocklisted value rejected; a value equal to the current password rejected | `server/tests/lab-03/password.unit.test.ts` | Pass |
-| UNIT-04 | Unit | AC-26, BR-44 | Comment and note body rules | Trimmed first; `"   "` rejected, 1 char accepted, 2000 accepted, 2001 rejected | `server/tests/lab-03/validation.unit.test.ts` | Planned |
+| UNIT-04 | Unit | AC-26, BR-44 | Comment and note body rules | Trimmed first; `"   "` rejected, 1 char accepted, 2000 accepted, 2001 rejected | `server/tests/lab-03/validation.unit.test.ts` | Pass |
 | UNIT-05 | Unit | AC-31, §9.3 | Queue query normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `status=NOPE`, `ownerId=abc` each fall back to the documented default | `server/tests/lab-03/validation.unit.test.ts` | Planned |
 | UNIT-06 | Unit | AC-37, BR-35 | Permitted transitions | Every ✅ cell of the §5.7 matrix is accepted | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
 | UNIT-07 | Unit | AC-38, BR-35 | Forbidden transitions | Every — cell of the §5.7 matrix is rejected, including `RESOLVED → IN_PROGRESS` | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
@@ -94,10 +94,10 @@ path itself is exercised on every request rather than stubbed.
 | API-08 | API | AC-08 | Weak new password | 400 with a field-level message; the old password still authenticates | `server/tests/lab-03/auth.api.test.ts` | Pass |
 | API-09 | API | AC-09, BR-11 | Password change invalidates siblings | A second session for the same user returns 401 afterwards; the new password authenticates | `server/tests/lab-03/auth.api.test.ts` | Pass |
 | API-10 | API | AC-11, BR-09 | Cookie flags | `Set-Cookie` carries `HttpOnly`, `SameSite=Lax`, and `Path=/` | `server/tests/lab-03/auth.api.test.ts` | Pass |
-| API-11 | API | AC-20, BR-31 | Authenticated ticket creation | 201; stored against the authenticated user; `itPriority` equals `requestedPriority` | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-12 | API | AC-22, BR-43 | Requester posts a Public Comment | 201; author and timestamp set by the server; visible to IT Staff on the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
-| API-13 | API | AC-25, BR-23 | Resolution signal | 200; `resolutionSignalledAt` and the signalling user recorded; `currentStatus` unchanged | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
-| API-14 | API | AC-26 | Empty comment body | 400 with a field-level message; nothing written | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
+| API-11 | API | AC-20, BR-31 | Authenticated ticket creation | 201; stored against the authenticated user; `itPriority` equals `requestedPriority` | `server/tests/lab-03/comments-notes.api.test.ts` | Pass |
+| API-12 | API | AC-22, BR-43 | Requester posts a Public Comment | 201; author and timestamp set by the server; visible to IT Staff on the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Pass |
+| API-13 | API | AC-25, BR-23 | Resolution signal | 200; `resolutionSignalledAt` and the signalling user recorded; `currentStatus` unchanged | `server/tests/lab-03/comments-notes.api.test.ts` | Pass |
+| API-14 | API | AC-26 | Empty comment body | 400 with a field-level message; nothing written | `server/tests/lab-03/comments-notes.api.test.ts` | Pass |
 | API-15 | API | AC-27 | Queue breadth | Returns Tickets submitted by every Requester, not only the caller's | `server/tests/lab-03/staff-queue.api.test.ts` | Planned |
 | API-16 | API | AC-28 | Queue filters | Status and IT Priority filters each narrow the result correctly | `server/tests/lab-03/staff-queue.api.test.ts` | Planned |
 | API-17 | API | AC-29, BR-25 | Unassigned filter | `ownerId=unassigned` returns only Tickets with a null owner; `ownerId=me` returns only the caller's | `server/tests/lab-03/staff-queue.api.test.ts` | Planned |
@@ -136,9 +136,9 @@ wrong role or the wrong user. None of them render a component (BR-16).
 | AUTHZ-03 | Authorization | AC-13, BR-14 | Requester → queue | 403; no queue data in the body | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-04 | Authorization | AC-14 | Requester → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-05 | Authorization | AC-15, BR-18 | IT Staff → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| AUTHZ-06 | Authorization | AC-16, BR-15 | Requester → another's Ticket | 404, **byte-identical** to the response for a Ticket id that does not exist | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| AUTHZ-06 | Authorization | AC-16, BR-15 | Requester → another's Ticket | 404, **byte-identical** to the response for a Ticket id that does not exist | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-07 | Authorization | AC-17 | IT Staff → any Ticket | 200 regardless of submitter | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| AUTHZ-08 | Authorization | AC-23 | Comment on a Ticket not owned | 404; nothing written | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| AUTHZ-08 | Authorization | AC-23 | Comment on a Ticket not owned | 404; nothing written | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-09 | Authorization | AC-24, BR-24 | Requester → Internal Notes | 403 on read and on create; the body carries no note text, author, or count | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-10 | Authorization | AC-40, BR-41 | Notes absent from Requester payloads | `GET /api/tickets/:id` as the owning Requester contains no `internalNotes` key at all, on a Ticket that has notes | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-11 | Authorization | BR-37 | Requester → status and priority | Status, IT Priority, and ownership routes each return 403 for a Requester, including on their own Ticket | `server/tests/lab-03/authorization.api.test.ts` | Planned |
@@ -193,9 +193,9 @@ inspected — not against rows created after the migration.
 | UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-13 | UI | §7.1 | Shell identity and logout | The authenticated name and role badge render, and Logout calls the API and clears the session | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
-| UI-14 | UI | AC-22 | Requester posts a comment | The composer submits, clears, and the new comment appears | `client/tests/lab-03/RequesterComments.test.tsx` | Planned |
-| UI-15 | UI | AC-25 | Resolution signal | The action confirms, then shows the signalled state; the status badge is unchanged | `client/tests/lab-03/RequesterComments.test.tsx` | Planned |
-| UI-16 | UI | AC-24, BR-24 | No notes for a Requester | The Requester detail renders no Internal Notes region and no note composer | `client/tests/lab-03/RequesterComments.test.tsx` | Planned |
+| UI-14 | UI | AC-22 | Requester posts a comment | The composer submits, clears, and the new comment appears | `client/tests/lab-03/RequesterComments.test.tsx` | Pass |
+| UI-15 | UI | AC-25 | Resolution signal | The action confirms, then shows the signalled state; the status badge is unchanged | `client/tests/lab-03/RequesterComments.test.tsx` | Pass |
+| UI-16 | UI | AC-24, BR-24 | No notes for a Requester | The Requester detail renders no Internal Notes region and no note composer | `client/tests/lab-03/RequesterComments.test.tsx` | Pass |
 | UI-17 | UI | AC-27 | Queue rendering | Rows reflect the API response, including owner and status columns | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
 | UI-18 | UI | AC-28, AC-29 | Queue controls | Search, status, IT Priority, and owner filters each issue a request carrying the right parameter | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
 | UI-19 | UI | AC-32, BR-57 | Empty vs no-results | Distinct wording, and Clear filters present only in the no-results state | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |

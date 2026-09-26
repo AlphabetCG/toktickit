@@ -22,7 +22,7 @@ import {
   SESSION_TTL_MS,
 } from "./session.js";
 import { allocateTicketNumber } from "./ticketNumber.js";
-import { validateSummary, validateDescription, validatePriority } from "./validation.js";
+import { validateSummary, validateDescription, validatePriority, validateCommentBody } from "./validation.js";
 import { normalizeTicketQuery } from "./ticketQuery.js";
 import {
   detectMimeType,
@@ -66,6 +66,37 @@ const upload = multer({
 function parseId(raw: string): number | null {
   return /^\d+$/.test(raw) ? Number(raw) : null;
 }
+
+// Resolves a ticket the acting user is allowed to touch, honouring the §6.1
+// matrix: a Requester reaches only their own ticket, IT Staff and Administrators
+// reach any. Returns null (→ identical 404) when absent or not owned (BR-15).
+async function findAccessibleTicket(id: number, user: { id: number; role: string }) {
+  const where =
+    user.role === "REQUESTER" ? { id, requesterId: user.id } : { id };
+  return getPrisma().ticket.findFirst({
+    where,
+    select: { id: true, currentStatus: true, requesterId: true },
+  });
+}
+
+const TERMINAL_STATUSES = ["CLOSED", "CANCELLED"];
+
+// Public Comment / Internal Note serialised shape (author role included so the UI
+// can label the speaker without a second lookup — api-spec §4.1).
+function serializeComment(c: {
+  id: number;
+  body: string;
+  createdAt: Date;
+  author: { id: number; name: string; role: string };
+}) {
+  return { id: c.id, body: c.body, author: c.author, createdAt: c.createdAt };
+}
+const COMMENT_SELECT = {
+  id: true,
+  body: true,
+  createdAt: true,
+  author: { select: { id: true, name: true, role: true } },
+} as const;
 
 // Serialised attachment metadata — never exposes the stored filename or any path
 // (BR-47, BR-50).
@@ -400,6 +431,7 @@ app.get("/api/tickets/:id", requireAuth, requirePasswordChanged, async (req: Req
         requestedPriority: true,
         currentStatus: true,
         ticketDate: true,
+        resolutionSignalledAt: true,
         createdAt: true,
         updatedAt: true,
         requester: { select: { id: true, name: true, email: true } },
@@ -599,5 +631,110 @@ app.delete("/api/attachments/:id", requireAuth, requirePasswordChanged, async (r
     res.status(200).json(updated);
   } catch {
     res.status(500).json({ error: "Unable to remove attachment" });
+  }
+});
+
+// --- Public Comments and the Requester's resolution signal (api-spec §4) ------
+
+// GET /api/tickets/:id/comments — owner / staff / admin. Ordered oldest-first so
+// the thread reads like a conversation (api-spec §4.1).
+app.get("/api/tickets/:id/comments", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const ticket = await findAccessibleTicket(id, req.user!);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    const comments = await getPrisma().publicComment.findMany({
+      where: { ticketId: id },
+      select: COMMENT_SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    res.status(200).json(comments.map(serializeComment));
+  } catch {
+    res.status(500).json({ error: "Unable to load comments" });
+  }
+});
+
+// POST /api/tickets/:id/comments — owner / staff / admin. Author and timestamp are
+// server-owned; a closed or cancelled ticket can no longer be commented on
+// (api-spec §4.2). Ownership is checked before validation so probing another
+// requester's ticket yields 404, not a 400 that confirms existence.
+app.post("/api/tickets/:id/comments", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const ticket = await findAccessibleTicket(id, req.user!);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+
+    const bodyError = validateCommentBody(req.body?.body);
+    if (bodyError) {
+      res.status(400).json({ error: "Validation failed", fields: { body: bodyError } });
+      return;
+    }
+    if (TERMINAL_STATUSES.includes(ticket.currentStatus)) {
+      res.status(409).json({ error: "This ticket is closed and can no longer be updated." });
+      return;
+    }
+
+    const created = await getPrisma().publicComment.create({
+      data: { ticketId: id, authorId: req.user!.id, body: String(req.body.body).trim() },
+      select: COMMENT_SELECT,
+    });
+    res.status(201).json(serializeComment(created));
+  } catch {
+    res.status(500).json({ error: "Unable to add comment" });
+  }
+});
+
+// POST /api/tickets/:id/resolution-signal — the owning Requester only. Records a
+// current opinion that the problem looks fixed; it never changes currentStatus,
+// which is returned unchanged as proof (api-spec §4.3, BR-23). Signalling twice
+// overwrites the timestamp rather than erroring.
+app.post("/api/tickets/:id/resolution-signal", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  // Only the requester may signal — a distinct 403 message, so not requireRole.
+  if (req.user!.role !== "REQUESTER") {
+    res.status(403).json({ error: "Only the requester can signal resolution." });
+    return;
+  }
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const ticket = await findAccessibleTicket(id, req.user!);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    if (TERMINAL_STATUSES.includes(ticket.currentStatus)) {
+      res.status(409).json({ error: "This ticket is closed and can no longer be updated." });
+      return;
+    }
+
+    const updated = await getPrisma().ticket.update({
+      where: { id },
+      data: { resolutionSignalledAt: new Date(), resolutionSignalledById: req.user!.id },
+      select: {
+        currentStatus: true,
+        resolutionSignalledAt: true,
+        resolutionSignalledBy: { select: { id: true, name: true } },
+      },
+    });
+    res.status(200).json(updated);
+  } catch {
+    res.status(500).json({ error: "Unable to signal resolution" });
   }
 });

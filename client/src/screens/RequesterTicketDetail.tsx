@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTicket, NotFoundError, type TicketDetail } from "../api.js";
+import { getTicket, signalResolution, NotFoundError, type TicketDetail } from "../api.js";
 import { useAuth } from "../auth.js";
 import { PriorityBadge, StatusBadge } from "../components/Badge.js";
 import { AttachmentSection } from "../components/AttachmentSection.js";
+import { PublicComments } from "../components/PublicComments.js";
+import { Button } from "../components/Button.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
 
 type Load = "loading" | "ready" | "notfound" | "error";
@@ -35,6 +37,9 @@ export function RequesterTicketDetail() {
 
   const [load, setLoad] = useState<Load>("loading");
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
+  const [signalledAt, setSignalledAt] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [signalling, setSignalling] = useState(false);
 
   function loadTicket() {
     if (!user || !Number.isInteger(ticketId)) {
@@ -45,12 +50,24 @@ export function RequesterTicketDetail() {
     getTicket(ticketId)
       .then((t) => {
         setTicket(t);
+        setSignalledAt(t.resolutionSignalledAt);
         setLoad("ready");
       })
       .catch((err) => setLoad(err instanceof NotFoundError ? "notfound" : "error"));
   }
 
   useEffect(loadTicket, [user, ticketId]);
+
+  async function confirmSignal() {
+    setSignalling(true);
+    try {
+      const result = await signalResolution(ticketId);
+      setSignalledAt(result.resolutionSignalledAt);
+      setConfirming(false);
+    } finally {
+      setSignalling(false);
+    }
+  }
 
   if (load === "loading") return <LoadingSkeleton rows={6} label="Loading ticket…" />;
 
@@ -77,8 +94,37 @@ export function RequesterTicketDetail() {
         <span className="zg-detail-badges">
           <StatusBadge value={ticket.currentStatus as "NEW"} />
           <PriorityBadge value={ticket.requestedPriority} />
+          {/* After signalling, a pale chip replaces the action; the status badge
+              above is deliberately unchanged (AC-25, ui-spec §8.1). */}
+          {signalledAt ? (
+            <span className="zg-signal-chip">✓ You reported this resolved</span>
+          ) : (
+            <Button variant="secondary" onClick={() => setConfirming(true)}>
+              Problem appears resolved
+            </Button>
+          )}
         </span>
       </div>
+
+      {confirming && (
+        <div className="zg-dialog-backdrop" role="dialog" aria-modal="true" aria-label="Report resolved">
+          <div className="zg-dialog">
+            <h3 className="zg-panel__heading">Report this problem as resolved?</h3>
+            <p className="zg-panel__body">
+              This tells the IT team the problem looks fixed. They will confirm and close the
+              ticket. It does not change the ticket's status yourself.
+            </p>
+            <div className="zg-form-actions">
+              <Button variant="secondary" onClick={() => setConfirming(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" busy={signalling} busyLabel="Sending…" onClick={confirmSignal}>
+                Yes, it looks resolved
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="zg-panel zg-detail-info">
         <dl className="zg-info-grid">
@@ -103,6 +149,10 @@ export function RequesterTicketDetail() {
       </div>
 
       <AttachmentSection ticketId={ticket.id} initial={ticket.attachments} />
+
+      {/* Public Comments only. No Internal Notes region on the Requester's
+          detail in any state (AC-24, ui-spec §8.1). */}
+      <PublicComments ticketId={ticket.id} />
     </section>
   );
 }

@@ -214,6 +214,7 @@ export interface TicketDetail {
   requestedPriority: RequestedPriority;
   currentStatus: string;
   ticketDate: string;
+  resolutionSignalledAt: string | null;
   createdAt: string;
   updatedAt: string;
   attachments: Attachment[];
@@ -286,5 +287,47 @@ export async function createTicket(input: CreateTicketInput): Promise<CreatedTic
     throw new ValidationError(body.fields ?? {});
   }
   if (!res.ok) throw new Error(`Create ticket failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+// --- Public Comments and the resolution signal (Lab 3 Issue 4) ----------------
+
+export interface Comment {
+  id: number;
+  body: string;
+  author: { id: number; name: string; role: Role };
+  createdAt: string;
+}
+
+export interface ResolutionSignal {
+  resolutionSignalledAt: string;
+  resolutionSignalledBy: { id: number; name: string };
+  currentStatus: string;
+}
+
+export async function getComments(ticketId: number): Promise<Comment[]> {
+  const res = await request(`/api/tickets/${ticketId}/comments`);
+  guard(res);
+  if (!res.ok) throw new Error(`Comments request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+// Posts a Public Comment. Throws ValidationError on a 400 so the composer can show
+// the field message (BR-44).
+export async function postComment(ticketId: number, body: string): Promise<Comment> {
+  const res = await request(`/api/tickets/${ticketId}/comments`, jsonInit("POST", { body }));
+  guard(res);
+  if (res.status === 400) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new ValidationError(errBody.fields ?? {});
+  }
+  if (!res.ok) throw new Error(`Post comment failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function signalResolution(ticketId: number): Promise<ResolutionSignal> {
+  const res = await request(`/api/tickets/${ticketId}/resolution-signal`, { method: "POST" });
+  guard(res);
+  if (!res.ok) throw new Error(`Resolution signal failed: HTTP ${res.status}`);
   return res.json();
 }
