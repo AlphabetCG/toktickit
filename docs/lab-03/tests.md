@@ -111,7 +111,7 @@ path itself is exercised on every request rather than stubbed.
 | API-25 | API | AC-38 | Forbidden transition | `RESOLVED → IN_PROGRESS` returns 409; status unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
 | API-26 | API | AC-39, BR-36 | Terminal ticket | Every transition from `CLOSED` returns 409 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
 | API-27 | API | AC-40, BR-41 | Internal note created | 201 for IT Staff; the note is absent from the Requester's view of the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
-| API-28 | API | AC-41, BR-46 | Append on a terminal Ticket | Comment and note both rejected on `CLOSED` and `CANCELLED` | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
+| API-28 | API | AC-41, BR-46 | Append on a terminal Ticket | Comment and note both rejected on `CLOSED` and `CANCELLED` | `server/tests/lab-03/comments-notes.api.test.ts` | **Partial** — comment half Pass (PR #40); note half ships with #34 |
 | API-29 | API | AC-43 | User list | 200; each row carries name, email, role, and activation state, and **no** password hash | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-30 | API | AC-44 | User search | Matches on name and on email, case-insensitively | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-31 | API | AC-45 | Role filter | Only users holding the requested role are returned | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
@@ -123,6 +123,8 @@ path itself is exercised on every request rather than stubbed.
 | API-37 | API | AC-51, BR-53 | New initial password | The target user is re-flagged and the new password authenticates | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-38 | API | AC-52, BR-53 | Initial password invalidates sessions | The target user's existing session returns 401 afterwards | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-39 | API | api-spec §2.4, BR-01 | Wrong current password on change | 400 naming `currentPassword`; the password is unchanged, so the old one still authenticates and the proposed one does not | `server/tests/lab-03/auth.api.test.ts` | **Pass** |
+| API-40 | API | api-spec §4.3, BR-22 | Signal on a terminal Ticket | `CLOSED` and `CANCELLED` both return 409; no signal recorded; status untouched | `server/tests/lab-03/comments-notes.api.test.ts` | **Pass** |
+| API-41 | API | §6.1 matrix, BR-23 | Administrator / IT Staff rights on the Requester's conversation | Resolution signal refused for IT Staff and Administrator (403, nothing recorded); an Administrator may read Public Comments (200) — exactly the matrix's rows | `server/tests/lab-03/comments-notes.api.test.ts` | **Pass** |
 
 ### 2.3 Authorization
 
@@ -189,6 +191,7 @@ inspected — not against rows created after the migration.
 | UI-08 | UI | FR-23 | Confirmation mismatch | A mismatched confirmation shows a field-level message and makes no API call | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-09 | UI | AC-02 | Successful change | On success the application becomes reachable | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-31 | UI | BR-10 | Password policy shared across packages | The screen's `PASSWORD_MIN` equals the server's; the two are declared in separate packages and nothing else prevents drift | `client/tests/lab-03/ChangePassword.test.tsx` | **Pass** |
+| UI-32 | UI | handout §8.6, AC-25 | Failed resolution signal | The server's conflict reason (or a safe generic message on network failure) is shown; the dialog stays open; no signalled chip | `client/tests/lab-03/RequesterComments.test.tsx` | **Pass** |
 | UI-10 | UI | AC-53, FR-08 | Requester navigation | My Tickets and Create Ticket present; queue and User Management absent from the DOM | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
@@ -246,8 +249,8 @@ Screenshots are written to
 | E2E-07 | E2E | AC-46, AC-51 | Create and first login | An Administrator creates a user, then that user logs in and is forced through the password change | `e2e/lab-03/user-administration.spec.ts` | Planned |
 | E2E-08 | E2E | AC-49, AC-50 | Administrator guards | Self-deactivation and last-Administrator removal are both refused with a visible message | `e2e/lab-03/user-administration.spec.ts` | Planned |
 
-**Totals:** 9 unit · 39 API · 12 authorization · 7 migration/regression ·
-31 UI component · 5 UI style · 4 responsive · 8 E2E = **115 planned tests**.
+**Totals:** 9 unit · 41 API · 12 authorization · 7 migration/regression ·
+32 UI component · 5 UI style · 4 responsive · 8 E2E = **118 planned tests**.
 
 ---
 

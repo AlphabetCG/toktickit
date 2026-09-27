@@ -99,3 +99,76 @@ it("API-14: a whitespace-only comment body is rejected and nothing is written", 
 
   expect(await prisma.publicComment.count({ where: { ticketId } })).toBe(before);
 });
+
+// Closes a ticket out-of-band (the staff status workflow arrives in Issue #34).
+async function createTicketInStatus(status: "CLOSED" | "CANCELLED"): Promise<number> {
+  const id = await createTicketAsA();
+  await prisma.ticket.update({ where: { id }, data: { currentStatus: status } });
+  return id;
+}
+
+// API-28 — AC-41, BR-46 (comment half; the Internal Note half ships with #34).
+describe("API-28: appends are rejected on a terminal ticket", () => {
+  it.each(["CLOSED", "CANCELLED"] as const)("rejects a comment on a %s ticket with 409 and writes nothing", async (status) => {
+    const ticketId = await createTicketInStatus(status);
+
+    const res = await request(app)
+      .post(`/api/tickets/${ticketId}/comments`)
+      .set("Cookie", cookieA)
+      .send({ body: "Is there any update on this?" });
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "This ticket is closed and can no longer be updated." });
+    expect(await prisma.publicComment.count({ where: { ticketId } })).toBe(0);
+  });
+});
+
+// API-40 — api-spec §4.3, BR-22: signalling a terminal ticket is a conflict.
+describe("API-40: the resolution signal is refused on a terminal ticket", () => {
+  it.each(["CLOSED", "CANCELLED"] as const)("returns 409 on a %s ticket and records nothing", async (status) => {
+    const ticketId = await createTicketInStatus(status);
+
+    const res = await request(app).post(`/api/tickets/${ticketId}/resolution-signal`).set("Cookie", cookieA);
+
+    expect(res.status).toBe(409);
+    const saved = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } });
+    expect(saved.resolutionSignalledAt).toBeNull();
+    expect(saved.resolutionSignalledById).toBeNull();
+    expect(saved.currentStatus).toBe(status); // untouched
+  });
+});
+
+// API-41 — spec §6.1: the shared access helper grants an Administrator exactly
+// the matrix's rows — Public Comments "any", resolution signal "—".
+describe("API-41: Administrator and IT Staff rights follow the §6.1 matrix", () => {
+  let cookieAdmin: string;
+
+  beforeAll(async () => {
+    await ensureUser(prisma, { email: "cmt.admin@toktickit.test", role: "ADMINISTRATOR" });
+    cookieAdmin = await loginCookie("cmt.admin@toktickit.test");
+  });
+
+  it.each([
+    ["IT Staff", () => cookieStaff],
+    ["an Administrator", () => cookieAdmin],
+  ])("refuses a resolution signal from %s with 403 and records nothing", async (_who, cookie) => {
+    const ticketId = await createTicketAsA();
+
+    const res = await request(app).post(`/api/tickets/${ticketId}/resolution-signal`).set("Cookie", cookie());
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "Only the requester can signal resolution." });
+    const saved = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } });
+    expect(saved.resolutionSignalledAt).toBeNull();
+  });
+
+  it("lets an Administrator read a requester's Public Comments (matrix: any)", async () => {
+    const ticketId = await createTicketAsA();
+    await request(app).post(`/api/tickets/${ticketId}/comments`).set("Cookie", cookieA).send({ body: "Visible to admin?" });
+
+    const res = await request(app).get(`/api/tickets/${ticketId}/comments`).set("Cookie", cookieAdmin);
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((c: { body: string }) => c.body)).toContain("Visible to admin?");
+  });
+});

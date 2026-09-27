@@ -106,3 +106,41 @@ describe("Requester comments and resolution signal", () => {
     expect(screen.queryByRole("button", { name: /Add note/i })).not.toBeInTheDocument();
   });
 });
+
+// UI-32 — handout §8.6 (peer review of PR #40): a failed resolution signal must
+// explain itself instead of failing silently.
+describe("UI-32: a failed resolution signal gives clear feedback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTicket.mockResolvedValue(TICKET);
+    getComments.mockResolvedValue([]);
+  });
+
+  it("shows the server's conflict reason, keeps the dialog open, and records no signal", async () => {
+    const user = userEvent.setup();
+    signalResolution.mockRejectedValue(new Error("This ticket is closed and can no longer be updated."));
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: "Problem appears resolved" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /looks resolved/i }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(/closed and can no longer be updated/i);
+    expect(screen.getByRole("dialog")).toBeInTheDocument(); // still open
+    expect(screen.queryByText(/reported this resolved/i)).not.toBeInTheDocument(); // no chip
+    expect(within(dialog).getByRole("button", { name: /looks resolved/i })).toBeEnabled(); // can retry
+  });
+
+  it("shows a safe generic message on a network failure, never the raw error", async () => {
+    const user = userEvent.setup();
+    signalResolution.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: "Problem appears resolved" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /looks resolved/i }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(api.SIGNAL_FAILED_MESSAGE);
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+  });
+});

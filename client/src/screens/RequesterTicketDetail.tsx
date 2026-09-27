@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTicket, signalResolution, NotFoundError, type TicketDetail } from "../api.js";
+import { getTicket, signalResolution, NotFoundError, SIGNAL_FAILED_MESSAGE, type TicketDetail } from "../api.js";
 import { useAuth } from "../auth.js";
 import { PriorityBadge, StatusBadge } from "../components/Badge.js";
 import { AttachmentSection } from "../components/AttachmentSection.js";
@@ -40,6 +40,7 @@ export function RequesterTicketDetail() {
   const [signalledAt, setSignalledAt] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [signalling, setSignalling] = useState(false);
+  const [signalError, setSignalError] = useState<string>();
 
   function loadTicket() {
     if (!user || !Number.isInteger(ticketId)) {
@@ -58,12 +59,23 @@ export function RequesterTicketDetail() {
 
   useEffect(loadTicket, [user, ticketId]);
 
+  function openSignalDialog() {
+    setSignalError(undefined);
+    setConfirming(true);
+  }
+
   async function confirmSignal() {
     setSignalling(true);
+    setSignalError(undefined);
     try {
       const result = await signalResolution(ticketId);
       setSignalledAt(result.resolutionSignalledAt);
       setConfirming(false);
+    } catch (err) {
+      // Keep the dialog open and say why (e.g. the ticket was closed meanwhile —
+      // the server's 409). A network failure has no server message, so it gets
+      // the generic safe text instead of a raw "Failed to fetch" (handout §8.6).
+      setSignalError(err instanceof TypeError ? SIGNAL_FAILED_MESSAGE : (err as Error).message);
     } finally {
       setSignalling(false);
     }
@@ -99,7 +111,7 @@ export function RequesterTicketDetail() {
           {signalledAt ? (
             <span className="zg-signal-chip">✓ You reported this resolved</span>
           ) : (
-            <Button variant="secondary" onClick={() => setConfirming(true)}>
+            <Button variant="secondary" onClick={openSignalDialog}>
               Problem appears resolved
             </Button>
           )}
@@ -112,8 +124,9 @@ export function RequesterTicketDetail() {
             <h3 className="zg-panel__heading">Report this problem as resolved?</h3>
             <p className="zg-panel__body">
               This tells the IT team the problem looks fixed. They will confirm and close the
-              ticket. It does not change the ticket's status yourself.
+              ticket. It does not change the ticket's status.
             </p>
+            {signalError && <ErrorCallout message={signalError} />}
             <div className="zg-form-actions">
               <Button variant="secondary" onClick={() => setConfirming(false)}>
                 Cancel

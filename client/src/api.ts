@@ -325,9 +325,16 @@ export async function postComment(ticketId: number, body: string): Promise<Comme
   return res.json();
 }
 
+export const SIGNAL_FAILED_MESSAGE = "We couldn't send that to the IT team. Please try again.";
+
+// Surfaces the server's safe message (e.g. the 409 for a closed ticket) so the
+// screen can explain a conflict rather than fail silently (handout §8.6).
 export async function signalResolution(ticketId: number): Promise<ResolutionSignal> {
   const res = await request(`/api/tickets/${ticketId}/resolution-signal`, { method: "POST" });
   guard(res);
-  if (!res.ok) throw new Error(`Resolution signal failed: HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.error === "string" ? body.error : SIGNAL_FAILED_MESSAGE);
+  }
   return res.json();
 }

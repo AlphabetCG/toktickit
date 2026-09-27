@@ -70,6 +70,15 @@ function parseId(raw: string): number | null {
 // Resolves a ticket the acting user is allowed to touch, honouring the §6.1
 // matrix: a Requester reaches only their own ticket, IT Staff and Administrators
 // reach any. Returns null (→ identical 404) when absent or not owned (BR-15).
+//
+// Administrator ticket access is a deliberate, approved decision, not a side
+// effect of this if/else: specification.md §6.1 grants Administrators "any" for
+// ticket detail, attachments, and Public Comments, and its "Why Administrator
+// holds Ticket operations" note records the reason (handout §4.5 lets an
+// Administrator own a ticket and set IT Priority). Rows marked "—" for
+// Administrators are enforced separately — e.g. resolution-signal refuses every
+// non-Requester with 403 before this helper is reached.
+// Used by: GET/POST /api/tickets/:id/comments and the resolution signal only.
 async function findAccessibleTicket(id: number, user: { id: number; role: string }) {
   const where =
     user.role === "REQUESTER" ? { id, requesterId: user.id } : { id };
