@@ -101,7 +101,42 @@ being skipped. `tests.md` updated from 113 to 115 planned tests.
 
 - **Resolution:** replied on the PR
   ([comment](https://github.com/AlphabetCG/toktickit/pull/39#issuecomment-5835840201));
-  awaiting re-review.
+  @copter549365 then **`APPROVED`** and PR #39 merged into `lab3-staging` (2026-09-25).
+
+### PR #40 — feat: Requester regression and Public Comments (Issue #32 / Lab 3 Issue 4)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/40
+- **Base:** `lab3-staging` ← **Head:** `feature/4-requester-comments`
+- **Review verdict:** `COMMENTED` by @copter549365, 2026-09-26 (three points).
+
+#### Reviewer comment (3 points)
+
+1. **Administrator ↔ Ticket scope.** `findAccessibleTicket` treats IT Staff and
+   Administrator identically (any ticket). Handout §4.3 keeps the two roles
+   conceptually separate unless the approved matrix permits otherwise — is Admin
+   ticket access an approved decision recorded in `specification.md`, or a side
+   effect of a terse `if (role === "REQUESTER") … else …`? (Assumed the helper also
+   governs ticket detail.)
+2. **No client error handling on the resolution signal.** `confirmSignal` had
+   `try/finally` but no `catch`: a network error or the server's 409 escaped the
+   handler and the user saw nothing (handout §8.6 requires clear conflict /
+   API-failure feedback), unlike the comment composer.
+3. **The terminal-status 409** (no comment / signal on `CLOSED` or `CANCELLED`)
+   had no test.
+
+#### Author reply & resolution (`39faae4`, [reply](https://github.com/AlphabetCG/toktickit/pull/40#issuecomment-5852932247))
+
+| Point | Resolution |
+|-------|-----------|
+| 1 | **Non-fix — approved decision, now made visible.** `specification.md` §6.1 grants Administrators `any` for ticket detail, attachments, and Public Comments and `—` for the resolution signal, and its "Why Administrator holds Ticket operations" note cites handout §4.5 (an Administrator may own a ticket and set IT Priority) — API-level rights, separate screens. Corrected the assumption: the helper is used only by the comments and resolution-signal routes; ticket detail and attachments are still own-only until #34. Added a comment at the helper citing §6.1, and **API-41** locking the Admin rows (comments 200, signal 403). A mutation check showed that without the explicit role guard an Administrator *could* signal — so that guard is what enforces the matrix's `—`, and it is now tested. |
+| 2 | **Fixed (real bug).** Added the `catch`: the dialog stays open with a `role="alert"` showing the server's safe reason (the 409 text) or a generic safe message on a network failure — never the raw error; the button can retry and no chip appears. **UI-32** (two cases) fails against the old code with an unhandled rejection, reproducing the report exactly. |
+| 3 | **Fixed (tests).** **API-28** (already planned; comment half now Pass, Internal Note half with #34) and new **API-40** (signal) cover both `CLOSED` and `CANCELLED` and assert nothing is written. |
+
+Every new test was mutation-checked — it fails with its guard removed and passes
+with it. Verified: server 117/117, client 65/65, both tsc clean, client build;
+`tests.md` 115 → 118.
+
+- **Resolution:** fixes pushed; awaiting re-review.
 
 ---
 
@@ -269,3 +304,8 @@ They added API-35 to cover it. The server suite also became deterministic
 - **Resolution:** `APPROVED` by @AlphabetCG 2026-09-25; PR #50 merged the same day.
   One non-blocking note carried forward for their Issue 8: a remaining flaky
   assertion in `MyTickets.test.tsx`.
+
+> **Cycle check (Issue #32 start, 2026-09-26).** @copter549365 has no PR newer than
+> #50 (their Issue 7) open, so there is nothing further to review this cycle;
+> Direction B is current through #50. In Direction A, my reviewer's latest is the
+> PR #39 exchange above (`COMMENTED` → fixes → `APPROVED`), already recorded.

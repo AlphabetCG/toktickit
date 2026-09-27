@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { RequesterTicketDetail } from "../../src/screens/RequesterTicketDetail.js";
 import * as api from "../../src/api.js";
@@ -16,8 +16,7 @@ vi.mock("../../src/auth.js", () => {
   };
 });
 const getTicket = vi.mocked(api.getTicket);
-
-const REQUESTER = { id: 1, name: "Somchai", email: "s@toktickit.test" };
+const getComments = vi.mocked(api.getComments);
 
 const TICKET: api.TicketDetail = {
   id: 1,
@@ -30,6 +29,7 @@ const TICKET: api.TicketDetail = {
   requestedPriority: "MEDIUM",
   currentStatus: "NEW",
   ticketDate: "2026-08-26T09:14:00.000Z",
+  resolutionSignalledAt: null,
   createdAt: "2026-08-26T09:14:00.000Z",
   updatedAt: "2026-08-26T09:14:00.000Z",
   attachments: [],
@@ -54,20 +54,24 @@ describe("Requester Ticket Detail", () => {
   // UI-17 — AC-23, BR-59
   it("renders ticket fields as read-only text, not editable controls", async () => {
     getTicket.mockResolvedValue(TICKET);
+    getComments.mockResolvedValue([]);
     renderDetail();
 
-    expect(await screen.findByText("TKT-2026-000001")).toBeInTheDocument();
-    expect(screen.getByText("Laptop battery drains quickly")).toBeInTheDocument();
+    const summary = await screen.findByText("Laptop battery drains quickly");
+    expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument();
     expect(screen.getByText("Hardware")).toBeInTheDocument();
     expect(screen.getByText(/Corporate Laptop/)).toBeInTheDocument();
 
-    // No editable control carries a ticket field (the removal dialog is closed).
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    // The ticket information panel holds no editable control (the Public Comments
+    // composer below is legitimately editable and lives outside this panel).
+    const infoPanel = summary.closest(".zg-detail-info") as HTMLElement;
+    expect(within(infoPanel).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(infoPanel).queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("shows a not-found state for another Requester's or a missing ticket", async () => {
     getTicket.mockRejectedValue(new api.NotFoundError());
+    getComments.mockResolvedValue([]);
     renderDetail();
 
     expect(await screen.findByText(/Ticket not found/i)).toBeInTheDocument();

@@ -909,3 +909,57 @@ body {
   background: var(--zg-warning-surface);
   color: var(--zg-warning);
 }
+
+/* --- Lab 3: Public Comments and the resolution-signal chip --- */
+.zg-signal-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--zg-space-1) var(--zg-space-3);
+  border-radius: var(--zg-radius-sm);
+  background: var(--zg-pale);
+  color: var(--zg-primary);
+  font-size: var(--zg-fs-small);
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-comments {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+}
+
+.zg-comment-list {
+  list-style: none;
+  margin: var(--zg-space-4) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-4);
+}
+
+.zg-comment {
+  padding-bottom: var(--zg-space-3);
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+}
+
+.zg-comment__meta {
+  margin: 0 0 var(--zg-space-1);
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-comment__author {
+  font-weight: var(--zg-fw-medium);
+  color: var(--zg-text);
+}
+
+.zg-comment__body {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: var(--zg-lh-body);
+}
+
+.zg-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-2);
+}
