@@ -24,6 +24,7 @@ import {
 import { allocateTicketNumber } from "./ticketNumber.js";
 import { validateSummary, validateDescription, validatePriority, validateCommentBody } from "./validation.js";
 import { normalizeTicketQuery } from "./ticketQuery.js";
+import { normalizeQueueQuery } from "./queueQuery.js";
 import {
   detectMimeType,
   isPermittedMime,
@@ -747,3 +748,111 @@ app.post("/api/tickets/:id/resolution-signal", requireAuth, requirePasswordChang
     res.status(500).json({ error: "Unable to signal resolution" });
   }
 });
+
+// --- IT Staff queue (api-spec §7) ---------------------------------------------
+
+// GET /api/staff/tickets — IT Staff and Administrators. Every ticket regardless of
+// submitter, with the §9.3 query contract. `itPriority` sorts by severity because
+// PostgreSQL orders an enum by declaration (LOW < MEDIUM < HIGH), not alphabetically.
+// `counts` are whole-queue header figures, independent of the current filters.
+app.get(
+  "/api/staff/tickets",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("IT_STAFF", "ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const q = normalizeQueueQuery(req.query as Record<string, unknown>);
+    const me = req.user!.id;
+
+    const ownerWhere: Prisma.TicketWhereInput =
+      q.owner?.kind === "unassigned" ? { ownerId: null }
+      : q.owner?.kind === "me" ? { ownerId: me }
+      : q.owner?.kind === "user" ? { ownerId: q.owner.id }
+      : {};
+
+    const where: Prisma.TicketWhereInput = {
+      ...ownerWhere,
+      ...(q.status ? { currentStatus: q.status as Prisma.EnumTicketStatusFilter } : {}),
+      ...(q.itPriority ? { itPriority: q.itPriority as Prisma.EnumRequestedPriorityFilter } : {}),
+      ...(q.categoryId ? { categoryId: q.categoryId } : {}),
+      ...(q.search
+        ? {
+            OR: [
+              { ticketNumber: { contains: q.search, mode: "insensitive" } },
+              { summary: { contains: q.search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const orderBy: Prisma.TicketOrderByWithRelationInput[] = [{ [q.sort]: q.order }, { id: "desc" }];
+
+    try {
+      const prisma = getPrisma();
+      const [totalItems, rows, unassigned, mine] = await prisma.$transaction([
+        prisma.ticket.count({ where }),
+        prisma.ticket.findMany({
+          where,
+          orderBy,
+          skip: (q.page - 1) * q.pageSize,
+          take: q.pageSize,
+          select: {
+            id: true,
+            ticketNumber: true,
+            summary: true,
+            requestedPriority: true,
+            itPriority: true,
+            currentStatus: true,
+            ticketDate: true,
+            updatedAt: true,
+            resolutionSignalledAt: true,
+            category: { select: { id: true, name: true } },
+            requester: { select: { id: true, name: true } },
+            owner: { select: { id: true, name: true } },
+          },
+        }),
+        prisma.ticket.count({ where: { ownerId: null } }),
+        prisma.ticket.count({ where: { ownerId: me } }),
+      ]);
+
+      // Description is omitted (unbounded, never rendered in a row); the signal is
+      // a boolean because the queue only needs the chip (api-spec §7.1).
+      const items = rows.map(({ resolutionSignalledAt, ...t }) => ({
+        ...t,
+        resolutionSignalled: resolutionSignalledAt !== null,
+      }));
+
+      res.status(200).json({
+        items,
+        page: q.page,
+        pageSize: q.pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / q.pageSize),
+        counts: { unassigned, mine },
+      });
+    } catch {
+      res.status(500).json({ error: "Failed to load the ticket queue" });
+    }
+  }
+);
+
+// GET /api/staff/assignees — active IT Staff and Administrators, by name. Just
+// enough to hand over a ticket: no email, activation flag, or timestamps (§7.2).
+app.get(
+  "/api/staff/assignees",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("IT_STAFF", "ADMINISTRATOR"),
+  async (_req: Request, res: Response) => {
+    try {
+      const users = await getPrisma().user.findMany({
+        where: { isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, role: true },
+      });
+      res.status(200).json(users);
+    } catch {
+      res.status(500).json({ error: "Failed to load assignees" });
+    }
+  }
+);

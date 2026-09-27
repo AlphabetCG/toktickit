@@ -6,7 +6,13 @@ export const SORT_FIELDS = ["ticketDate", "ticketNumber", "updatedAt"] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
 export const PAGE_SIZES = [10, 20, 50] as const;
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
-const STATUSES = ["NEW"];
+// Lab 3 extended the lifecycle to eight statuses; a Lab 2-era list of just "NEW"
+// silently dropped every other status filter.
+export const TICKET_STATUSES = [
+  "NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER",
+  "RESOLVED", "CLOSED", "REOPENED", "CANCELLED",
+] as const;
+const STATUSES: readonly string[] = TICKET_STATUSES;
 
 export interface NormalizedTicketQuery {
   search?: string;

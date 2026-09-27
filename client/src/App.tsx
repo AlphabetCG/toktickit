@@ -6,6 +6,7 @@ import { ChangePassword } from "./screens/ChangePassword.js";
 import { CreateTicket } from "./screens/CreateTicket.js";
 import { MyTickets } from "./screens/MyTickets.js";
 import { RequesterTicketDetail } from "./screens/RequesterTicketDetail.js";
+import { StaffTicketQueue } from "./screens/StaffTicketQueue.js";
 import { LoadingSkeleton } from "./components/States.js";
 
 // Staff and Administrator destinations exist so role navigation is complete
@@ -37,7 +38,14 @@ function RoleRoutes({ role }: { role: string }) {
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         </>
       )}
-      {role === "IT_STAFF" && <Route path="/staff/tickets" element={<Placeholder title="Ticket Queue" />} />}
+      {/* The queue serves IT Staff and, per spec §6.1, Administrators too — reachable
+          but not promoted in the Administrator's navigation. */}
+      {(role === "IT_STAFF" || role === "ADMINISTRATOR") && (
+        <>
+          <Route path="/staff/tickets" element={<StaffTicketQueue />} />
+          <Route path="/staff/tickets/:id" element={<Placeholder title="Ticket Detail" />} />
+        </>
+      )}
       {role === "ADMINISTRATOR" && <Route path="/admin/users" element={<Placeholder title="User Management" />} />}
       <Route path="*" element={<Navigate to={roleLanding(role)} replace />} />
     </Routes>

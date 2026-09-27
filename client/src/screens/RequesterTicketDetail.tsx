@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTicket, signalResolution, NotFoundError, SIGNAL_FAILED_MESSAGE, type TicketDetail } from "../api.js";
 import { useAuth } from "../auth.js";
-import { PriorityBadge, StatusBadge } from "../components/Badge.js";
+import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
 import { AttachmentSection } from "../components/AttachmentSection.js";
 import { PublicComments } from "../components/PublicComments.js";
 import { Button } from "../components/Button.js";
@@ -104,7 +104,7 @@ export function RequesterTicketDetail() {
       <div className="zg-detail-head">
         <h1 className="zg-page-title" style={{ margin: 0 }}>{ticket.ticketNumber}</h1>
         <span className="zg-detail-badges">
-          <StatusBadge value={ticket.currentStatus as "NEW"} />
+          <StatusBadge value={ticket.currentStatus as TicketStatus} />
           <PriorityBadge value={ticket.requestedPriority} />
           {/* After signalling, a pale chip replaces the action; the status badge
               above is deliberately unchanged (AC-25, ui-spec §8.1). */}
@@ -148,7 +148,7 @@ export function RequesterTicketDetail() {
           <Info label="Category">{ticket.category.name}</Info>
           <Info label="Related System">{ticket.relatedSystem.name}</Info>
           <Info label="Requested Priority"><PriorityBadge value={ticket.requestedPriority} /></Info>
-          <Info label="Current Status"><StatusBadge value={ticket.currentStatus as "NEW"} /></Info>
+          <Info label="Current Status"><StatusBadge value={ticket.currentStatus as TicketStatus} /></Info>
         </dl>
 
         <div className="zg-info">

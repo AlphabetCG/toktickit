@@ -32,6 +32,10 @@
   --zg-warning-surface: #fff6e5;
   --zg-disabled-bg: #e8ecea;
   --zg-disabled-text: #8a9691;
+  /* Lab 3 — informational status (ui-spec §2) */
+  --zg-info: #1b5e8a;
+  --zg-info-surface: #e6f0f7;
+
   --zg-shadow: 0 1px 2px rgba(28, 43, 36, 0.06), 0 2px 8px rgba(28, 43, 36, 0.04);
 
   /* Typography */
@@ -253,6 +257,40 @@ body {
 .zg-badge--status-new {
   background: var(--zg-pale);
   color: var(--zg-primary);
+}
+
+/* Lab 3 — the rest of the eight-status set (ui-spec §3.1). */
+.zg-badge--status-open {
+  background: var(--zg-pale);
+  color: var(--zg-secondary);
+}
+.zg-badge--status-in-progress {
+  background: var(--zg-info-surface);
+  color: var(--zg-info);
+}
+.zg-badge--status-waiting {
+  background: var(--zg-warning-surface);
+  color: var(--zg-warning);
+  white-space: normal; /* the long label wraps rather than truncating on mobile */
+}
+.zg-badge--status-resolved {
+  background: var(--zg-pale);
+  color: var(--zg-success);
+}
+.zg-badge--status-reopened {
+  background: var(--zg-error-surface);
+  color: var(--zg-error);
+}
+.zg-badge--status-closed {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-text-muted);
+}
+/* Closed and cancelled are both terminal and muted; fill vs outline separates
+   them, and the labels differ too. */
+.zg-badge--status-cancelled {
+  background: transparent;
+  color: var(--zg-text-muted);
+  box-shadow: inset 0 0 0 var(--zg-border-w) var(--zg-border-strong);
 }
 
 .zg-badge--removed {
@@ -962,4 +1000,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--zg-space-2);
+}
+
+/* --- Lab 3: IT Staff queue --- */
+.zg-queue-counts {
+  margin: 0;
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-muted {
+  color: var(--zg-text-muted);
+}
+
+td .zg-signal-chip {
+  margin-left: var(--zg-space-2);
 }
