@@ -68,6 +68,14 @@ export class PasswordChangeRequiredError extends Error {
   }
 }
 
+/** Thrown on a role refusal (403 without passwordChangeRequired). */
+export class ForbiddenError extends Error {
+  constructor() {
+    super("Forbidden");
+    this.name = "ForbiddenError";
+  }
+}
+
 /** Thrown on a 404 so Ticket Detail can show its not-found state distinctly. */
 export class NotFoundError extends Error {
   constructor() {
@@ -123,23 +131,31 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 // Maps a protected-route response to the shared error types so screens can react
 // to auth/gate refusals uniformly.
-function guard(res: Response): void {
+// A 403 means one of two different things (api-spec §1.4): the password gate
+// (body carries passwordChangeRequired) or a role refusal. Treating every 403 as
+// the password gate would show a Requester who reaches a staff screen the wrong
+// explanation, so the body decides.
+async function guard(res: Response): Promise<void> {
   if (res.status === 401) throw new UnauthenticatedError();
-  if (res.status === 403) throw new PasswordChangeRequiredError();
+  if (res.status === 403) {
+    const body = await res.clone().json().catch(() => ({}));
+    if (body.passwordChangeRequired) throw new PasswordChangeRequiredError();
+    throw new ForbiddenError();
+  }
 }
 
 // --- Reference data ----------------------------------------------------------
 
 export async function getCategories(): Promise<Category[]> {
   const res = await request("/api/categories");
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Categories request failed: HTTP ${res.status}`);
   return res.json();
 }
 
 export async function getRelatedSystems(): Promise<RelatedSystem[]> {
   const res = await request("/api/related-systems");
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Related systems request failed: HTTP ${res.status}`);
   return res.json();
 }
@@ -187,7 +203,7 @@ export async function getTickets(
     if (value !== undefined && value !== null && value !== "") qs.set(key, String(value));
   }
   const res = await request(`/api/tickets?${qs.toString()}`, { signal: opts.signal });
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Tickets request failed: HTTP ${res.status}`);
   return res.json();
 }
@@ -222,7 +238,7 @@ export interface TicketDetail {
 
 export async function getTicket(id: number): Promise<TicketDetail> {
   const res = await request(`/api/tickets/${id}`);
-  guard(res);
+  await guard(res);
   if (res.status === 404) throw new NotFoundError();
   if (!res.ok) throw new Error(`Ticket request failed: HTTP ${res.status}`);
   return res.json();
@@ -230,7 +246,7 @@ export async function getTicket(id: number): Promise<TicketDetail> {
 
 export async function getTicketAttachments(ticketId: number): Promise<Attachment[]> {
   const res = await request(`/api/tickets/${ticketId}/attachments`);
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Attachments request failed: HTTP ${res.status}`);
   return res.json();
 }
@@ -241,7 +257,7 @@ export async function uploadAttachment(ticketId: number, file: File): Promise<At
   const form = new FormData();
   form.append("file", file);
   const res = await request(`/api/tickets/${ticketId}/attachments`, { method: "POST", body: form });
-  guard(res);
+  await guard(res);
   if (!res.ok) {
     const messages: Record<number, string> = {
       413: "File exceeds the 5 MB limit.",
@@ -255,7 +271,7 @@ export async function uploadAttachment(ticketId: number, file: File): Promise<At
 
 export async function removeAttachment(attachmentId: number, reason: string): Promise<Attachment> {
   const res = await request(`/api/attachments/${attachmentId}`, jsonInit("DELETE", { reason }));
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Remove failed: HTTP ${res.status}`);
   return res.json();
 }
@@ -264,7 +280,7 @@ export async function removeAttachment(attachmentId: number, reason: string): Pr
 // and triggers a browser save.
 export async function downloadAttachment(attachmentId: number, filename: string): Promise<void> {
   const res = await request(`/api/attachments/${attachmentId}/download`);
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -281,7 +297,7 @@ export async function downloadAttachment(attachmentId: number, filename: string)
 // per-field messages (BR-44).
 export async function createTicket(input: CreateTicketInput): Promise<CreatedTicket> {
   const res = await request("/api/tickets", jsonInit("POST", input));
-  guard(res);
+  await guard(res);
   if (res.status === 400) {
     const body = await res.json().catch(() => ({}));
     throw new ValidationError(body.fields ?? {});
@@ -307,7 +323,7 @@ export interface ResolutionSignal {
 
 export async function getComments(ticketId: number): Promise<Comment[]> {
   const res = await request(`/api/tickets/${ticketId}/comments`);
-  guard(res);
+  await guard(res);
   if (!res.ok) throw new Error(`Comments request failed: HTTP ${res.status}`);
   return res.json();
 }
@@ -316,7 +332,7 @@ export async function getComments(ticketId: number): Promise<Comment[]> {
 // the field message (BR-44).
 export async function postComment(ticketId: number, body: string): Promise<Comment> {
   const res = await request(`/api/tickets/${ticketId}/comments`, jsonInit("POST", { body }));
-  guard(res);
+  await guard(res);
   if (res.status === 400) {
     const errBody = await res.json().catch(() => ({}));
     throw new ValidationError(errBody.fields ?? {});
@@ -331,10 +347,85 @@ export const SIGNAL_FAILED_MESSAGE = "We couldn't send that to the IT team. Plea
 // screen can explain a conflict rather than fail silently (handout §8.6).
 export async function signalResolution(ticketId: number): Promise<ResolutionSignal> {
   const res = await request(`/api/tickets/${ticketId}/resolution-signal`, { method: "POST" });
-  guard(res);
+  await guard(res);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(typeof body.error === "string" ? body.error : SIGNAL_FAILED_MESSAGE);
   }
+  return res.json();
+}
+
+// --- IT Staff queue (Lab 3 Issue 5, api-spec §7) -------------------------------
+
+export type TicketStatusValue =
+  | "NEW"
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "WAITING_FOR_REQUESTER"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REOPENED"
+  | "CANCELLED";
+
+export interface QueueItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  category: { id: number; name: string };
+  requester: { id: number; name: string };
+  owner: { id: number; name: string } | null;
+  requestedPriority: RequestedPriority;
+  itPriority: RequestedPriority;
+  currentStatus: TicketStatusValue;
+  resolutionSignalled: boolean;
+  ticketDate: string;
+  updatedAt: string;
+}
+
+export interface QueueResponse {
+  items: QueueItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  counts: { unassigned: number; mine: number };
+}
+
+export interface QueueParams {
+  search?: string;
+  status?: string;
+  itPriority?: string;
+  categoryId?: string;
+  ownerId?: string; // an id, "unassigned", or "me"
+  sort?: string;
+  order?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface Assignee {
+  id: number;
+  name: string;
+  role: Role;
+}
+
+export async function getStaffQueue(
+  params: QueueParams,
+  opts: { signal?: AbortSignal } = {}
+): Promise<QueueResponse> {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") qs.set(key, String(value));
+  }
+  const res = await request(`/api/staff/tickets?${qs.toString()}`, { signal: opts.signal });
+  await guard(res);
+  if (!res.ok) throw new Error(`Queue request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function getAssignees(): Promise<Assignee[]> {
+  const res = await request("/api/staff/assignees");
+  await guard(res);
+  if (!res.ok) throw new Error(`Assignees request failed: HTTP ${res.status}`);
   return res.json();
 }

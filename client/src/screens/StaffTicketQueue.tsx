@@ -1,81 +1,86 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  getTickets,
+  getStaffQueue,
   getCategories,
-  getRelatedSystems,
-  type TicketListResponse,
+  ForbiddenError,
+  type QueueResponse,
   type Category,
-  type RelatedSystem,
 } from "../api.js";
-import { useAuth } from "../auth.js";
 import { Button } from "../components/Button.js";
 import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
 
 const PAGE_SIZES = [10, 20, 50];
+
+const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
+  { value: "NEW", label: "New" },
+  { value: "OPEN", label: "Open" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "WAITING_FOR_REQUESTER", label: "Waiting for Requester" },
+  { value: "RESOLVED", label: "Resolved" },
+  { value: "REOPENED", label: "Reopened" },
+  { value: "CLOSED", label: "Closed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
 const SORTS = [
-  { value: "ticketDate", label: "Ticket Date" },
-  { value: "ticketNumber", label: "Ticket Number" },
   { value: "updatedAt", label: "Last Updated" },
+  { value: "ticketDate", label: "Ticket Date" },
+  { value: "itPriority", label: "IT Priority" },
+  { value: "ticketNumber", label: "Ticket Number" },
 ];
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
 interface Query {
   search: string;
+  status: string;
+  itPriority: string;
+  ownerId: string;
   categoryId: string;
-  relatedSystemId: string;
-  priority: string;
   sort: string;
   order: "asc" | "desc";
   page: number;
   pageSize: number;
 }
 
+// §9.3 defaults: most recently touched first, 20 rows — a triage view is scanned.
 const INITIAL: Query = {
   search: "",
+  status: "",
+  itPriority: "",
+  ownerId: "",
   categoryId: "",
-  relatedSystemId: "",
-  priority: "",
-  sort: "ticketDate",
+  sort: "updatedAt",
   order: "desc",
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
 };
 
-type Load = "loading" | "ready" | "error";
+type Load = "loading" | "ready" | "forbidden" | "error";
 
-export function MyTickets() {
-  const { user } = useAuth();
-  const requesterId = user!.id; // re-scopes the fetch effects when the user changes
+/**
+ * IT Staff Ticket Queue (ui-spec §6.3). Seven columns at desktop; the shared
+ * `.zg-table` becomes cards below 768px rather than scrolling sideways.
+ */
+export function StaffTicketQueue() {
   const navigate = useNavigate();
-
   const [categories, setCategories] = useState<Category[]>([]);
-  const [systems, setSystems] = useState<RelatedSystem[]>([]);
   const [searchText, setSearchText] = useState("");
   const [query, setQuery] = useState<Query>(INITIAL);
-  const [data, setData] = useState<TicketListResponse | null>(null);
+  const [data, setData] = useState<QueueResponse | null>(null);
   const [load, setLoad] = useState<Load>("loading");
 
-  // Filter dropdown options, loaded once. If they fail the list's own error state
-  // still covers the screen; filters simply have fewer options.
   useEffect(() => {
-    Promise.all([getCategories(), getRelatedSystems()])
-      .then(([c, s]) => {
-        setCategories(c);
-        setSystems(s);
-      })
-      .catch(() => undefined);
-  }, [requesterId]);
+    getCategories()
+      .then(setCategories)
+      .catch(() => undefined); // the queue's own states cover a failed load
+  }, []);
 
-  // Debounce the search box into the query (BR-31), resetting to page 1.
+  // Debounce search into the query, back to page 1.
   useEffect(() => {
     const timer = setTimeout(() => {
       setQuery((q) => (q.search === searchText ? q : { ...q, search: searchText, page: 1 }));
@@ -83,28 +88,25 @@ export function MyTickets() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // Fetch on any query change. AbortController discards a slow earlier response so
-  // it cannot overwrite a newer one (the stale-response race).
+  // AbortController discards a slow earlier response so it cannot overwrite a newer one.
   useEffect(() => {
     const controller = new AbortController();
     setLoad("loading");
-    getTickets(query, { signal: controller.signal })
+    getStaffQueue(query, { signal: controller.signal })
       .then((res) => {
         setData(res);
         setLoad("ready");
       })
       .catch((err) => {
-        if ((err as Error).name !== "AbortError") setLoad("error");
+        if ((err as Error).name === "AbortError") return;
+        setLoad(err instanceof ForbiddenError ? "forbidden" : "error");
       });
     return () => controller.abort();
-  }, [requesterId, query]);
+  }, [query]);
 
-  const filtersActive = Boolean(
-    query.search || query.categoryId || query.relatedSystemId || query.priority
-  );
+  const filtersActive = Boolean(query.search || query.status || query.itPriority || query.ownerId || query.categoryId);
 
   function update(patch: Partial<Query>) {
-    // Any change other than an explicit page move returns to page 1.
     setQuery((q) => ({ ...q, ...patch, page: patch.page ?? 1 }));
   }
 
@@ -113,13 +115,26 @@ export function MyTickets() {
     setQuery({ ...INITIAL });
   }
 
+  if (load === "forbidden") {
+    return (
+      <EmptyState
+        heading="You don't have access to the ticket queue"
+        body="The queue is available to IT Staff and Administrators."
+      />
+    );
+  }
+
+  const direction = query.order === "desc" ? "descending" : "ascending";
+
   return (
     <section>
       <div className="zg-list-head">
-        <h1 className="zg-page-title">My Tickets</h1>
-        <Button variant="primary" onClick={() => navigate("/tickets/new")}>
-          + Create Ticket
-        </Button>
+        <h1 className="zg-page-title">Ticket Queue</h1>
+        {data && (
+          <p className="zg-queue-counts" aria-label="Queue counts">
+            {data.counts.unassigned} unassigned · {data.counts.mine} assigned to me
+          </p>
+        )}
       </div>
 
       <div className="zg-toolbar">
@@ -131,23 +146,28 @@ export function MyTickets() {
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
+        <select className="zg-field" aria-label="Filter by status" value={query.status} onChange={(e) => update({ status: e.target.value })}>
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        <select className="zg-field" aria-label="Filter by IT priority" value={query.itPriority} onChange={(e) => update({ itPriority: e.target.value })}>
+          <option value="">All IT priorities</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
+        <select className="zg-field" aria-label="Filter by owner" value={query.ownerId} onChange={(e) => update({ ownerId: e.target.value })}>
+          <option value="">All owners</option>
+          <option value="unassigned">Unassigned</option>
+          <option value="me">Assigned to me</option>
+        </select>
         <select className="zg-field" aria-label="Filter by category" value={query.categoryId} onChange={(e) => update({ categoryId: e.target.value })}>
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
-        </select>
-        <select className="zg-field" aria-label="Filter by related system" value={query.relatedSystemId} onChange={(e) => update({ relatedSystemId: e.target.value })}>
-          <option value="">All systems</option>
-          {systems.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        <select className="zg-field" aria-label="Filter by priority" value={query.priority} onChange={(e) => update({ priority: e.target.value })}>
-          <option value="">All priorities</option>
-          <option value="LOW">Low</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="HIGH">High</option>
         </select>
         <select className="zg-field" aria-label="Sort by" value={query.sort} onChange={(e) => update({ sort: e.target.value })}>
           {SORTS.map((s) => (
@@ -156,8 +176,8 @@ export function MyTickets() {
         </select>
         <Button
           variant="secondary"
-          aria-label={`Sort direction: ${query.order === "desc" ? "descending" : "ascending"}`}
-          title={`Sort direction: ${query.order === "desc" ? "descending" : "ascending"}`}
+          aria-label={`Sort direction: ${direction}`}
+          title={`Sort direction: ${direction}`}
           onClick={() => update({ order: query.order === "desc" ? "asc" : "desc" })}
         >
           {query.order === "desc" ? "↓" : "↑"}
@@ -169,11 +189,11 @@ export function MyTickets() {
         )}
       </div>
 
-      {load === "loading" && <LoadingSkeleton rows={5} label="Loading tickets…" />}
+      {load === "loading" && <LoadingSkeleton rows={6} label="Loading the ticket queue…" />}
 
       {load === "error" && (
         <ErrorCallout
-          message="We couldn't load your tickets. Please try again."
+          message="We couldn't load the ticket queue. Please try again."
           onRetry={() => setQuery((q) => ({ ...q }))}
         />
       )}
@@ -182,15 +202,11 @@ export function MyTickets() {
         filtersActive ? (
           <EmptyState
             heading="No tickets match your filters"
-            body="Try a different search term, or clear the filters to see all your tickets."
+            body="Try a different search term, or clear the filters to see the whole queue."
             action={<Button variant="secondary" onClick={clearFilters}>Clear filters</Button>}
           />
         ) : (
-          <EmptyState
-            heading="No tickets yet"
-            body="When you raise an IT request it will appear here."
-            action={<Button variant="primary" onClick={() => navigate("/tickets/new")}>+ Create Ticket</Button>}
-          />
+          <EmptyState heading="No tickets in the queue" body="New requests will appear here as they arrive." />
         )
       )}
 
@@ -202,8 +218,9 @@ export function MyTickets() {
                 <th>Ticket No.</th>
                 <th>Summary</th>
                 <th>Category</th>
-                <th>Priority</th>
+                <th>IT Priority</th>
                 <th>Status</th>
+                <th>Owner</th>
                 <th>Last Updated</th>
               </tr>
             </thead>
@@ -213,13 +230,13 @@ export function MyTickets() {
                   key={t.id}
                   className="zg-row"
                   tabIndex={0}
-                  onClick={() => navigate(`/tickets/${t.id}`)}
+                  onClick={() => navigate(`/staff/tickets/${t.id}`)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") navigate(`/tickets/${t.id}`);
+                    if (e.key === "Enter") navigate(`/staff/tickets/${t.id}`);
                   }}
                 >
                   <td data-label="Ticket No.">
-                    <Link to={`/tickets/${t.id}`} onClick={(e) => e.stopPropagation()}>
+                    <Link to={`/staff/tickets/${t.id}`} onClick={(e) => e.stopPropagation()}>
                       {t.ticketNumber}
                     </Link>
                   </td>
@@ -227,11 +244,16 @@ export function MyTickets() {
                     {t.summary}
                   </td>
                   <td data-label="Category">{t.category.name}</td>
-                  <td data-label="Priority">
-                    <PriorityBadge value={t.requestedPriority} />
+                  <td data-label="IT Priority">
+                    <PriorityBadge value={t.itPriority} />
                   </td>
                   <td data-label="Status">
-                    <StatusBadge value={t.currentStatus as TicketStatus} />
+                    <StatusBadge value={t.currentStatus} />
+                    {t.resolutionSignalled && <span className="zg-signal-chip">Requester says resolved</span>}
+                  </td>
+                  <td data-label="Owner">
+                    {/* "Unassigned" as muted text — an empty cell reads as a rendering bug. */}
+                    {t.owner ? t.owner.name : <span className="zg-muted">Unassigned</span>}
                   </td>
                   <td data-label="Last Updated">{formatDate(t.updatedAt)}</td>
                 </tr>
@@ -241,8 +263,8 @@ export function MyTickets() {
 
           <div className="zg-pagination">
             <span className="zg-result-count">
-              Showing {(data.page - 1) * data.pageSize + 1}–
-              {Math.min(data.page * data.pageSize, data.totalItems)} of {data.totalItems}
+              Showing {(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.totalItems)} of{" "}
+              {data.totalItems}
             </span>
             <div className="zg-pager" role="navigation" aria-label="Pagination">
               <Button variant="secondary" disabled={data.page <= 1} aria-label="Previous page" title="Previous page" onClick={() => update({ page: data.page - 1 })}>

@@ -130,3 +130,14 @@ describe("AUTHZ-08: a Requester cannot comment on a ticket they do not own", () 
     expect(await prisma.publicComment.count({ where: { ticketId: bTicket } })).toBe(before);
   });
 });
+
+// AUTHZ-03 — AC-13, BR-14: a Requester is refused the queue with 403 and no data.
+describe("AUTHZ-03: a Requester cannot read the IT Staff queue", () => {
+  it.each(["/api/staff/tickets", "/api/staff/assignees"])("GET %s returns 403 with no queue data", async (path) => {
+    const res = await request(app).get(path).set("Cookie", cookieA);
+    expect(res.status).toBe(403);
+    expect(res.body).not.toHaveProperty("items");
+    expect(res.body).not.toHaveProperty("counts");
+    expect(Array.isArray(res.body)).toBe(false);
+  });
+});

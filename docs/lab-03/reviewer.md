@@ -136,7 +136,7 @@ Every new test was mutation-checked — it fails with its guard removed and pass
 with it. Verified: server 117/117, client 65/65, both tsc clean, client build;
 `tests.md` 115 → 118.
 
-- **Resolution:** fixes pushed; awaiting re-review.
+- **Resolution:** fixes pushed; @copter549365 **`APPROVED`** on re-review, 2026-09-27 — "โค้ดแก้ไขเรียบร้อยดีครับ" (the fixes are good). PR #40 merged into `lab3-staging`.
 
 ---
 
@@ -309,3 +309,7 @@ They added API-35 to cover it. The server suite also became deterministic
 > #50 (their Issue 7) open, so there is nothing further to review this cycle;
 > Direction B is current through #50. In Direction A, my reviewer's latest is the
 > PR #39 exchange above (`COMMENTED` → fixes → `APPROVED`), already recorded.
+
+> **Cycle check (Issue #33 start, 2026-09-27).** @copter549365 still has no PR newer than #50
+> open, so there is nothing new to review this cycle; Direction B remains current through #50.
+> Direction A's latest is PR #40 (`COMMENTED` → fixes → `APPROVED`), recorded above.
