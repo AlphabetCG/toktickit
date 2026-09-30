@@ -97,6 +97,8 @@ export function RequesterTicketDetail() {
     return <ErrorCallout message="We couldn't load this ticket. Please try again." onRetry={loadTicket} />;
   }
 
+  const terminal = ["CLOSED", "CANCELLED"].includes(ticket.currentStatus);
+
   return (
     <section>
       <Link to="/tickets" className="zg-back-link">‹ Back to My Tickets</Link>
@@ -111,9 +113,12 @@ export function RequesterTicketDetail() {
           {signalledAt ? (
             <span className="zg-signal-chip">✓ You reported this resolved</span>
           ) : (
-            <Button variant="secondary" onClick={openSignalDialog}>
-              Problem appears resolved
-            </Button>
+            // A closed or cancelled ticket cannot be signalled (the server returns 409).
+            !terminal && (
+              <Button variant="secondary" onClick={openSignalDialog}>
+                Problem appears resolved
+              </Button>
+            )
           )}
         </span>
       </div>
@@ -165,7 +170,10 @@ export function RequesterTicketDetail() {
 
       {/* Public Comments only. No Internal Notes region on the Requester's
           detail in any state (AC-24, ui-spec §8.1). */}
-      <PublicComments ticketId={ticket.id} />
+      <PublicComments
+        ticketId={ticket.id}
+        disabledReason={terminal ? "This ticket is closed and can no longer be updated." : undefined}
+      />
     </section>
   );
 }

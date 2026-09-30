@@ -26,7 +26,14 @@ function formatWhen(iso: string): string {
  * newest last so the thread reads chronologically. Bodies render as text nodes,
  * never HTML, so a comment cannot inject markup (BR-45).
  */
-export function PublicComments({ ticketId }: { ticketId: number }) {
+interface PublicCommentsProps {
+  ticketId: number;
+  /** When set (a CLOSED or CANCELLED ticket), the composer is disabled and this
+   *  explanation is shown beside it instead of letting a post fail (AC-41). */
+  disabledReason?: string;
+}
+
+export function PublicComments({ ticketId, disabledReason }: PublicCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [body, setBody] = useState("");
@@ -49,7 +56,7 @@ export function PublicComments({ ticketId }: { ticketId: number }) {
   }, [ticketId]);
 
   const trimmed = body.trim();
-  const canPost = trimmed.length >= 1 && trimmed.length <= BODY_MAX && !posting;
+  const canPost = !disabledReason && trimmed.length >= 1 && trimmed.length <= BODY_MAX && !posting;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,8 +116,15 @@ export function PublicComments({ ticketId }: { ticketId: number }) {
               rows={3}
               maxLength={BODY_MAX}
               value={body}
+              disabled={Boolean(disabledReason)}
+              aria-describedby={disabledReason ? "comment-disabled-reason" : undefined}
               onChange={(e) => setBody(e.target.value)}
             />
+            {disabledReason && (
+              <p id="comment-disabled-reason" className="zg-field-message">
+                {disabledReason}
+              </p>
+            )}
             <div className="zg-list-head">
               <span className={`zg-counter${trimmed.length > BODY_MAX ? " zg-counter--over" : ""}`}>
                 {body.length} / {BODY_MAX}

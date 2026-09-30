@@ -50,6 +50,11 @@ export function PriorityBadge({ value }: { value: RequestedPriority }) {
   );
 }
 
+// Shared so selects and messages use the exact badge wording.
+export function statusLabel(value: TicketStatus): string {
+  return STATUS_LABEL[value];
+}
+
 export function StatusBadge({ value }: { value: TicketStatus }) {
   return (
     <span className={`zg-badge zg-badge--status-${STATUS_CLASS[value]}`}>

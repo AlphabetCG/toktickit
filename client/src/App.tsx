@@ -7,6 +7,7 @@ import { CreateTicket } from "./screens/CreateTicket.js";
 import { MyTickets } from "./screens/MyTickets.js";
 import { RequesterTicketDetail } from "./screens/RequesterTicketDetail.js";
 import { StaffTicketQueue } from "./screens/StaffTicketQueue.js";
+import { StaffTicketDetail } from "./screens/StaffTicketDetail.js";
 import { LoadingSkeleton } from "./components/States.js";
 
 // Staff and Administrator destinations exist so role navigation is complete
@@ -43,7 +44,7 @@ function RoleRoutes({ role }: { role: string }) {
       {(role === "IT_STAFF" || role === "ADMINISTRATOR") && (
         <>
           <Route path="/staff/tickets" element={<StaffTicketQueue />} />
-          <Route path="/staff/tickets/:id" element={<Placeholder title="Ticket Detail" />} />
+          <Route path="/staff/tickets/:id" element={<StaffTicketDetail />} />
         </>
       )}
       {role === "ADMINISTRATOR" && <Route path="/admin/users" element={<Placeholder title="User Management" />} />}
