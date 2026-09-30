@@ -228,12 +228,19 @@ export interface TicketDetail {
   category: { id: number; name: string };
   relatedSystem: { id: number; name: string };
   requestedPriority: RequestedPriority;
+  itPriority: RequestedPriority;
   currentStatus: string;
+  owner: { id: number; name: string } | null;
   ticketDate: string;
   resolutionSignalledAt: string | null;
   createdAt: string;
   updatedAt: string;
   attachments: Attachment[];
+  publicComments?: Comment[];
+  // Present only for IT Staff and Administrators; a Requester's body omits both
+  // keys entirely (api-spec §3.2, AC-40).
+  internalNotes?: Comment[];
+  permittedTransitions?: TicketStatusValue[];
 }
 
 export async function getTicket(id: number): Promise<TicketDetail> {
@@ -427,5 +434,62 @@ export async function getAssignees(): Promise<Assignee[]> {
   const res = await request("/api/staff/assignees");
   await guard(res);
   if (!res.ok) throw new Error(`Assignees request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+// --- IT Staff ticket operations and Internal Notes (Lab 3 Issue 6) -------------
+
+// Internal Notes share the Public Comment shape (api-spec §5.1).
+export type Note = Comment;
+
+// Turns a refused operation into something the operations panel can show inline:
+// field messages on 400, the server's safe conflict text on 409 (api-spec §6).
+async function operationFailure(res: Response, generic: string): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 400) throw new ValidationError(body.fields ?? {}, generic);
+  throw new Error(typeof body.error === "string" ? body.error : generic);
+}
+
+export async function getNotes(ticketId: number): Promise<Note[]> {
+  const res = await request(`/api/tickets/${ticketId}/notes`);
+  await guard(res);
+  if (!res.ok) throw new Error(`Notes request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function postNote(ticketId: number, body: string): Promise<Note> {
+  const res = await request(`/api/tickets/${ticketId}/notes`, jsonInit("POST", { body }));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to add the note.");
+  return res.json();
+}
+
+export async function setTicketOwner(
+  ticketId: number,
+  ownerId: number | null
+): Promise<{ id: number; owner: { id: number; name: string } | null }> {
+  const res = await request(`/api/tickets/${ticketId}/owner`, jsonInit("PATCH", { ownerId }));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to change the owner.");
+  return res.json();
+}
+
+export async function setItPriority(
+  ticketId: number,
+  itPriority: RequestedPriority
+): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority }> {
+  const res = await request(`/api/tickets/${ticketId}/it-priority`, jsonInit("PATCH", { itPriority }));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to change the IT Priority.");
+  return res.json();
+}
+
+export async function setTicketStatus(
+  ticketId: number,
+  status: TicketStatusValue
+): Promise<{ id: number; currentStatus: TicketStatusValue; permittedTransitions: TicketStatusValue[] }> {
+  const res = await request(`/api/tickets/${ticketId}/status`, jsonInit("PATCH", { status }));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to change the status.");
   return res.json();
 }

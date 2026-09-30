@@ -138,6 +138,18 @@ with it. Verified: server 117/117, client 65/65, both tsc clean, client build;
 
 - **Resolution:** fixes pushed; @copter549365 **`APPROVED`** on re-review, 2026-09-27 — "โค้ดแก้ไขเรียบร้อยดีครับ" (the fixes are good). PR #40 merged into `lab3-staging`.
 
+
+### PR #41 — feat: IT Staff Ticket Queue (Issue #33 / Lab 3 Issue 5)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/41
+- **Base:** `lab3-staging` ← **Head:** `feature/5-staff-queue`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-09-29 — "โค๊ดโอเคครับ" (the
+  code is fine). PR merged into `lab3-staging`.
+
+No changes requested. The PR's review-focus questions — whole-queue `counts`
+independent of the active filters, and the `guard()` change that now separates a
+role refusal (`ForbiddenError`) from the password gate — were accepted as delivered.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
@@ -313,3 +325,37 @@ They added API-35 to cover it. The server suite also became deterministic
 > **Cycle check (Issue #33 start, 2026-09-27).** @copter549365 still has no PR newer than #50
 > open, so there is nothing new to review this cycle; Direction B remains current through #50.
 > Direction A's latest is PR #40 (`COMMENTED` → fixes → `APPROVED`), recorded above.
+
+### PR #51 — Issue 8: E2E Integration Suite, Responsive Visual Verification & Release Preparation
+
+- **PR:** https://github.com/copter549365/toktickit/pull/51
+- **Review verdict:** `COMMENTED` by @AlphabetCG, 2026-09-30.
+
+Their release-prep PR: 41 Playwright tests against the real API and PostgreSQL
+(auth, staff flow, user administration, responsive at three widths), a
+`global-setup.ts` that resets dedicated `e2e.*` accounts so runs are repeatable
+without touching the seed accounts, and eight defects found by the E2E run and
+visual inspection, each fixed with a test. The debounce-resets-to-page-1 finding
+(#7) is the real cause of the flaky `MyTickets` assertion I had carried forward
+from PR #50, so that note is now resolved.
+
+Before commenting I pulled `playwright.config.ts` and the `e2e/` tree from their
+branch rather than relying on the diff. One point to fix before the PR reaches
+`main`:
+
+- **`e2e/lab-02/` is still in the tree but no longer runs.** `testDir` moved to
+  `./e2e/lab-03` and `test:e2e` became plain `playwright test`, so four Lab 2 specs
+  plus their fixtures are never executed — and would fail if they were, because
+  they drive the Development Requester selector Lab 3 removed. Un-run tests on
+  `main` conflict with the "no test skipped or disabled" Definition of Done.
+  Suggested deleting the directory and recording in `tests.md` which Lab 3 spec
+  now covers each retired flow.
+
+Non-blocking: `reuseExistingServer: true` (carried over from my PR #24 review —
+`!process.env.CI`); `global-setup.ts` writes to whatever `DATABASE_URL` points at
+with no localhost guard; `RequireRole`'s page-level forbidden panel uses
+`role="alert"`, which screen readers announce assertively on every render; and
+the last-admin E2E mocks the server's refusal, so its `tests.md` row should say it
+is a UI-level check (they already point to API-29 for the real rule).
+
+- **Resolution:** awaiting @copter549365's response.

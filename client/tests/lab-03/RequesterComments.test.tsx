@@ -30,6 +30,8 @@ const TICKET: api.TicketDetail = {
   category: { id: 2, name: "Hardware" },
   relatedSystem: { id: 7, name: "Corporate Laptop" },
   requestedPriority: "MEDIUM",
+  itPriority: "MEDIUM",
+  owner: null,
   currentStatus: "NEW",
   ticketDate: "2026-08-26T09:14:00.000Z",
   resolutionSignalledAt: null,
@@ -142,5 +144,24 @@ describe("UI-32: a failed resolution signal gives clear feedback", () => {
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(api.SIGNAL_FAILED_MESSAGE);
     expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+  });
+});
+
+// UI-35 — AC-41 (Requester side): a closed ticket cannot be commented on or
+// signalled, so the screen says so instead of letting the request fail with a 409.
+describe("UI-35: a terminal ticket on the Requester detail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getComments.mockResolvedValue([]);
+  });
+
+  it.each(["CLOSED", "CANCELLED"])("disables the composer and hides the resolve action when %s", async (status) => {
+    getTicket.mockResolvedValue({ ...TICKET, currentStatus: status });
+    renderDetail();
+
+    const box = await screen.findByLabelText("Add a comment");
+    expect(box).toBeDisabled();
+    expect(box).toHaveAccessibleDescription(/closed and can no longer be updated/);
+    expect(screen.queryByRole("button", { name: "Problem appears resolved" })).not.toBeInTheDocument();
   });
 });

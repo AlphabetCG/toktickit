@@ -27,6 +27,8 @@ const TICKET: api.TicketDetail = {
   category: { id: 2, name: "Hardware" },
   relatedSystem: { id: 7, name: "Corporate Laptop" },
   requestedPriority: "MEDIUM",
+  itPriority: "MEDIUM",
+  owner: null,
   currentStatus: "NEW",
   ticketDate: "2026-08-26T09:14:00.000Z",
   resolutionSignalledAt: null,

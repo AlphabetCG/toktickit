@@ -75,9 +75,9 @@ path itself is exercised on every request rather than stubbed.
 | UNIT-03 | Unit | AC-08, BR-10 | Password policy boundaries | 11 chars rejected, 12 accepted, 128 accepted, 129 rejected; a blocklisted value rejected; a value equal to the current password rejected | `server/tests/lab-03/password.unit.test.ts` | Pass |
 | UNIT-04 | Unit | AC-26, BR-44 | Comment and note body rules | Trimmed first; `"   "` rejected, 1 char accepted, 2000 accepted, 2001 rejected | `server/tests/lab-03/validation.unit.test.ts` | Pass |
 | UNIT-05 | Unit | AC-31, §9.3 | Queue query normalisation | `page=0`, `pageSize=999`, `sort=bogus`, `status=NOPE`, `ownerId=abc` each fall back to the documented default | `server/tests/lab-03/validation.unit.test.ts` | Pass |
-| UNIT-06 | Unit | AC-37, BR-35 | Permitted transitions | Every ✅ cell of the §5.7 matrix is accepted | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
-| UNIT-07 | Unit | AC-38, BR-35 | Forbidden transitions | Every — cell of the §5.7 matrix is rejected, including `RESOLVED → IN_PROGRESS` | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
-| UNIT-08 | Unit | AC-39, BR-36 | Terminal statuses | No transition leaves `CLOSED` or `CANCELLED` | `server/tests/lab-03/status-transitions.unit.test.ts` | Planned |
+| UNIT-06 | Unit | AC-37, BR-35 | Permitted transitions | Every ✅ cell of the §5.7 matrix is accepted | `server/tests/lab-03/status-transitions.unit.test.ts` | Pass |
+| UNIT-07 | Unit | AC-38, BR-35 | Forbidden transitions | Every — cell of the §5.7 matrix is rejected, including `RESOLVED → IN_PROGRESS` | `server/tests/lab-03/status-transitions.unit.test.ts` | Pass |
+| UNIT-08 | Unit | AC-39, BR-36 | Terminal statuses | No transition leaves `CLOSED` or `CANCELLED` | `server/tests/lab-03/status-transitions.unit.test.ts` | Pass |
 | UNIT-09 | Unit | BR-08, D-03 | Session token | 32 bytes of entropy, tokens differ across calls, only the SHA-256 digest is persisted, and an expired row is treated as absent | `server/tests/lab-03/session.unit.test.ts` | Pass |
 | UNIT-10 | Unit | BR-61, §9.3 | Lab 2 list accepts every status | The My Tickets normaliser keeps all eight statuses; the Lab 2-era list knew only `NEW` and silently dropped every other status filter | `server/tests/lab-03/validation.unit.test.ts` | **Pass** |
 
@@ -104,15 +104,15 @@ path itself is exercised on every request rather than stubbed.
 | API-17 | API | AC-29, BR-25 | Unassigned filter | `ownerId=unassigned` returns only Tickets with a null owner; `ownerId=me` returns only the caller's | `server/tests/lab-03/staff-queue.api.test.ts` | Pass |
 | API-18 | API | AC-30 | Queue pagination | Page 2 returns the next slice with correct `page`, `pageSize`, `totalItems`, `totalPages` | `server/tests/lab-03/staff-queue.api.test.ts` | Pass |
 | API-19 | API | AC-31 | Invalid queue parameters | Request succeeds using documented defaults; never 400 | `server/tests/lab-03/staff-queue.api.test.ts` | Pass |
-| API-20 | API | AC-33, BR-27 | Claim | An unassigned Ticket gains the claiming user as owner | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-21 | API | AC-34, BR-27 | Reassign and release | Ownership moves to another active IT Staff user, and can be released back to unassigned | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-22 | API | AC-35, BR-26, BR-28 | Invalid assignee | Assigning to a deactivated user or to a Requester is rejected; ownership unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-23 | API | AC-36, BR-30 | IT Priority | New IT Priority stored; `requestedPriority` unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-24 | API | AC-37 | Permitted transition | `NEW → IN_PROGRESS` succeeds and persists | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-25 | API | AC-38 | Forbidden transition | `RESOLVED → IN_PROGRESS` returns 409; status unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-26 | API | AC-39, BR-36 | Terminal ticket | Every transition from `CLOSED` returns 409 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| API-27 | API | AC-40, BR-41 | Internal note created | 201 for IT Staff; the note is absent from the Requester's view of the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
-| API-28 | API | AC-41, BR-46 | Append on a terminal Ticket | Comment and note both rejected on `CLOSED` and `CANCELLED` | `server/tests/lab-03/comments-notes.api.test.ts` | **Partial** — comment half Pass (PR #40); note half ships with #34 |
+| API-20 | API | AC-33, BR-27 | Claim | An unassigned Ticket gains the claiming user as owner | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-21 | API | AC-34, BR-27 | Reassign and release | Ownership moves to another active IT Staff user, and can be released back to unassigned | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-22 | API | AC-35, BR-26, BR-28 | Invalid assignee | Assigning to a deactivated user or to a Requester is rejected; ownership unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-23 | API | AC-36, BR-30 | IT Priority | New IT Priority stored; `requestedPriority` unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-24 | API | AC-37 | Permitted transition | `NEW → IN_PROGRESS` succeeds and persists | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-25 | API | AC-38 | Forbidden transition | `RESOLVED → IN_PROGRESS` returns 409; status unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-26 | API | AC-39, BR-36 | Terminal ticket | Every transition from `CLOSED` returns 409 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
+| API-27 | API | AC-40, BR-41 | Internal note created | 201 for IT Staff; the note is absent from the Requester's view of the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Pass |
+| API-28 | API | AC-41, BR-46 | Append on a terminal Ticket | Comment and note both rejected on `CLOSED` and `CANCELLED` | `server/tests/lab-03/comments-notes.api.test.ts` | Pass — comment half in PR #40, note half in PR #42 |
 | API-29 | API | AC-43 | User list | 200; each row carries name, email, role, and activation state, and **no** password hash | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-30 | API | AC-44 | User search | Matches on name and on email, case-insensitively | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | API-31 | API | AC-45 | Role filter | Only users holding the requested role are returned | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
@@ -129,6 +129,8 @@ path itself is exercised on every request rather than stubbed.
 | API-42 | API | api-spec §7.1 | IT Priority severity sort | `sort=itPriority` orders HIGH → MEDIUM → LOW (desc) and the reverse (asc), never alphabetically | `server/tests/lab-03/staff-queue.api.test.ts` | **Pass** |
 | API-43 | API | api-spec §7.1, spec §6.1 | Queue row shape and counts | Row carries requester, owner (`null` when unassigned), and a boolean `resolutionSignalled`, never `description`; `counts` are whole-queue totals independent of filters; an Administrator may read the queue | `server/tests/lab-03/staff-queue.api.test.ts` | **Pass** |
 | API-44 | API | api-spec §7.2, BR-28 | Assignee list | Only active IT Staff and Administrators, ordered by name, carrying only `id`, `name`, `role` | `server/tests/lab-03/staff-queue.api.test.ts` | **Pass** |
+| API-45 | API | api-spec §3.2 | Staff role-shaped detail | IT Staff receive the Requester body plus `internalNotes` and `permittedTransitions` computed from §5.7 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | **Pass** |
+| API-46 | API | spec §6.1 | Staff access to attachments | IT Staff can list and download attachments on a ticket they did not submit (the matrix grants `any`; the Lab 2 routes were still owner-only) | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | **Pass** |
 
 ### 2.3 Authorization
 
@@ -143,11 +145,11 @@ wrong role or the wrong user. None of them render a component (BR-16).
 | AUTHZ-04 | Authorization | AC-14 | Requester → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-05 | Authorization | AC-15, BR-18 | IT Staff → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | AUTHZ-06 | Authorization | AC-16, BR-15 | Requester → another's Ticket | 404, **byte-identical** to the response for a Ticket id that does not exist | `server/tests/lab-03/authorization.api.test.ts` | Pass |
-| AUTHZ-07 | Authorization | AC-17 | IT Staff → any Ticket | 200 regardless of submitter | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| AUTHZ-07 | Authorization | AC-17 | IT Staff → any Ticket | 200 regardless of submitter | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-08 | Authorization | AC-23 | Comment on a Ticket not owned | 404; nothing written | `server/tests/lab-03/authorization.api.test.ts` | Pass |
-| AUTHZ-09 | Authorization | AC-24, BR-24 | Requester → Internal Notes | 403 on read and on create; the body carries no note text, author, or count | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| AUTHZ-10 | Authorization | AC-40, BR-41 | Notes absent from Requester payloads | `GET /api/tickets/:id` as the owning Requester contains no `internalNotes` key at all, on a Ticket that has notes | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| AUTHZ-11 | Authorization | BR-37 | Requester → status and priority | Status, IT Priority, and ownership routes each return 403 for a Requester, including on their own Ticket | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| AUTHZ-09 | Authorization | AC-24, BR-24 | Requester → Internal Notes | 403 on read and on create; the body carries no note text, author, or count | `server/tests/lab-03/authorization.api.test.ts` | Pass |
+| AUTHZ-10 | Authorization | AC-40, BR-41 | Notes absent from Requester payloads | `GET /api/tickets/:id` as the owning Requester contains no `internalNotes` key at all, on a Ticket that has notes | `server/tests/lab-03/authorization.api.test.ts` | Pass |
+| AUTHZ-11 | Authorization | BR-37 | Requester → status and priority | Status, IT Priority, and ownership routes each return 403 for a Requester, including on their own Ticket | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-12 | Authorization | BR-19, BR-55 | Self role change | An Administrator editing their own role is rejected | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 
 ### 2.4 Migration and regression
@@ -198,6 +200,8 @@ inspected — not against rows created after the migration.
 | UI-32 | UI | handout §8.6, AC-25 | Failed resolution signal | The server's conflict reason (or a safe generic message on network failure) is shown; the dialog stays open; no signalled chip | `client/tests/lab-03/RequesterComments.test.tsx` | **Pass** |
 | UI-33 | UI | Issue #33 scope | Queue forbidden state | A role refusal renders an explanation, not the failure callout and not a table | `client/tests/lab-03/StaffTicketQueue.test.tsx` | **Pass** |
 | UI-34 | UI | api-spec §1.4 | 403 classification in the API client | A 403 role refusal maps to `ForbiddenError`, a 403 carrying `passwordChangeRequired` to `PasswordChangeRequiredError`, a 401 to `UnauthenticatedError` | `client/tests/lab-03/api-guard.test.tsx` | **Pass** |
+| UI-35 | UI | AC-41 | Terminal ticket on the Requester detail | On `CLOSED` and `CANCELLED` the comment composer is disabled with an explanation and the resolve action is absent | `client/tests/lab-03/RequesterComments.test.tsx` | **Pass** |
+| UI-36 | UI | ui-spec §6.4, AC-38 | Status conflict | A 409 from the status endpoint renders inline in the operations panel and the ticket is reloaded, so stale transitions are not offered again | `client/tests/lab-03/StaffTicketDetail.test.tsx` | **Pass** |
 | UI-10 | UI | AC-53, FR-08 | Requester navigation | My Tickets and Create Ticket present; queue and User Management absent from the DOM | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
@@ -209,11 +213,11 @@ inspected — not against rows created after the migration.
 | UI-18 | UI | AC-28, AC-29 | Queue controls | Search, status, IT Priority, and owner filters each issue a request carrying the right parameter | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
 | UI-19 | UI | AC-32, BR-57 | Empty vs no-results | Distinct wording, and Clear filters present only in the no-results state | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
 | UI-20 | UI | FR-23 | Queue failure state | A failed load shows a safe message and a retry action | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
-| UI-21 | UI | AC-33, AC-34 | Ownership controls | Claim appears when unassigned; reassign offers only permitted assignees | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
-| UI-22 | UI | AC-36 | IT Priority control | Changing IT Priority issues the request; the Requested Priority badge is read-only | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
-| UI-23 | UI | AC-38, BR-38 | Status control | Only permitted targets are offered for the current status, and `CANCELLED` requires confirmation | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
-| UI-24 | UI | AC-42, BR-47 | Comments and notes separated | Two distinct regions; the note composer carries a persistent "Visible to IT Staff only" label beside the input | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
-| UI-25 | UI | AC-41 | Terminal ticket composers | On a `CLOSED` Ticket both composers are disabled with an explanation | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
+| UI-21 | UI | AC-33, AC-34 | Ownership controls | Claim appears when unassigned; reassign offers only permitted assignees | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
+| UI-22 | UI | AC-36 | IT Priority control | Changing IT Priority issues the request; the Requested Priority badge is read-only | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
+| UI-23 | UI | AC-38, BR-38 | Status control | Only permitted targets are offered for the current status, and `CANCELLED` requires confirmation | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
+| UI-24 | UI | AC-42, BR-47 | Comments and notes separated | Two distinct regions; the note composer carries a persistent "Visible to IT Staff only" label beside the input | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
+| UI-25 | UI | AC-41 | Terminal ticket composers | On a `CLOSED` Ticket both composers are disabled with an explanation | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
 | UI-26 | UI | AC-43 | User list columns | Name, Email, Role, Status, and an Edit action render for each user | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
 | UI-27 | UI | AC-44, AC-45 | User search and filter | Typing a term and selecting a role each issue the matching request | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
 | UI-28 | UI | AC-46, AC-48 | Create user form | Required fields validate inline; exactly one role can be chosen | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
@@ -227,9 +231,8 @@ inspected — not against rows created after the migration.
 | STYLE-01 | UI style | AC-55 | No literal colour | No Lab 3 component source contains a `#rrggbb` or `rgba()` literal; every colour comes from a Lab 2 token | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
 | STYLE-02 | UI style | §7.5 | Status badge coverage | All eight statuses render through the shared badge with visible text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 | STYLE-03 | UI style | §7.5 | Role badge | Each role renders as a badge carrying its name as text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
-| STYLE-04 | UI style | §7.2 | Editable vs read-only | On IT Staff Ticket Detail, operational fields carry the editable class and Requester-owned fields carry the read-only class | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
-| STYLE-05 | UI style | AC-42, BR-47 | Note audience marker | The Internal Note composer's audience label is present and programmatically associated with the input | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
-
+| STYLE-04 | UI style | §7.2 | Editable vs read-only | On IT Staff Ticket Detail, operational fields carry the editable class and Requester-owned fields carry the read-only class | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
+| STYLE-05 | UI style | AC-42, BR-47 | Note audience marker | The Internal Note composer's audience label is present and programmatically associated with the input | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 ### 2.7 Responsive
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
@@ -255,8 +258,8 @@ Screenshots are written to
 | E2E-07 | E2E | AC-46, AC-51 | Create and first login | An Administrator creates a user, then that user logs in and is forced through the password change | `e2e/lab-03/user-administration.spec.ts` | Planned |
 | E2E-08 | E2E | AC-49, AC-50 | Administrator guards | Self-deactivation and last-Administrator removal are both refused with a visible message | `e2e/lab-03/user-administration.spec.ts` | Planned |
 
-**Totals:** 10 unit · 44 API · 12 authorization · 7 migration/regression ·
-34 UI component · 5 UI style · 4 responsive · 8 E2E = **124 planned tests**.
+**Totals:** 10 unit · 46 API · 12 authorization · 7 migration/regression ·
+36 UI component · 5 UI style · 4 responsive · 8 E2E = **128 planned tests**.
 
 ---
 

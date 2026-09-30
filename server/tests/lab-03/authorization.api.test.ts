@@ -141,3 +141,101 @@ describe("AUTHZ-03: a Requester cannot read the IT Staff queue", () => {
     expect(Array.isArray(res.body)).toBe(false);
   });
 });
+
+// A ticket owned by requester A, for the own-ticket refusal tests.
+async function ticketOwnedByA(): Promise<number> {
+  const res = await request(app).post("/api/tickets").set("Cookie", cookieA).send({
+    categoryId,
+    relatedSystemId,
+    requestedPriority: "MEDIUM",
+    summary: "Owned by requester A",
+    description: "Requester A may read this but may never operate on it.",
+  });
+  return res.body.id;
+}
+
+// AUTHZ-07 — AC-17: IT Staff read any ticket regardless of submitter.
+describe("AUTHZ-07: IT Staff can read any ticket", () => {
+  it("returns 200 for tickets from two different requesters", async () => {
+    await ensureUser(prisma, { email: "authz.staff@toktickit.test", role: "IT_STAFF" });
+    const staff = await loginCookie("authz.staff@toktickit.test");
+    for (const id of [await ticketOwnedByA(), await ticketOwnedByB()]) {
+      const res = await request(app).get(`/api/tickets/${id}`).set("Cookie", staff);
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(id);
+    }
+  });
+});
+
+// AUTHZ-09 — AC-24, BR-24: Requesters are refused Internal Notes.
+describe("AUTHZ-09: a Requester cannot read or write Internal Notes", () => {
+  const leaks = (body: unknown) => {
+    const text = JSON.stringify(body);
+    return /author|count|body|createdAt|\[/.test(text);
+  };
+
+  it("returns 403 with no note content on their own ticket, for read and create", async () => {
+    const id = await ticketOwnedByA();
+    await ensureUser(prisma, { email: "authz.staff@toktickit.test", role: "IT_STAFF" });
+    const staff = await loginCookie("authz.staff@toktickit.test");
+    await request(app).post(`/api/tickets/${id}/notes`).set("Cookie", staff).send({ body: "Secret staff-only detail." });
+
+    const read = await request(app).get(`/api/tickets/${id}/notes`).set("Cookie", cookieA);
+    expect(read.status).toBe(403);
+    expect(read.body).toEqual({ error: "You do not have permission to perform this action." });
+    expect(leaks(read.body)).toBe(false);
+
+    const before = await prisma.internalNote.count({ where: { ticketId: id } });
+    const write = await request(app).post(`/api/tickets/${id}/notes`).set("Cookie", cookieA).send({ body: "Let me in" });
+    expect(write.status).toBe(403);
+    expect(write.body).toEqual({ error: "You do not have permission to perform this action." });
+    expect(await prisma.internalNote.count({ where: { ticketId: id } })).toBe(before);
+  });
+
+  it("returns 404, not 403, on another requester's ticket so its existence stays hidden", async () => {
+    const bTicket = await ticketOwnedByB();
+    const read = await request(app).get(`/api/tickets/${bTicket}/notes`).set("Cookie", cookieA);
+    const missing = await request(app).get(`/api/tickets/999999999/notes`).set("Cookie", cookieA);
+    expect(read.status).toBe(404);
+    expect(read.body).toEqual(missing.body);
+  });
+});
+
+// AUTHZ-10 — AC-40, BR-41: the Requester payload omits the key, even when notes exist.
+describe("AUTHZ-10: Internal Notes are absent from the Requester's detail", () => {
+  it("has no internalNotes key on a ticket that has notes", async () => {
+    const id = await ticketOwnedByA();
+    await ensureUser(prisma, { email: "authz.staff@toktickit.test", role: "IT_STAFF" });
+    const staff = await loginCookie("authz.staff@toktickit.test");
+    const note = await request(app).post(`/api/tickets/${id}/notes`).set("Cookie", staff).send({ body: "Confidential triage note." });
+    expect(note.status).toBe(201);
+
+    const res = await request(app).get(`/api/tickets/${id}`).set("Cookie", cookieA);
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body)).not.toContain("internalNotes");
+    expect(Object.keys(res.body)).not.toContain("permittedTransitions");
+    expect(JSON.stringify(res.body)).not.toContain("Confidential triage note");
+  });
+});
+
+// AUTHZ-11 — BR-37: a Requester is refused every operation, including on their own ticket.
+describe("AUTHZ-11: a Requester cannot change status, IT Priority, or owner", () => {
+  it.each([
+    ["status", { status: "CANCELLED" }],
+    ["it-priority", { itPriority: "HIGH" }],
+    ["owner", { ownerId: null }],
+  ])("PATCH %s on their own ticket returns 403 and changes nothing", async (path, body) => {
+    const id = await ticketOwnedByA();
+    const before = await prisma.ticket.findUniqueOrThrow({ where: { id } });
+
+    const res = await request(app).patch(`/api/tickets/${id}/${path}`).set("Cookie", cookieA).send(body);
+    expect(res.status).toBe(403);
+
+    const after = await prisma.ticket.findUniqueOrThrow({ where: { id } });
+    expect([after.currentStatus, after.itPriority, after.ownerId]).toEqual([
+      before.currentStatus,
+      before.itPriority,
+      before.ownerId,
+    ]);
+  });
+});
