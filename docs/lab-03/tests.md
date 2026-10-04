@@ -419,9 +419,9 @@ npm run test:e2e:report
 ## 6. Final Results
 
 Filled in from a clean run of the complete suite on `feature/8-lab3-e2e-visual-release`
-(Issue #36, 2026-10-04): every Issue of the sprint already merged into
-`lab3-staging`, plus this branch. **Re-run on `main` after the release PR merges,
-and paste that output below as the record of the release.**
+(Issue #36, 2026-10-04), then **re-run on `lab3-staging` after PR #44 merged**
+(every Lab 3 Issue integrated): identical results. **Re-run on `main` after the
+release PR merges, and paste that output below as the record of the release.**
 
 | Level | Planned | Passing | Failing | Skipped |
 |-------|---------|---------|---------|---------|

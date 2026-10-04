@@ -175,6 +175,18 @@ Administrator row (`ORDER BY id FOR UPDATE`) inside the writing transaction so
 the last-admin rule (BR-56) holds under concurrency, and the pure rule in
 `adminRules.ts` covered by UNIT-11 — were accepted as delivered.
 
+
+### PR #44 — test: Lab 3 E2E, responsive evidence, and release integration (Issue #36 / Lab 3 Issue 8)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/44
+- **Base:** `lab3-staging` ← **Head:** `feature/8-lab3-e2e-visual-release`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-10-04 — "ครบถ้วนครับเด้งดึ๋ง"
+  (complete). PR merged into `lab3-staging` the same day.
+
+No changes requested. Both review-focus points were accepted as delivered: the
+four routed screenshot states (labelled in `tests.md` §7, with the API tests that
+prove the real behaviour) and the `Button` default changing to `type="button"`.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
@@ -395,3 +407,33 @@ is a UI-level check (they already point to API-29 for the real rule).
 > **Cycle check (start of my Issue #36, 2026-10-04).** @copter549365 has opened no
 > pull request since #51, so there is no new partner PR to review this cycle. Their
 > `e2e/lab-02/` item from #51 remains open for their release into `main`.
+
+### PR #52 — Integrate Lab 3 Issues 2–8 into lab3-staging
+
+- **PR:** https://github.com/copter549365/toktickit/pull/52
+- **Base:** `lab3-staging` ← **Head:** `restore/lab2-into-lab3-staging`
+- **My review:** `COMMENTED`, 2026-10-04
+
+Their Issue PRs #46–#51 had targeted the restore branch rather than
+`lab3-staging`, so this PR moves already-reviewed work onto staging. I verified
+the claim instead of trusting the description:
+
+- `lab3-staging` (`70d6140`) and the merge base (`721407c`) have the **same tree**
+  (`de65040…`). The merge result is therefore exactly their `2f80411`, and the
+  #51 test evidence (server 172/172, client 87/87, E2E 41/41) carries over
+  without a re-run.
+- 17 commits ahead and 1 behind (the #44 merge commit, no file change). The 144
+  files are the union of #45–#51; nothing new rides along.
+- Root `package.json` and `package-lock.json` agree on `bcrypt`, and Prisma lives
+  at their repository root, so the root lockfile is legitimate there.
+- `server/src/utils/auth.ts` throws when `JWT_SECRET` is unset instead of using a
+  default, so the `.env.example` placeholder cannot become a production key.
+
+**Asked for before their release into `main`:** `e2e/lab-02/` is still present
+(four specs, `fixtures/`, `helpers.ts`). This is the open item from #51, now the
+third cycle. `testDir` runs only `e2e/lab-03`, and the specs drive the removed
+Development Requester selector, so they never run and could not pass. I suggested
+deleting the directory with a `tests.md` line mapping each retired flow, as in
+my #44.
+
+- **Resolution:** pending their reply.
