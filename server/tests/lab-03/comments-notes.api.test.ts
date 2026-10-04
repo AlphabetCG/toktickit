@@ -172,3 +172,49 @@ describe("API-41: Administrator and IT Staff rights follow the §6.1 matrix", ()
     expect(res.body.map((c: { body: string }) => c.body)).toContain("Visible to admin?");
   });
 });
+
+// API-27 — AC-40, BR-41: IT Staff can create a note, and it never reaches the Requester.
+it("API-27: an Internal Note is created for IT Staff and is absent from the Requester's view", async () => {
+  const ticketId = await createTicketAsA();
+
+  const created = await request(app)
+    .post(`/api/tickets/${ticketId}/notes`)
+    .set("Cookie", cookieStaff)
+    .send({ body: "Customer has a second device; low urgency." });
+  expect(created.status).toBe(201);
+  expect(created.body).toMatchObject({ body: "Customer has a second device; low urgency.", author: { role: "IT_STAFF" } });
+
+  // Staff see it on the notes endpoint and on the role-shaped detail.
+  const notes = await request(app).get(`/api/tickets/${ticketId}/notes`).set("Cookie", cookieStaff);
+  expect(notes.body.map((n: { id: number }) => n.id)).toContain(created.body.id);
+  const staffDetail = await request(app).get(`/api/tickets/${ticketId}`).set("Cookie", cookieStaff);
+  expect(staffDetail.body.internalNotes.map((n: { id: number }) => n.id)).toContain(created.body.id);
+
+  // The Requester's detail omits the key entirely, and no note text leaks anywhere in it.
+  const requesterDetail = await request(app).get(`/api/tickets/${ticketId}`).set("Cookie", cookieA);
+  expect(requesterDetail.status).toBe(200);
+  expect(requesterDetail.body).not.toHaveProperty("internalNotes");
+  expect(JSON.stringify(requesterDetail.body)).not.toContain("second device");
+});
+
+it("rejects a whitespace-only note body with 400 and writes nothing", async () => {
+  const ticketId = await createTicketAsA();
+  const res = await request(app).post(`/api/tickets/${ticketId}/notes`).set("Cookie", cookieStaff).send({ body: "  " });
+  expect(res.status).toBe(400);
+  expect(res.body.fields.body).toMatch(/Note/);
+  expect(await prisma.internalNote.count({ where: { ticketId } })).toBe(0);
+});
+
+// API-28 — AC-41, BR-46 (note half; the comment half is covered above).
+describe("API-28 (notes): appends are rejected on a terminal ticket", () => {
+  it.each(["CLOSED", "CANCELLED"] as const)("rejects a note on a %s ticket with 409 and writes nothing", async (status) => {
+    const ticketId = await createTicketInStatus(status);
+    const res = await request(app)
+      .post(`/api/tickets/${ticketId}/notes`)
+      .set("Cookie", cookieStaff)
+      .send({ body: "Following up internally." });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "This ticket is closed and can no longer be updated." });
+    expect(await prisma.internalNote.count({ where: { ticketId } })).toBe(0);
+  });
+});

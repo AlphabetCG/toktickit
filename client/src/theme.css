@@ -1016,3 +1016,55 @@ body {
 td .zg-signal-chip {
   margin-left: var(--zg-space-2);
 }
+
+/* --- Lab 3: IT Staff Ticket Detail --- */
+:root {
+  /* Internal channel (ui-spec §2): deliberately outside the green family so an
+     Internal Note reads as a different kind of content, not a darker comment. */
+  --zg-internal: #3a4750;
+  --zg-internal-surface: #eef1f4;
+  --zg-internal-border: #c7d0d9;
+}
+
+.zg-ops {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+}
+
+.zg-ops__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+}
+
+.zg-ops__row .zg-label {
+  min-width: 7rem;
+}
+
+.zg-badge-label {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-notes {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+  background: var(--zg-internal-surface);
+  border-color: var(--zg-internal-border);
+}
+
+.zg-notes__title {
+  color: var(--zg-internal);
+}
+
+.zg-notes__audience {
+  font-size: var(--zg-fs-small);
+  font-weight: var(--zg-fw-semibold);
+  color: var(--zg-internal);
+}
+
+.zg-notes__input {
+  border-color: var(--zg-internal-border);
+}

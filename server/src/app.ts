@@ -26,6 +26,15 @@ import { validateSummary, validateDescription, validatePriority, validateComment
 import { normalizeTicketQuery } from "./ticketQuery.js";
 import { normalizeQueueQuery } from "./queueQuery.js";
 import {
+  isStatus,
+  isTerminal,
+  isTransitionPermitted,
+  permittedTransitions,
+  STATUS_LABEL,
+  TERMINAL,
+  type Status,
+} from "./transitions.js";
+import {
   detectMimeType,
   isPermittedMime,
   isWithinSizeLimit,
@@ -68,9 +77,10 @@ function parseId(raw: string): number | null {
   return /^\d+$/.test(raw) ? Number(raw) : null;
 }
 
-// Resolves a ticket the acting user is allowed to touch, honouring the §6.1
-// matrix: a Requester reaches only their own ticket, IT Staff and Administrators
-// reach any. Returns null (→ identical 404) when absent or not owned (BR-15).
+// The §6.1 matrix's ticket scope: a Requester reaches only their own ticket, IT
+// Staff and Administrators reach any. Spread into a Prisma where so every ticket
+// and attachment route applies the same rule; a ticket outside the scope is the
+// same 404 as a missing one (BR-15).
 //
 // Administrator ticket access is a deliberate, approved decision, not a side
 // effect of this if/else: specification.md §6.1 grants Administrators "any" for
@@ -78,18 +88,19 @@ function parseId(raw: string): number | null {
 // holds Ticket operations" note records the reason (handout §4.5 lets an
 // Administrator own a ticket and set IT Priority). Rows marked "—" for
 // Administrators are enforced separately — e.g. resolution-signal refuses every
-// non-Requester with 403 before this helper is reached.
-// Used by: GET/POST /api/tickets/:id/comments and the resolution signal only.
+// non-Requester with 403, and Internal Notes refuse every Requester.
+function ticketScope(user: { id: number; role: string }): Prisma.TicketWhereInput {
+  return user.role === "REQUESTER" ? { requesterId: user.id } : {};
+}
+
 async function findAccessibleTicket(id: number, user: { id: number; role: string }) {
-  const where =
-    user.role === "REQUESTER" ? { id, requesterId: user.id } : { id };
   return getPrisma().ticket.findFirst({
-    where,
+    where: { id, ...ticketScope(user) },
     select: { id: true, currentStatus: true, requesterId: true },
   });
 }
 
-const TERMINAL_STATUSES = ["CLOSED", "CANCELLED"];
+const TERMINAL_STATUSES: readonly string[] = TERMINAL;
 
 // Public Comment / Internal Note serialised shape (author role included so the UI
 // can label the speaker without a second lookup — api-spec §4.1).
@@ -432,13 +443,14 @@ app.get("/api/tickets/:id", requireAuth, requirePasswordChanged, async (req: Req
   }
   try {
     const ticket = await getPrisma().ticket.findFirst({
-      where: { id, requesterId: req.user!.id },
+      where: { id, ...ticketScope(req.user!) },
       select: {
         id: true,
         ticketNumber: true,
         summary: true,
         description: true,
         requestedPriority: true,
+        itPriority: true,
         currentStatus: true,
         ticketDate: true,
         resolutionSignalledAt: true,
@@ -447,16 +459,36 @@ app.get("/api/tickets/:id", requireAuth, requirePasswordChanged, async (req: Req
         requester: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } },
         relatedSystem: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true } },
         attachments: { select: ATTACHMENT_SELECT, orderBy: { uploadedAt: "asc" } },
+        publicComments: { select: COMMENT_SELECT, orderBy: { createdAt: "asc" } },
       },
     });
     if (!ticket) {
       res.status(404).json({ error: "Ticket not found" });
       return;
     }
-    res.status(200).json({
+    const body = {
       ...ticket,
       attachments: ticket.attachments.map(serializeAttachment),
+      publicComments: ticket.publicComments.map(serializeComment),
+    };
+
+    // Role-shaped (api-spec §3.2). A Requester's body OMITS the internalNotes key
+    // entirely — not an empty array, which would still confirm notes exist (AC-40).
+    if (req.user!.role === "REQUESTER") {
+      res.status(200).json(body);
+      return;
+    }
+    const notes = await getPrisma().internalNote.findMany({
+      where: { ticketId: id },
+      select: COMMENT_SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    res.status(200).json({
+      ...body,
+      internalNotes: notes.map(serializeComment),
+      permittedTransitions: permittedTransitions(ticket.currentStatus as Status),
     });
   } catch {
     res.status(500).json({ error: "Unable to load ticket" });
@@ -472,7 +504,7 @@ app.get("/api/tickets/:id/attachments", requireAuth, requirePasswordChanged, asy
   }
   try {
     const ticket = await getPrisma().ticket.findFirst({
-      where: { id, requesterId: req.user!.id },
+      where: { id, ...ticketScope(req.user!) },
       select: { id: true },
     });
     if (!ticket) {
@@ -506,7 +538,7 @@ app.post("/api/tickets/:id/attachments", requireAuth, requirePasswordChanged, (r
     }
     try {
       const ticket = await getPrisma().ticket.findFirst({
-        where: { id, requesterId: req.user!.id },
+        where: { id, ...ticketScope(req.user!) },
         select: { id: true },
       });
       if (!ticket) {
@@ -574,7 +606,7 @@ app.get("/api/attachments/:id/download", requireAuth, requirePasswordChanged, as
   }
   try {
     const attachment = await getPrisma().attachment.findFirst({
-      where: { id, removedAt: null, ticket: { requesterId: req.user!.id } },
+      where: { id, removedAt: null, ticket: ticketScope(req.user!) },
       select: { storedFilename: true, originalFilename: true, mimeType: true },
     });
     if (!attachment) {
@@ -607,7 +639,7 @@ app.delete("/api/attachments/:id", requireAuth, requirePasswordChanged, async (r
   }
   try {
     const attachment = await getPrisma().attachment.findFirst({
-      where: { id, ticket: { requesterId: req.user!.id } },
+      where: { id, ticket: ticketScope(req.user!) },
       select: { id: true, removedAt: true },
     });
     if (!attachment) {
@@ -856,3 +888,232 @@ app.get(
     }
   }
 );
+
+// --- Ticket operations: IT Staff and Administrator (api-spec §6) ---------------
+
+const STAFF = ["IT_STAFF", "ADMINISTRATOR"] as const;
+
+// PATCH /api/tickets/:id/owner — claim (own id), reassign (another id), and release
+// (null) through one endpoint, since they are one state change on one field. Only
+// an active IT Staff or Administrator may own a ticket (BR-26, BR-28); a
+// deactivated owner keeps tickets already assigned (BR-29), so the rule applies
+// only to the new owner being written.
+app.patch(
+  "/api/tickets/:id/owner",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole(...STAFF),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    try {
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found" });
+        return;
+      }
+
+      const raw = req.body?.ownerId;
+      let ownerId: number | null;
+      if (raw === null) {
+        ownerId = null;
+      } else if (Number.isInteger(raw) && raw > 0) {
+        const candidate = await prisma.user.findUnique({
+          where: { id: raw },
+          select: { role: true, isActive: true },
+        });
+        const fieldError = !candidate
+          ? "That user does not exist."
+          : candidate.role === "REQUESTER"
+            ? "Ticket owner must be IT Staff or an Administrator."
+            : !candidate.isActive
+              ? "That user is deactivated."
+              : null;
+        if (fieldError) {
+          res.status(400).json({ error: "Validation failed", fields: { ownerId: fieldError } });
+          return;
+        }
+        ownerId = raw;
+      } else {
+        res.status(400).json({
+          error: "Validation failed",
+          fields: { ownerId: "Choose an owner, or null to release the ticket." },
+        });
+        return;
+      }
+
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: { ownerId },
+        select: { id: true, owner: { select: { id: true, name: true } } },
+      });
+      res.status(200).json(updated);
+    } catch {
+      res.status(500).json({ error: "Unable to update the owner" });
+    }
+  }
+);
+
+// PATCH /api/tickets/:id/it-priority — sets only IT Priority; Requested Priority is
+// immutable after creation, and both are returned so the caller can see they are
+// now independent (BR-30, AC-36).
+app.patch(
+  "/api/tickets/:id/it-priority",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole(...STAFF),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    try {
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found" });
+        return;
+      }
+      const priorityError = validatePriority(req.body?.itPriority);
+      if (priorityError) {
+        res.status(400).json({ error: "Validation failed", fields: { itPriority: priorityError } });
+        return;
+      }
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: { itPriority: req.body.itPriority },
+        select: { id: true, itPriority: true, requestedPriority: true },
+      });
+      res.status(200).json(updated);
+    } catch {
+      res.status(500).json({ error: "Unable to update the IT Priority" });
+    }
+  }
+);
+
+// PATCH /api/tickets/:id/status — the target must be reachable under the §5.7
+// matrix (BR-35); nothing leaves CLOSED or CANCELLED (BR-36). The write is a
+// compare-and-set on the status that was checked, so two staff members moving the
+// same ticket at once cannot both pass a stale check: the loser updates zero rows
+// and gets a 409 against the status that actually won (api-spec §6.3).
+app.patch(
+  "/api/tickets/:id/status",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole(...STAFF),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    const target: unknown = req.body?.status;
+    try {
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found" });
+        return;
+      }
+      if (!isStatus(target)) {
+        res.status(400).json({ error: "Validation failed", fields: { status: "Choose a valid status." } });
+        return;
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const read = async () =>
+          (await tx.ticket.findUniqueOrThrow({ where: { id }, select: { currentStatus: true } }))
+            .currentStatus as Status;
+        const current = await read();
+        if (isTerminal(current) || !isTransitionPermitted(current, target)) {
+          return { ok: false as const, from: current };
+        }
+        const written = await tx.ticket.updateMany({
+          where: { id, currentStatus: current },
+          data: { currentStatus: target },
+        });
+        if (written.count === 0) return { ok: false as const, from: await read() };
+        return { ok: true as const };
+      });
+
+      if (!result.ok) {
+        const error = isTerminal(result.from)
+          ? "This ticket is closed and can no longer be updated."
+          : `Cannot move a ${STATUS_LABEL[result.from]} ticket to ${STATUS_LABEL[target]}.`;
+        res.status(409).json({ error });
+        return;
+      }
+      res.status(200).json({ id, currentStatus: target, permittedTransitions: permittedTransitions(target) });
+    } catch {
+      res.status(500).json({ error: "Unable to change the status" });
+    }
+  }
+);
+
+// --- Internal Notes: IT Staff and Administrator only (api-spec §5) -------------
+
+const NOTES_FORBIDDEN = { error: "You do not have permission to perform this action." };
+
+// Resolves the ticket for a notes request in the order api-spec §5.2 fixes. The
+// ownership check runs first, so a Requester asking about another user's ticket
+// gets the same 404 as a missing one and existence stays hidden. A Requester
+// asking about their own ticket then gets a 403 that carries no note text, author,
+// or count; the ticket's existence is already known to them (AC-24, AUTHZ-09).
+async function resolveNotesTicket(req: Request, res: Response) {
+  const id = parseId(req.params.id);
+  const ticket = id === null ? null : await findAccessibleTicket(id, req.user!);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found" });
+    return null;
+  }
+  if (req.user!.role === "REQUESTER") {
+    res.status(403).json(NOTES_FORBIDDEN);
+    return null;
+  }
+  return ticket;
+}
+
+app.get("/api/tickets/:id/notes", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  try {
+    const ticket = await resolveNotesTicket(req, res);
+    if (!ticket) return;
+    const notes = await getPrisma().internalNote.findMany({
+      where: { ticketId: ticket.id },
+      select: COMMENT_SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    res.status(200).json(notes.map(serializeComment));
+  } catch {
+    res.status(500).json({ error: "Unable to load notes" });
+  }
+});
+
+app.post("/api/tickets/:id/notes", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  try {
+    const ticket = await resolveNotesTicket(req, res);
+    if (!ticket) return;
+
+    const bodyError = validateCommentBody(req.body?.body);
+    if (bodyError) {
+      res.status(400).json({ error: "Validation failed", fields: { body: bodyError.replace("Comment", "Note") } });
+      return;
+    }
+    if (TERMINAL_STATUSES.includes(ticket.currentStatus)) {
+      res.status(409).json({ error: "This ticket is closed and can no longer be updated." });
+      return;
+    }
+
+    const created = await getPrisma().internalNote.create({
+      data: { ticketId: ticket.id, authorId: req.user!.id, body: String(req.body.body).trim() },
+      select: COMMENT_SELECT,
+    });
+    res.status(201).json(serializeComment(created));
+  } catch {
+    res.status(500).json({ error: "Unable to add the note" });
+  }
+});
