@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import type { Role } from "../api.js";
 import { Button } from "./Button.js";
+import { RoleBadge } from "./Badge.js";
 
 interface AppShellProps {
   userName: string;
@@ -27,11 +28,6 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   ADMINISTRATOR: [{ to: "/admin/users", label: "User Management" }],
 };
 
-const ROLE_LABEL: Record<Role, string> = {
-  REQUESTER: "Requester",
-  IT_STAFF: "IT Staff",
-  ADMINISTRATOR: "Administrator",
-};
 
 // Application shell: identity, role-specific navigation, active-page indication,
 // role badge, logout, and responsive mobile navigation (ui-spec §7.1).
@@ -77,7 +73,7 @@ export function AppShell({ userName, role, onLogout, children }: AppShellProps) 
 
           <div className="zg-identity">
             <span className="zg-identity__name">{userName}</span>
-            <span className={`zg-badge zg-badge--role-${role.toLowerCase()}`}>{ROLE_LABEL[role]}</span>
+            <RoleBadge value={role} />
             <Button variant="tertiary" onClick={onLogout}>
               Logout
             </Button>

@@ -66,3 +66,23 @@ export function StatusBadge({ value }: { value: TicketStatus }) {
 export function RemovedBadge() {
   return <span className="zg-badge zg-badge--removed">Removed</span>;
 }
+
+// Role badge (ui-spec §3.3). Class names are the spec's — `staff` / `admin`, not the
+// enum values — and the badge is outlined so it never reads as a status.
+export type UserRole = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  REQUESTER: "Requester",
+  IT_STAFF: "IT Staff",
+  ADMINISTRATOR: "Administrator",
+};
+
+const ROLE_CLASS: Record<UserRole, string> = {
+  REQUESTER: "requester",
+  IT_STAFF: "staff",
+  ADMINISTRATOR: "admin",
+};
+
+export function RoleBadge({ value }: { value: UserRole }) {
+  return <span className={`zg-badge zg-badge--role-${ROLE_CLASS[value]}`}>{ROLE_LABEL[value]}</span>;
+}

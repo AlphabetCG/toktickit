@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { StatusBadge, type TicketStatus } from "../../src/components/Badge.js";
+import { StatusBadge, RoleBadge, type TicketStatus, type UserRole } from "../../src/components/Badge.js";
 import { StaffTicketDetail } from "../../src/screens/StaffTicketDetail.js";
 import { InternalNotes } from "../../src/components/InternalNotes.js";
 import * as api from "../../src/api.js";
@@ -105,5 +105,28 @@ describe("STYLE-05: the Internal Note audience marker", () => {
     expect(marker).toBeInTheDocument();
     expect(input.getAttribute("aria-describedby")?.split(" ")).toContain(marker.id);
     expect(input).toHaveAccessibleDescription(/Visible to IT Staff only/);
+  });
+});
+
+// STYLE-03 — ui-spec §3.3: each role renders as an outlined badge carrying its name
+// as text, with the spec's class names. The Lab 3 shell had emitted enum-derived
+// classes (zg-badge--role-it_staff / -administrator) that the spec never defined.
+describe("STYLE-03: role badge", () => {
+  it.each([
+    ["REQUESTER", "Requester", "zg-badge--role-requester"],
+    ["IT_STAFF", "IT Staff", "zg-badge--role-staff"],
+    ["ADMINISTRATOR", "Administrator", "zg-badge--role-admin"],
+  ] as [UserRole, string, string][])("renders %s as the text %s with %s", (value, label, cls) => {
+    render(<RoleBadge value={value} />);
+    expect(screen.getByText(label)).toHaveClass("zg-badge", cls);
+  });
+
+  it("styles every role badge as an outline, distinct from the filled status badges", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const css = readFileSync(join(process.cwd(), "src", "theme.css"), "utf8");
+    const rule = /\.zg-badge--role-requester,\s*\.zg-badge--role-staff,\s*\.zg-badge--role-admin\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/background:\s*transparent/);
+    expect(rule).toMatch(/--zg-border-strong/);
   });
 });

@@ -239,3 +239,58 @@ describe("AUTHZ-11: a Requester cannot change status, IT Priority, or owner", ()
     ]);
   });
 });
+
+// Every Administrator route, for the role-refusal checks.
+const ADMIN_ROUTES: [string, string, object][] = [
+  ["get", "/api/admin/users", {}],
+  ["post", "/api/admin/users", { name: "X", email: "x@toktickit.test", role: "REQUESTER", initialPassword: "LongEnoughPass!1" }],
+  ["patch", "/api/admin/users/1", { name: "X" }],
+  ["post", "/api/admin/users/1/initial-password", { initialPassword: "LongEnoughPass!1" }],
+];
+
+// AUTHZ-04 — AC-14: a Requester receives 403 on every /api/admin/* route.
+describe("AUTHZ-04: a Requester is refused every Administrator route", () => {
+  it.each(ADMIN_ROUTES)("%s %s returns 403 with no user data", async (method, path, body) => {
+    const before = await prisma.user.count();
+    const res = await (request(app) as any)[method](path).set("Cookie", cookieA).send(body);
+    expect(res.status).toBe(403);
+    expect(Array.isArray(res.body)).toBe(false);
+    expect(JSON.stringify(res.body)).not.toMatch(/email/i);
+    expect(await prisma.user.count()).toBe(before);
+  });
+});
+
+// AUTHZ-05 — AC-15, BR-18: IT Staff never gain user administration.
+describe("AUTHZ-05: IT Staff are refused every Administrator route", () => {
+  it.each(ADMIN_ROUTES)("%s %s returns 403, not 404", async (method, path, body) => {
+    await ensureUser(prisma, { email: "authz.staff@toktickit.test", role: "IT_STAFF" });
+    const staff = await loginCookie("authz.staff@toktickit.test");
+    const res = await (request(app) as any)[method](path).set("Cookie", staff).send(body);
+    expect(res.status).toBe(403);
+    expect(Array.isArray(res.body)).toBe(false);
+  });
+});
+
+// AUTHZ-12 — BR-19, BR-55: an Administrator cannot change their own role.
+describe("AUTHZ-12: an Administrator cannot change their own role", () => {
+  it.each(["IT_STAFF", "REQUESTER"])("rejects changing their own role to %s", async (role) => {
+    const self = await ensureUser(prisma, { email: "authz.admin@toktickit.test", role: "ADMINISTRATOR" });
+    const cookie = await loginCookie("authz.admin@toktickit.test");
+
+    const res = await request(app).patch(`/api/admin/users/${self.id}`).set("Cookie", cookie).send({ role });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "You cannot change your own role." });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: self.id } })).role).toBe("ADMINISTRATOR");
+  });
+
+  it("still lets an Administrator edit their own name", async () => {
+    const self = await ensureUser(prisma, { email: "authz.admin@toktickit.test", role: "ADMINISTRATOR" });
+    const cookie = await loginCookie("authz.admin@toktickit.test");
+    const res = await request(app)
+      .patch(`/api/admin/users/${self.id}`)
+      .set("Cookie", cookie)
+      .send({ name: "Authz Admin", role: "ADMINISTRATOR" }); // unchanged role is not a change
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("Authz Admin");
+  });
+});

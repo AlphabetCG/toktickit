@@ -934,18 +934,15 @@ body {
   font-weight: var(--zg-fw-medium);
 }
 
-/* Role badges reuse the shared badge chip; text always carries the meaning. */
-.zg-badge--role-requester {
-  background: var(--zg-disabled-bg);
+/* Role badges (ui-spec §3.3) are OUTLINED, not filled, so they never compete with
+   the filled status badges in the same row or header strip. The text carries the
+   meaning; the three roles share one muted style on purpose. */
+.zg-badge--role-requester,
+.zg-badge--role-staff,
+.zg-badge--role-admin {
+  background: transparent;
   color: var(--zg-text-muted);
-}
-.zg-badge--role-it_staff {
-  background: var(--zg-pale);
-  color: var(--zg-primary);
-}
-.zg-badge--role-administrator {
-  background: var(--zg-warning-surface);
-  color: var(--zg-warning);
+  box-shadow: inset 0 0 0 var(--zg-border-w) var(--zg-border-strong);
 }
 
 /* --- Lab 3: Public Comments and the resolution-signal chip --- */
@@ -1067,4 +1064,31 @@ td .zg-signal-chip {
 
 .zg-notes__input {
   border-color: var(--zg-internal-border);
+}
+
+/* --- Lab 3: Administrator User Management --- */
+.zg-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Long addresses wrap instead of pushing the table wider than the page. */
+.zg-cell-email {
+  overflow-wrap: anywhere;
+}
+
+/* The user panel can be taller than a phone screen; it scrolls inside itself. */
+.zg-user-form {
+  max-height: calc(100vh - 2 * var(--zg-space-5));
+  overflow-y: auto;
+}
+
+.zg-user-form__reset {
+  padding-top: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+  border-top: var(--zg-border-w) solid var(--zg-border);
 }
