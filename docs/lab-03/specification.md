@@ -792,7 +792,7 @@ Every criterion maps to at least one planned test in [`tests.md`](./tests.md).
 ### 11.2 Course delivery
 
 - [x] Every unit of work has a GitHub Issue and its own feature branch.
-- [ ] Every feature branch entered `lab3-staging` through a peer-reviewed PR.
+- [x] Every feature branch entered `lab3-staging` through a peer-reviewed PR.
 - [ ] One release PR merged `lab3-staging` into `main`.
 - [ ] Substantive review comments and replies exist in **both** directions,
       recorded in [`reviewer.md`](./reviewer.md).
