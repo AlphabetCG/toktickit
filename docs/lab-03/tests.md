@@ -2,8 +2,8 @@
 
 **Sprint:** Lab 3 — Users, Roles, IT Staff Ticketing, and Admin Screens
 **Contract:** [`specification.md`](./specification.md) — AC-01 … AC-56
-**Status:** Planned before implementation. Result columns are filled in as each
-Issue lands and are final only on `main`.
+**Status:** Planned before implementation; every row now passes (Issue #36).
+Results become final when they are re-confirmed on `main` after the release.
 
 ---
 
@@ -228,11 +228,14 @@ inspected — not against rows created after the migration.
 | UI-28 | UI | AC-46, AC-48 | Create user form | Required fields validate inline; exactly one role can be chosen | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
 | UI-29 | UI | AC-47, AC-49, AC-50 | Guard feedback | Duplicate email, self-deactivation, and last-Administrator refusals each surface a specific message, not a generic failure | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
 | UI-30 | UI | AC-51 | Set initial password | The action confirms and reports that the user must change it at next login | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
+| UI-40 | UI | AC-46, AC-51 | Secondary buttons never submit | Cancel and "Set new initial password" inside the user form never call create or update (regression found by E2E-07: `Button` defaulted to the native `type="submit"`) | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
+| UI-41 | UI | AC-54, ui-spec §10 | Tablet queue fold | Category and Owner fold into the Summary cell, and their own columns carry the class the tablet breakpoint hides (found by RESP-02) | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
+| UI-42 | UI | AC-54, ui-spec §6.3 | Mobile filter disclosure | Filters sit behind a "Filters" toggle with `aria-expanded` and an active count (found by RESP-04) | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
 ### 2.6 UI style
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| STYLE-01 | UI style | AC-55 | No literal colour | No Lab 3 component source contains a `#rrggbb` or `rgba()` literal; every colour comes from a Lab 2 token | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
+| STYLE-01 | UI style | AC-55 | No literal colour | No Lab 3 component source contains a `#rrggbb` or `rgba()` literal; every colour comes from a Lab 2 token | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 | STYLE-02 | UI style | §7.5 | Status badge coverage | All eight statuses render through the shared badge with visible text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 | STYLE-03 | UI style | §7.5 | Role badge | Each role renders as a badge carrying its name as text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 | STYLE-04 | UI style | §7.2 | Editable vs read-only | On IT Staff Ticket Detail, operational fields carry the editable class and Requester-owned fields carry the read-only class | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
@@ -241,10 +244,10 @@ inspected — not against rows created after the migration.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| RESP-01 | Responsive | AC-54 | Desktop 1280×800 | No horizontal page scroll on Login, Change Password, Queue, Staff Detail, User Management; screenshots captured | `e2e/lab-03/responsive.spec.ts` | Planned |
-| RESP-02 | Responsive | AC-54 | Tablet 820×1180 | No overflow, no clipping, screenshots captured | `e2e/lab-03/responsive.spec.ts` | Planned |
-| RESP-03 | Responsive | AC-54 | Mobile 390×844 | Fields stack, controls stay touch-sized, no horizontal page scroll | `e2e/lab-03/responsive.spec.ts` | Planned |
-| RESP-04 | Responsive | AC-54 | Mobile queue representation | The queue renders as cards, and its filters and pagination stay usable | `e2e/lab-03/responsive.spec.ts` | Planned |
+| RESP-01 | Responsive | AC-54 | Desktop 1280×800 | No horizontal page scroll on Login, Change Password, Queue, Staff Detail, User Management; screenshots captured | `e2e/lab-03/responsive.spec.ts` | Pass |
+| RESP-02 | Responsive | AC-54 | Tablet 820×1180 | No overflow, no clipping, screenshots captured | `e2e/lab-03/responsive.spec.ts` | Pass |
+| RESP-03 | Responsive | AC-54 | Mobile 390×844 | Fields stack, controls stay touch-sized, no horizontal page scroll | `e2e/lab-03/responsive.spec.ts` | Pass |
+| RESP-04 | Responsive | AC-54 | Mobile queue representation | The queue renders as cards, and its filters and pagination stay usable | `e2e/lab-03/responsive.spec.ts` | Pass |
 
 Screenshots are written to
 `artifacts/lab-03/screenshots/{authentication,staff-queue,staff-ticket-detail,user-management}/`.
@@ -253,17 +256,19 @@ Screenshots are written to
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| E2E-01 | E2E | AC-01, AC-07, AC-10 | Login, work, log out | A Requester logs in, opens their tickets, logs out; a direct URL afterwards returns to Login and shows no ticket data | `e2e/lab-03/authentication.spec.ts` | Planned |
-| E2E-02 | E2E | AC-02 | First-login change | A user with an initial password reaches only the change screen; the application opens only after a valid change | `e2e/lab-03/authentication.spec.ts` | Planned |
-| E2E-03 | E2E | AC-11 | Cookie not readable | `document.cookie` in the page contains no session token while the session is active | `e2e/lab-03/authentication.spec.ts` | Planned |
-| E2E-04 | E2E | AC-56 | Keyboard-only | Login and Change Password complete by keyboard alone with focus visible at every step | `e2e/lab-03/authentication.spec.ts` | Planned |
-| E2E-05 | E2E | AC-33, AC-36, AC-37, AC-40 | Staff journey | Queue → open detail → claim → set IT Priority → transition status → post a Public Comment → add an Internal Note | `e2e/lab-03/staff-ticket-flow.spec.ts` | Planned |
-| E2E-06 | E2E | AC-22, AC-24, AC-25 | Two-sided conversation | A Requester comments and signals resolution; staff see both; the Requester never sees the staff Internal Note | `e2e/lab-03/staff-ticket-flow.spec.ts` | Planned |
-| E2E-07 | E2E | AC-46, AC-51 | Create and first login | An Administrator creates a user, then that user logs in and is forced through the password change | `e2e/lab-03/user-administration.spec.ts` | Planned |
-| E2E-08 | E2E | AC-49, AC-50 | Administrator guards | Self-deactivation and last-Administrator removal are both refused with a visible message | `e2e/lab-03/user-administration.spec.ts` | Planned |
+| E2E-01 | E2E | AC-01, AC-07, AC-10 | Login, work, log out | A Requester logs in, opens their tickets, logs out; a direct URL afterwards returns to Login and shows no ticket data | `e2e/lab-03/authentication.spec.ts` | Pass |
+| E2E-02 | E2E | AC-02 | First-login change | A user with an initial password reaches only the change screen; the application opens only after a valid change | `e2e/lab-03/authentication.spec.ts` | Pass |
+| E2E-03 | E2E | AC-11 | Cookie not readable | `document.cookie` in the page contains no session token while the session is active | `e2e/lab-03/authentication.spec.ts` | Pass |
+| E2E-04 | E2E | AC-56 | Keyboard-only | Login and Change Password complete by keyboard alone with focus visible at every step | `e2e/lab-03/authentication.spec.ts` | Pass |
+| E2E-05 | E2E | AC-33, AC-36, AC-37, AC-40 | Staff journey | Queue → open detail → claim → set IT Priority → transition status → post a Public Comment → add an Internal Note | `e2e/lab-03/staff-ticket-flow.spec.ts` | Pass |
+| E2E-06 | E2E | AC-22, AC-24, AC-25 | Two-sided conversation | A Requester comments and signals resolution; staff see both; the Requester never sees the staff Internal Note | `e2e/lab-03/staff-ticket-flow.spec.ts` | Pass |
+| E2E-07 | E2E | AC-46, AC-51 | Create and first login | An Administrator creates a user, then that user logs in and is forced through the password change | `e2e/lab-03/user-administration.spec.ts` | Pass |
+| E2E-08 | E2E | AC-49, AC-50 | Administrator guards | Self-deactivation and last-Administrator removal are both refused with a visible message | `e2e/lab-03/user-administration.spec.ts` | Pass |
 
 **Totals:** 11 unit · 48 API · 12 authorization · 7 migration/regression ·
-39 UI component · 5 UI style · 4 responsive · 8 E2E = **134 planned tests**.
+42 UI component · 5 UI style · 4 responsive · 8 E2E = **137 planned tests**
+(134 in the contract, plus UI-40…UI-42 added in Issue #36 for the defects that
+the E2E and responsive suites found).
 
 ---
 
@@ -319,15 +324,15 @@ test names a real file path.
 | AC-43 | User list columns | API-29, UI-26 |
 | AC-44 | User search by name or email | API-30, UI-27 |
 | AC-45 | Role filter | API-31, UI-27 |
-| AC-46 | Create user with one role | API-32, UI-28, E2E-07 |
+| AC-46 | Create user with one role | API-32, UI-28, UI-40, E2E-07 |
 | AC-47 | Duplicate email → 409 | API-33, UI-29 |
 | AC-48 | Invalid role → 400 | API-34, UI-28 |
 | AC-49 | Self-deactivation refused | API-35, UI-29, E2E-08 |
 | AC-50 | Last Administrator protected | API-36, UI-29, E2E-08 |
-| AC-51 | New initial password forces a change | API-37, UI-30, E2E-07 |
+| AC-51 | New initial password forces a change | API-37, UI-30, UI-40, E2E-07 |
 | AC-52 | Initial password invalidates sessions | API-38 |
 | AC-53 | Role-specific navigation only | UI-10, UI-11, UI-12 |
-| AC-54 | No overflow or clipping at any viewport | RESP-01…RESP-04 |
+| AC-54 | No overflow or clipping at any viewport | UI-41, UI-42, RESP-01…RESP-04 |
 | AC-55 | Zen Green tokens, no literal colour | STYLE-01 |
 | AC-56 | Keyboard reachable, focus visible | E2E-04 |
 
@@ -385,9 +390,9 @@ User Management at desktop, tablet, and mobile:
 
 - [ ] `npx prisma migrate reset --force` rebuilds and reseeds without error
 - [ ] The seed runs twice with no duplicate rows
-- [ ] `git ls-files | grep -E '\.env$'` returns nothing
+- [x] `git ls-files | grep -E '\.env$'` returns nothing (2026-10-04)
 - [ ] No password hash appears in any API response
-- [ ] No test is skipped, `.todo`, `.skip`, or commented out
+- [x] No test is skipped, `.todo`, `.skip`, or commented out (grep of all three suites, 2026-10-04)
 
 ---
 
@@ -413,22 +418,48 @@ npm run test:e2e:report
 
 ## 6. Final Results
 
-Filled in from a clean run on `main` after the release PR merges.
+Filled in from a clean run of the complete suite on `feature/8-lab3-e2e-visual-release`
+(Issue #36, 2026-10-04): every Issue of the sprint already merged into
+`lab3-staging`, plus this branch. **Re-run on `main` after the release PR merges,
+and paste that output below as the record of the release.**
 
 | Level | Planned | Passing | Failing | Skipped |
 |-------|---------|---------|---------|---------|
-| Unit | 9 | — | — | — |
-| API / integration | 39 | — | — | — |
-| Authorization | 12 | — | — | — |
-| Migration / regression | 7 | — | — | — |
-| UI component | 31 | — | — | — |
-| UI style | 5 | — | — | — |
-| Responsive | 4 | — | — | — |
-| E2E | 8 | — | — | — |
-| **Total** | **115** | — | — | — |
+| Unit | 11 | 11 | 0 | 0 |
+| API / integration | 48 | 48 | 0 | 0 |
+| Authorization | 12 | 12 | 0 | 0 |
+| Migration / regression | 7 | 7 | 0 | 0 |
+| UI component | 42 | 42 | 0 | 0 |
+| UI style | 5 | 5 | 0 | 0 |
+| Responsive | 4 | 4 | 0 | 0 |
+| E2E | 8 | 8 | 0 | 0 |
+| **Total** | **137** | **137** | **0** | **0** |
 
-> Paste the passing terminal output from `main` below, plus the Playwright report
-> summary. Any non-zero figure in Failing or Skipped must be explained in §7.
+Planned IDs map to more test cases than IDs, because a row often expands into an
+`it.each` table (the §5.7 matrix alone is 64 cases):
+
+| Suite | Command | Result |
+|-------|---------|--------|
+| Server — unit, API, authorization, migration/regression | `cd server && npm test` | 22 files, **284 / 284** passed |
+| Client — UI component and UI style | `cd client && npm test` | 14 files, **126 / 126** passed |
+| E2E and responsive (Chromium) | `npm run test:e2e` | 4 files, **16 / 16** passed (8 E2E, 4 RESP, 4 screenshot runs), stable over two consecutive runs |
+| Typecheck | `npx tsc --noEmit` in both | clean |
+| Client build | `cd client && npm run build` | succeeds |
+
+The responsive run writes all 34 screenshots listed in ui-spec §12 to
+`artifacts/lab-03/screenshots/`.
+
+**Defects the Issue #36 suites found and fixed** (each fixed test-first):
+
+| Found by | Defect | Fix | Guarding test |
+|----------|--------|-----|---------------|
+| E2E-07 | `Button` rendered the native default `type="submit"`, so **Cancel** and **Set new initial password** inside the user form submitted it. Cancelling an edit saved it, and the reset dialog vanished with the closed panel | `Button` defaults to `type="button"`; the six real submit buttons already declare `type="submit"` | UI-40 |
+| RESP-02 | At 820 px the seven-column queue was 1001 px wide; the ui-spec §10 tablet fold was never implemented | Category and Owner fold into the Summary cell between 768 and 991 px | UI-41, RESP-02 |
+| RESP-03 | A long, unbroken requester email pushed mobile Staff Ticket Detail 91 px past the viewport | `minmax(0, 1fr)` grid columns and `overflow-wrap: anywhere` on values | RESP-03 (long-email fixture) |
+| RESP-03 | Controls were 40 px tall on mobile, below the 44 × 44 px touch target | `--zg-control-h` grows to 2.75 rem below 768 px | RESP-03 |
+| RESP-03 (visual) | A long owner name pushed the Owner select past the mobile Operations panel | Operations controls stack full-width on mobile | RESP-01…03 panel-containment check |
+| RESP-04 | Mobile queue filters were always expanded; the ui-spec §6.3 disclosure was missing | "Filters" toggle with `aria-expanded` and an active count | UI-42, RESP-04 |
+| STYLE-01 | The dialog backdrop used a literal `rgba(28, 43, 36, 0.45)` | `color-mix(in srgb, var(--zg-text) 45%, transparent)`: the same scrim, derived from the token | STYLE-01 |
 
 ---
 
@@ -443,3 +474,8 @@ Filled in from a clean run on `main` after the release PR merges.
 | Cross-browser E2E | Chromium only | Keeps the lab run time reasonable, continuing the Lab 2 decision |
 | Actions Taken | Out of scope | Lab 4 |
 | E2E development-database residue | Known | Carried forward from Lab 2 §7 — E2E runs write to the development database rather than an isolated one |
+| Routed screenshot states | By design | Four states cannot be produced honestly against a shared, populated database: the empty queue, the forbidden queue, the inline status conflict, and the last-Administrator refusal. `responsive.spec.ts` fulfils the server's exact response body with `page.route` for those shots only. The server behaviour is proven directly by API-25, AUTHZ-03, API-36, and UNIT-11 |
+| E2E-08 last-Administrator half | UI-level check | With several active Administrators the refusal is reachable only through a concurrent race, so E2E-08 injects the server's real 409 body to prove the screen places it beside Status and leaves the row unchanged. Its self-deactivation half runs fully against the server, including a direct API call |
+| Lab 2 E2E specs retired | Replaced | `e2e/lab-02/` drove the Development Requester selector that Lab 3 removed (AC-12), so those specs could no longer run, and an un-run test conflicts with §11. Their flows are covered by REG-01…REG-07 (Lab 2 data and contracts after migration), the Lab 2 and Lab 3 UI component suites (Create Ticket, My Tickets, Ticket Detail, attachments), and E2E-01/E2E-06 (Requester sign-in, own tickets, comments) |
+| E2E account residue | Mitigated | Every E2E account is created through the Administrator API (never by editing a seeded account) and deactivated in `afterAll`, so test Administrators do not accumulate as active. Accounts cannot be deleted (BR-57), and Tickets remain |
+| User Management list screenshots | Viewport only | The list holds every account the development database has accumulated, so `desktop-list`, `tablet-list`, and `mobile-list` capture the viewport rather than the full page |
