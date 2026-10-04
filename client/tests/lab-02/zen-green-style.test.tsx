@@ -9,12 +9,22 @@ import { PriorityBadge, RemovedBadge, StatusBadge } from "../../src/components/B
 import { Button } from "../../src/components/Button.js";
 import { TextField } from "../../src/components/Field.js";
 import { MyTickets } from "../../src/screens/MyTickets.js";
-import { RequesterProvider } from "../../src/requester.js";
 import * as api from "../../src/api.js";
 
 // Mocking the API module is inert for the component-level tests below (none of
 // them import it) and lets the STYLE-02 test render My Tickets.
 vi.mock("../../src/api.js");
+// My Tickets reads the acting user from the auth context (Lab 3).
+vi.mock("../../src/auth.js", () => ({
+  useAuth: () => ({
+    user: { id: 1, name: "Somchai Prasert", email: "s@t.test", role: "REQUESTER", mustChangePassword: false },
+    loading: false,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children?: unknown }) => children,
+}));
 
 // STYLE-04 and STYLE-05 from docs/lab-02/tests.md. The visual contract is
 // docs/lab-02/ui-spec.md sections 1, 2 and 4.
@@ -190,19 +200,19 @@ describe("Zen Green foundation", () => {
     });
   });
 
-  // The shell's own acceptance criteria for this issue (ui-spec section 7).
-  // The Requester-driven behaviour, UI-05 and UI-06, arrives with Issue #14.
+  // The Lab 3 shell's own acceptance criteria (ui-spec §7.1). Role-specific
+  // navigation is asserted in full in RoleNavigation.test.tsx (UI-10…UI-13).
   describe("application shell", () => {
-    const renderShell = (props = {}) =>
+    const renderShell = (props: Partial<{ userName: string; role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR"; onLogout: () => void }> = {}) =>
       render(
         <MemoryRouter initialEntries={["/tickets"]}>
-          <AppShell {...props}>
+          <AppShell userName="Somchai Prasert" role="REQUESTER" onLogout={() => {}} {...props}>
             <p>content</p>
           </AppShell>
         </MemoryRouter>
       );
 
-    it("shows the application identity and both navigation destinations", () => {
+    it("shows the application identity and the Requester's navigation destinations", () => {
       renderShell();
 
       expect(screen.getByText("TokTickIT")).toBeInTheDocument();
@@ -230,16 +240,15 @@ describe("Zen Green foundation", () => {
       expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
 
-    it("shows the selected Requester and a Change Requester action", () => {
-      renderShell({ requesterName: "Somchai Prasert", onChangeRequester: () => {} });
+    it("shows the authenticated identity, role badge, and a Logout action", async () => {
+      const onLogout = vi.fn();
+      renderShell({ onLogout });
 
       expect(screen.getByText("Somchai Prasert")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Change Requester" })).toBeInTheDocument();
-    });
-
-    it("omits the identity area until a Requester has been selected", () => {
-      renderShell();
-      expect(screen.queryByRole("button", { name: "Change Requester" })).not.toBeInTheDocument();
+      expect(screen.getByText("Requester")).toBeInTheDocument();
+      const logout = screen.getByRole("button", { name: "Logout" });
+      await userEvent.click(logout);
+      expect(onLogout).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -254,7 +263,6 @@ describe("STYLE-02: icon-only controls are labelled and have tooltips", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
-    localStorage.setItem("toktickit.requester", JSON.stringify({ id: 1, name: "S", email: "s@t.test" }));
     getCategories.mockResolvedValue([]);
     getRelatedSystems.mockResolvedValue([]);
     getTickets.mockResolvedValue({
@@ -281,9 +289,7 @@ describe("STYLE-02: icon-only controls are labelled and have tooltips", () => {
   it("labels the sort-direction toggle and the pager arrows with a name and a title", async () => {
     render(
       <MemoryRouter initialEntries={["/tickets"]}>
-        <RequesterProvider>
-          <MyTickets />
-        </RequesterProvider>
+        <MyTickets />
       </MemoryRouter>
     );
 

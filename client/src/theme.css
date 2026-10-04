@@ -32,6 +32,10 @@
   --zg-warning-surface: #fff6e5;
   --zg-disabled-bg: #e8ecea;
   --zg-disabled-text: #8a9691;
+  /* Lab 3 — informational status (ui-spec §2) */
+  --zg-info: #1b5e8a;
+  --zg-info-surface: #e6f0f7;
+
   --zg-shadow: 0 1px 2px rgba(28, 43, 36, 0.06), 0 2px 8px rgba(28, 43, 36, 0.04);
 
   /* Typography */
@@ -64,6 +68,14 @@
   --zg-control-h: 2.5rem;
   --zg-border-w: 1px;
   --zg-page-max-w: 1120px;
+}
+
+/* Touch targets are at least 44 × 44 px below 768 px (Lab 2 ui-spec §10), so the
+   one shared control height grows there; every control follows the token. */
+@media (max-width: 767px) {
+  :root {
+    --zg-control-h: 2.75rem;
+  }
 }
 
 body {
@@ -253,6 +265,40 @@ body {
 .zg-badge--status-new {
   background: var(--zg-pale);
   color: var(--zg-primary);
+}
+
+/* Lab 3 — the rest of the eight-status set (ui-spec §3.1). */
+.zg-badge--status-open {
+  background: var(--zg-pale);
+  color: var(--zg-secondary);
+}
+.zg-badge--status-in-progress {
+  background: var(--zg-info-surface);
+  color: var(--zg-info);
+}
+.zg-badge--status-waiting {
+  background: var(--zg-warning-surface);
+  color: var(--zg-warning);
+  white-space: normal; /* the long label wraps rather than truncating on mobile */
+}
+.zg-badge--status-resolved {
+  background: var(--zg-pale);
+  color: var(--zg-success);
+}
+.zg-badge--status-reopened {
+  background: var(--zg-error-surface);
+  color: var(--zg-error);
+}
+.zg-badge--status-closed {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-text-muted);
+}
+/* Closed and cancelled are both terminal and muted; fill vs outline separates
+   them, and the labels differ too. */
+.zg-badge--status-cancelled {
+  background: transparent;
+  color: var(--zg-text-muted);
+  box-shadow: inset 0 0 0 var(--zg-border-w) var(--zg-border-strong);
 }
 
 .zg-badge--removed {
@@ -607,6 +653,62 @@ body {
   white-space: nowrap;
 }
 
+/* Ticket Queue, tablet (ui-spec §10): Category and Owner leave their columns and
+   fold into the Summary cell, so seven columns never force a sideways scroll. */
+.zg-cell-summary__meta {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  .zg-col-fold {
+    display: none;
+  }
+
+  .zg-cell-summary {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .zg-cell-summary__meta {
+    display: block;
+    font-size: var(--zg-fs-small);
+    color: var(--zg-text-muted);
+  }
+}
+
+/* Ticket Queue filters (ui-spec §6.3): inline at tablet and up — `contents`
+   keeps them direct items of the toolbar — and behind a disclosure on mobile. */
+.zg-filter-toggle {
+  display: none;
+}
+
+.zg-filters {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  .zg-filter-toggle {
+    display: inline-flex;
+  }
+
+  .zg-filters {
+    display: none;
+    flex: 1 0 100%;
+    flex-direction: column;
+    gap: var(--zg-space-2);
+  }
+
+  .zg-filters--open {
+    display: flex;
+  }
+
+  /* Page numbers stay compact squares instead of full-width bars. */
+  .zg-pager .zg-btn {
+    width: auto;
+    min-width: var(--zg-control-h);
+  }
+}
+
 .zg-pagination {
   display: flex;
   flex-wrap: wrap;
@@ -707,14 +809,16 @@ body {
 
 .zg-info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …) lets a column shrink below its longest unbroken value, such as
+     an email address, instead of widening the page (AC-54, found by RESP-03). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--zg-space-3);
   margin: 0 0 var(--zg-space-4);
 }
 
 @media (max-width: 767px) {
   .zg-info-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -730,6 +834,7 @@ body {
 
 .zg-info__value {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .zg-detail-text {
@@ -800,7 +905,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: var(--zg-space-4);
-  background: rgba(28, 43, 36, 0.45);
+  /* --zg-text at 45% — the same scrim, derived from the token (AC-55). */
+  background: color-mix(in srgb, var(--zg-text) 45%, transparent);
 }
 
 .zg-dialog {
@@ -829,4 +935,242 @@ body {
 
 .zg-dialog .zg-field-message {
   margin-top: var(--zg-space-2);
+}
+
+/* --- Lab 3: authentication screens and role identity --- */
+.zg-auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--zg-space-5);
+  background: var(--zg-page-bg);
+}
+
+.zg-auth-card {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-3);
+  padding: var(--zg-space-6);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-lg);
+  box-shadow: var(--zg-shadow);
+}
+
+.zg-auth-title {
+  margin: 0;
+  font-size: var(--zg-fs-page-title);
+  font-weight: var(--zg-fw-semibold);
+  color: var(--zg-primary);
+  text-align: center;
+}
+
+.zg-auth-subtitle {
+  margin: 0 0 var(--zg-space-2);
+  text-align: center;
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-auth-submit {
+  width: 100%;
+  margin-top: var(--zg-space-2);
+}
+
+.zg-callout--info {
+  background: var(--zg-pale);
+  border: var(--zg-border-w) solid var(--zg-secondary);
+  color: var(--zg-text);
+  border-radius: var(--zg-radius-md);
+  padding: var(--zg-space-3);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-callout--success {
+  background: var(--zg-pale);
+  border: var(--zg-border-w) solid var(--zg-success);
+  color: var(--zg-success);
+  border-radius: var(--zg-radius-md);
+  padding: var(--zg-space-3);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-identity__name {
+  font-weight: var(--zg-fw-medium);
+}
+
+/* Role badges (ui-spec §3.3) are OUTLINED, not filled, so they never compete with
+   the filled status badges in the same row or header strip. The text carries the
+   meaning; the three roles share one muted style on purpose. */
+.zg-badge--role-requester,
+.zg-badge--role-staff,
+.zg-badge--role-admin {
+  background: transparent;
+  color: var(--zg-text-muted);
+  box-shadow: inset 0 0 0 var(--zg-border-w) var(--zg-border-strong);
+}
+
+/* --- Lab 3: Public Comments and the resolution-signal chip --- */
+.zg-signal-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--zg-space-1) var(--zg-space-3);
+  border-radius: var(--zg-radius-sm);
+  background: var(--zg-pale);
+  color: var(--zg-primary);
+  font-size: var(--zg-fs-small);
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-comments {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+}
+
+.zg-comment-list {
+  list-style: none;
+  margin: var(--zg-space-4) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-4);
+}
+
+.zg-comment {
+  padding-bottom: var(--zg-space-3);
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+}
+
+.zg-comment__meta {
+  margin: 0 0 var(--zg-space-1);
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-comment__author {
+  font-weight: var(--zg-fw-medium);
+  color: var(--zg-text);
+}
+
+.zg-comment__body {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: var(--zg-lh-body);
+}
+
+.zg-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-2);
+}
+
+/* --- Lab 3: IT Staff queue --- */
+.zg-queue-counts {
+  margin: 0;
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-muted {
+  color: var(--zg-text-muted);
+}
+
+td .zg-signal-chip {
+  margin-left: var(--zg-space-2);
+}
+
+/* --- Lab 3: IT Staff Ticket Detail --- */
+:root {
+  /* Internal channel (ui-spec §2): deliberately outside the green family so an
+     Internal Note reads as a different kind of content, not a darker comment. */
+  --zg-internal: #3a4750;
+  --zg-internal-surface: #eef1f4;
+  --zg-internal-border: #c7d0d9;
+}
+
+.zg-ops {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+}
+
+.zg-ops__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+}
+
+.zg-ops__row .zg-label {
+  min-width: 7rem;
+}
+
+/* Mobile (ui-spec §10): every operations control takes the full width, so a
+   long owner name cannot push a select past the panel and no select is a sliver. */
+@media (max-width: 767px) {
+  .zg-ops__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .zg-ops__row .zg-field {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.zg-badge-label {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-notes {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+  background: var(--zg-internal-surface);
+  border-color: var(--zg-internal-border);
+}
+
+.zg-notes__title {
+  color: var(--zg-internal);
+}
+
+.zg-notes__audience {
+  font-size: var(--zg-fs-small);
+  font-weight: var(--zg-fw-semibold);
+  color: var(--zg-internal);
+}
+
+.zg-notes__input {
+  border-color: var(--zg-internal-border);
+}
+
+/* --- Lab 3: Administrator User Management --- */
+.zg-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Long addresses wrap instead of pushing the table wider than the page. */
+.zg-cell-email {
+  overflow-wrap: anywhere;
+}
+
+/* The user panel can be taller than a phone screen; it scrolls inside itself. */
+.zg-user-form {
+  max-height: calc(100vh - 2 * var(--zg-space-5));
+  overflow-y: auto;
+}
+
+.zg-user-form__reset {
+  padding-top: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+  border-top: var(--zg-border-w) solid var(--zg-border);
 }

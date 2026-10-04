@@ -31,7 +31,7 @@ const removed = (id: number): api.Attachment => ({
 });
 
 const renderSection = (initial: api.Attachment[]) =>
-  render(<AttachmentSection requesterId={1} ticketId={1} initial={initial} />);
+  render(<AttachmentSection ticketId={1} initial={initial} />);
 
 describe("Attachment section", () => {
   beforeEach(() => vi.clearAllMocks());

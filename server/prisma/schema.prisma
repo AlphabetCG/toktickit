@@ -10,17 +10,31 @@ datasource db {
 }
 
 // Lab 2 fixes the Requested Priority set to three levels (specification §11 D-02).
+// Lab 3 reuses it for IT Priority as well (BR-30, BR-31).
 enum RequestedPriority {
   LOW
   MEDIUM
   HIGH
 }
 
-// A new Ticket is always NEW in Lab 2; status changes are excluded (BR-02, §7.3).
-// Declared with only NEW so no value is unreachable — Lab 3 extends this with
-// ALTER TYPE, which needs no data migration.
+// Lab 2 declared only NEW; Lab 3 extends the lifecycle to eight statuses with an
+// additive `ALTER TYPE ... ADD VALUE`, which needs no data migration (§8.3).
 enum TicketStatus {
   NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_REQUESTER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
+}
+
+// Lab 3 — the three account roles (FR-13, BR-24).
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
 }
 
 // The IT request categories shown on the TokTickIT page. `name` is unique so the
@@ -44,19 +58,45 @@ model RelatedSystem {
   tickets   Ticket[]
 }
 
-// The Development Requester. Not authentication (BR-03) — the selector uses this
-// to test multi-user ownership before Lab 3 adds real login. `email` is unique so
-// Lab 3 can attach credentials without restructuring the table (BR-63).
-model RequesterUser {
-  id        Int          @id @default(autoincrement())
-  name      String
-  email     String       @unique
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  tickets   Ticket[]
-  uploaded  Attachment[] @relation("UploadedBy")
-  removed   Attachment[] @relation("RemovedBy")
+// Lab 2's RequesterUser, renamed and extended (BR-59). Ids are preserved by a
+// table RENAME (§8.2/§8.3), so every existing Ticket.requesterId and
+// Attachment.uploadedById still resolves after the migration.
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique // stored lower-cased (BR-12)
+  role               Role     @default(REQUESTER)
+  passwordHash       String
+  mustChangePassword Boolean  @default(true)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  submittedTickets  Ticket[]        @relation("SubmittedBy")
+  ownedTickets      Ticket[]        @relation("OwnedBy")
+  resolutionSignals Ticket[]        @relation("ResolutionSignalledBy")
+  sessions          Session[]
+  comments          PublicComment[]
+  notes             InternalNote[]
+  uploaded          Attachment[]    @relation("UploadedBy")
+  removed           Attachment[]    @relation("RemovedBy")
+
+  @@index([role, isActive]) // the Administrator list's only filter (FR-19)
+}
+
+// Server-side session. The cookie carries a random token; only its SHA-256 digest
+// is stored, so a database read cannot reconstruct a usable credential (§8.2).
+model Session {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // One IT support ticket. Ticket Number, Ticket Date, and Current Status are set
@@ -70,21 +110,35 @@ model Ticket {
   summary           String            @db.VarChar(150)
   description       String            @db.Text
   requestedPriority RequestedPriority
-  currentStatus     TicketStatus      @default(NEW)
-  ticketDate        DateTime          @default(now())
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  // Lab 3 — a real column initialised from requestedPriority (BR-30, BR-31), not a
+  // computed fallback, so a deliberate staff decision is distinguishable.
+  itPriority              RequestedPriority
+  currentStatus           TicketStatus @default(NEW)
+  ticketDate              DateTime     @default(now())
+  ownerId                 Int? // zero or one owner (BR-25)
+  resolutionSignalledAt   DateTime?
+  resolutionSignalledById Int?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
-  requester     RequesterUser @relation(fields: [requesterId], references: [id])
-  category      Category      @relation(fields: [categoryId], references: [id])
-  relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  attachments   Attachment[]
+  requester             User          @relation("SubmittedBy", fields: [requesterId], references: [id])
+  category              Category      @relation(fields: [categoryId], references: [id])
+  relatedSystem         RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  owner                 User?         @relation("OwnedBy", fields: [ownerId], references: [id])
+  resolutionSignalledBy User?         @relation("ResolutionSignalledBy", fields: [resolutionSignalledById], references: [id])
+  attachments           Attachment[]
+  publicComments        PublicComment[]
+  internalNotes         InternalNote[]
 
   // Every My Tickets query filters by requesterId and sorts by ticketDate desc;
   // the composite index satisfies both from one scan (§7.3). The second supports
-  // the most selective filter (BR-32).
+  // the most selective Lab 2 filter (BR-32).
   @@index([requesterId, ticketDate(sort: Desc)])
   @@index([requesterId, currentStatus])
+  // Lab 3 — the IT queue's default "my work, most recently touched" view, and the
+  // status+priority filter (§8.2).
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([currentStatus, itPriority])
 }
 
 // File attached to a ticket. Removal is soft: `removedAt IS NULL` means active,
@@ -103,11 +157,39 @@ model Attachment {
   removedById      Int?
   removalReason    String?   @db.VarChar(200)
 
-  ticket     Ticket         @relation(fields: [ticketId], references: [id])
-  uploadedBy RequesterUser  @relation("UploadedBy", fields: [uploadedById], references: [id])
-  removedBy  RequesterUser? @relation("RemovedBy", fields: [removedById], references: [id])
+  ticket     Ticket @relation(fields: [ticketId], references: [id])
+  uploadedBy User   @relation("UploadedBy", fields: [uploadedById], references: [id])
+  removedBy  User?  @relation("RemovedBy", fields: [removedById], references: [id])
 
   @@index([ticketId, removedAt])
+}
+
+// Visible to the requester and IT staff; part of the ticket timeline (FR-11).
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+// IT staff only; never shown to the requester (FR-12, BR-27).
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
 }
 
 // One row per year, updated inside the creation transaction, so Ticket Numbers

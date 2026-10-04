@@ -40,23 +40,28 @@ describe("lab 2 seed", () => {
     expect(activeRequesters).toHaveLength(4);
     expect(inactiveRequesters).toHaveLength(1);
 
-    expect(await prisma.requesterUser.count()).toBe(REQUESTERS.length);
-    expect(await prisma.requesterUser.count({ where: { isActive: true } })).toBe(4);
-    expect(await prisma.requesterUser.count({ where: { isActive: false } })).toBe(1);
+    // Scoped to the seeded emails, since Lab 3 API tests create their own
+    // additional requester accounts in the shared database.
+    const seeded = await prisma.user.findMany({
+      where: { email: { in: REQUESTERS.map((r) => r.email) } },
+      select: { email: true, role: true, isActive: true },
+    });
+    expect(seeded).toHaveLength(REQUESTERS.length);
+    expect(seeded.every((u) => u.role === "REQUESTER")).toBe(true);
+    expect(seeded.filter((u) => u.isActive)).toHaveLength(4);
+    expect(seeded.filter((u) => !u.isActive)).toHaveLength(1);
   });
 
   it("keeps the inactive requester flagged inactive after a re-run (BR-13)", async () => {
-    const kanya = await prisma.requesterUser.findUnique({
+    const kanya = await prisma.user.findUnique({
       where: { email: inactiveRequesters[0].email },
     });
     expect(kanya).not.toBeNull();
     expect(kanya?.isActive).toBe(false);
   });
 
-  it("gives every requester a unique email so Lab 3 can attach credentials (BR-63)", async () => {
-    const emails = (await prisma.requesterUser.findMany({ select: { email: true } })).map(
-      (r) => r.email
-    );
+  it("gives every user a unique email so credentials attach cleanly (BR-63)", async () => {
+    const emails = (await prisma.user.findMany({ select: { email: true } })).map((r) => r.email);
     expect(new Set(emails).size).toBe(emails.length);
   });
 });

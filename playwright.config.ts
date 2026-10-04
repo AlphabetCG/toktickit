@@ -1,18 +1,20 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Lab 2 end-to-end and responsive suite (tests.md §2.5, §2.6). Playwright starts
+// Lab 3 end-to-end and responsive suite (docs/lab-03/tests.md §2.7, §2.8). The
+// Lab 2 specs were retired with the Development Requester selector they drove;
+// tests.md §7 maps each retired flow to its Lab 3 coverage. Playwright starts
 // both the API and the Vite dev server itself, so the whole journey runs against
 // a real Express server and a migrated + seeded PostgreSQL — never a mock.
 //
-// Chromium only, single worker, no parallelism: the specs create real Tickets in
-// a shared database, so serial execution keeps ownership and count assertions
+// Chromium only, single worker, no parallelism: the specs create real users and
+// Tickets in a shared database, so serial execution keeps ownership and count assertions
 // deterministic and keeps the lab run time reasonable (tests.md §7).
 
 const CLIENT_URL = "http://localhost:5173";
 const SERVER_URL = "http://localhost:3000";
 
 export default defineConfig({
-  testDir: "./e2e/lab-02",
+  testDir: "./e2e/lab-03",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,

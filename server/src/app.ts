@@ -1,14 +1,40 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import multer from "multer";
 import { createReadStream } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { getPrisma } from "./prisma.js";
-import { requireRequester } from "./requesterContext.js";
+import { requireAuth, requirePasswordChanged, requireRole } from "./auth.js";
+import {
+  hashPassword,
+  verifyPassword,
+  normalizeEmail,
+  validateNewPassword,
+  DUMMY_HASH,
+} from "./password.js";
+import {
+  createSession,
+  deleteSessionByToken,
+  deleteOtherSessions,
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+} from "./session.js";
 import { allocateTicketNumber } from "./ticketNumber.js";
-import { validateSummary, validateDescription, validatePriority } from "./validation.js";
+import { validateSummary, validateDescription, validatePriority, validateCommentBody } from "./validation.js";
 import { normalizeTicketQuery } from "./ticketQuery.js";
+import { normalizeQueueQuery } from "./queueQuery.js";
+import { wouldKeepAnActiveAdmin } from "./adminRules.js";
+import {
+  isStatus,
+  isTerminal,
+  isTransitionPermitted,
+  permittedTransitions,
+  STATUS_LABEL,
+  TERMINAL,
+  type Status,
+} from "./transitions.js";
 import {
   detectMimeType,
   isPermittedMime,
@@ -16,6 +42,25 @@ import {
   generateStoredFilename,
 } from "./attachmentValidation.js";
 import type { Prisma } from "@prisma/client";
+
+// The Vite dev origin. A wildcard is incompatible with credentialed requests and
+// would defeat the cookie's SameSite protection (api-spec §1.1, D-05).
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
+
+// Serialised login/me identity — never carries a password field of any kind.
+function serializeIdentity(u: { id: number; name: string; email: string; role: string; mustChangePassword: boolean }) {
+  return { id: u.id, name: u.name, email: u.email, role: u.role, mustChangePassword: u.mustChangePassword };
+}
+
+function setSessionCookie(res: Response, token: string) {
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL_MS,
+    secure: process.env.NODE_ENV === "production",
+  });
+}
 
 // Attachments are stored on local disk; the database holds only metadata (D-03).
 const UPLOAD_DIR = resolve(process.cwd(), "uploads");
@@ -32,6 +77,48 @@ const upload = multer({
 function parseId(raw: string): number | null {
   return /^\d+$/.test(raw) ? Number(raw) : null;
 }
+
+// The §6.1 matrix's ticket scope: a Requester reaches only their own ticket, IT
+// Staff and Administrators reach any. Spread into a Prisma where so every ticket
+// and attachment route applies the same rule; a ticket outside the scope is the
+// same 404 as a missing one (BR-15).
+//
+// Administrator ticket access is a deliberate, approved decision, not a side
+// effect of this if/else: specification.md §6.1 grants Administrators "any" for
+// ticket detail, attachments, and Public Comments, and its "Why Administrator
+// holds Ticket operations" note records the reason (handout §4.5 lets an
+// Administrator own a ticket and set IT Priority). Rows marked "—" for
+// Administrators are enforced separately — e.g. resolution-signal refuses every
+// non-Requester with 403, and Internal Notes refuse every Requester.
+function ticketScope(user: { id: number; role: string }): Prisma.TicketWhereInput {
+  return user.role === "REQUESTER" ? { requesterId: user.id } : {};
+}
+
+async function findAccessibleTicket(id: number, user: { id: number; role: string }) {
+  return getPrisma().ticket.findFirst({
+    where: { id, ...ticketScope(user) },
+    select: { id: true, currentStatus: true, requesterId: true },
+  });
+}
+
+const TERMINAL_STATUSES: readonly string[] = TERMINAL;
+
+// Public Comment / Internal Note serialised shape (author role included so the UI
+// can label the speaker without a second lookup — api-spec §4.1).
+function serializeComment(c: {
+  id: number;
+  body: string;
+  createdAt: Date;
+  author: { id: number; name: string; role: string };
+}) {
+  return { id: c.id, body: c.body, author: c.author, createdAt: c.createdAt };
+}
+const COMMENT_SELECT = {
+  id: true,
+  body: true,
+  createdAt: true,
+  author: { select: { id: true, name: true, role: true } },
+} as const;
 
 // Serialised attachment metadata — never exposes the stored filename or any path
 // (BR-47, BR-50).
@@ -72,36 +159,120 @@ const ATTACHMENT_SELECT = {
 // import the app without opening a port.
 export const app = express();
 
-app.use(cors());          // lets the Vite dev server call this API
+// Credentialed CORS with an explicit origin so the session cookie travels from
+// the Vite dev server (api-spec §1.1).
+app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Lab 1 / Issue 2: health check the client uses to confirm the API is reachable.
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", service: "TokTickIT API" });
 });
 
-// --- Public: the selector must load before any Requester exists in state -----
+// --- Authentication (api-spec §2) --------------------------------------------
 
-// Lab 2 / Issue #14: active Development Requesters for the selection screen.
-// Public (api-spec §1.6); inactive Requesters never appear (BR-13, BR-20).
-app.get("/api/requesters", async (_req: Request, res: Response) => {
+// POST /api/auth/login — public. Verifies the password before the activation
+// check so the deactivation message reaches only someone who holds the credential
+// (BR-06, D-07). Unknown email and wrong password return a byte-identical 401, and
+// an unknown email still runs a bcrypt comparison so the paths cannot be timed
+// apart (api-spec §2.1).
+const INCORRECT = { error: "Email or password is incorrect." };
+
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+  const body = req.body ?? {};
+  const fields: Record<string, string> = {};
+  if (typeof body.email !== "string" || body.email.trim() === "") fields.email = "Email is required.";
+  if (typeof body.password !== "string" || body.password === "") fields.password = "Password is required.";
+  if (Object.keys(fields).length > 0) {
+    res.status(400).json({ error: "Validation failed", fields });
+    return;
+  }
+
   try {
-    const requesters = await getPrisma().requesterUser.findMany({
-      where: { isActive: true },
-      orderBy: { id: "asc" },
-      select: { id: true, name: true, email: true },
-    });
-    res.status(200).json(requesters);
+    const prisma = getPrisma();
+    const user = await prisma.user.findUnique({ where: { email: normalizeEmail(body.email) } });
+    const ok = await verifyPassword(body.password, user?.passwordHash ?? DUMMY_HASH);
+
+    // Unknown email or wrong password — identical response, no session (AC-03/04/06).
+    if (!user || !ok) {
+      res.status(401).json(INCORRECT);
+      return;
+    }
+    // Correct password but deactivated — the only case that reveals deactivation (AC-05).
+    if (!user.isActive) {
+      res.status(401).json({ error: "This account is deactivated. Contact an administrator." });
+      return;
+    }
+
+    const token = await createSession(prisma, user.id);
+    setSessionCookie(res, token);
+    res.status(200).json(serializeIdentity(user));
   } catch {
-    res.status(500).json({ error: "Failed to load requesters" });
+    res.status(500).json({ error: "Unable to sign in" });
   }
 });
 
-// --- Scoped: every route below requires a valid X-Requester-Id ---------------
+// POST /api/auth/logout — authenticated. Deletes the session row so the cookie is
+// inert even if replayed; a second call returns 401 (AC-07, api-spec §2.2).
+app.post("/api/auth/logout", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const token = req.cookies?.[SESSION_COOKIE];
+    if (typeof token === "string") await deleteSessionByToken(getPrisma(), token);
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    res.status(200).json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Unable to sign out" });
+  }
+});
+
+// GET /api/auth/me — authenticated, exempt from the password gate so the client
+// can discover it must route to the change screen (api-spec §2.3).
+app.get("/api/auth/me", requireAuth, (req: Request, res: Response) => {
+  res.status(200).json(serializeIdentity(req.user!));
+});
+
+// POST /api/auth/password — authenticated, exempt from the password gate. Serves
+// both the mandatory first-login change and a voluntary one. On success clears the
+// flag and deletes every *other* session for the user (BR-10, BR-11, api-spec §2.4).
+app.post("/api/auth/password", requireAuth, async (req: Request, res: Response) => {
+  const body = req.body ?? {};
+  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  try {
+    const prisma = getPrisma();
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) {
+      res.status(401).json({ error: "Not signed in" });
+      return;
+    }
+    // A generic message that confirms nothing about the account (api-spec §2.4).
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+      res.status(400).json({ error: "Validation failed", fields: { currentPassword: "Current password is incorrect." } });
+      return;
+    }
+    const policyError = validateNewPassword(newPassword, currentPassword);
+    if (policyError) {
+      res.status(400).json({ error: "Validation failed", fields: { newPassword: policyError } });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(newPassword), mustChangePassword: false },
+    });
+    await deleteOtherSessions(prisma, user.id, req.sessionId!);
+    res.status(200).json({ ok: true, mustChangePassword: false });
+  } catch {
+    res.status(500).json({ error: "Unable to change password" });
+  }
+});
+
+// --- Scoped: every route below requires an authenticated session -------------
 
 // Lab 1 / Issue 4, now scoped in Lab 2 (api-spec §1.6): the active IT request
 // categories from PostgreSQL, in id order.
-app.get("/api/categories", requireRequester, async (_req: Request, res: Response) => {
+app.get("/api/categories", requireAuth, requirePasswordChanged, async (_req: Request, res: Response) => {
   try {
     const categories = await getPrisma().category.findMany({
       where: { isActive: true },
@@ -116,7 +287,7 @@ app.get("/api/categories", requireRequester, async (_req: Request, res: Response
 
 // Lab 2 / Issue #15: active Related Systems for the Create Ticket form. Fixed id
 // order so the dropdown never reshuffles between loads (api-spec §2.3).
-app.get("/api/related-systems", requireRequester, async (_req: Request, res: Response) => {
+app.get("/api/related-systems", requireAuth, requirePasswordChanged, async (_req: Request, res: Response) => {
   try {
     const systems = await getPrisma().relatedSystem.findMany({
       where: { isActive: true },
@@ -133,7 +304,7 @@ app.get("/api/related-systems", requireRequester, async (_req: Request, res: Res
 // Ticket Number is allocated inside the transaction so concurrent creates cannot
 // collide (BR-01, BR-14). ticketNumber/ticketDate/currentStatus/requesterId in
 // the body are ignored — the server owns them (BR-16, BR-18).
-app.post("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+app.post("/api/tickets", requireAuth, requirePasswordChanged, requireRole("REQUESTER"), async (req: Request, res: Response) => {
   const prisma = getPrisma();
   const body = req.body ?? {};
   const { categoryId, relatedSystemId, requestedPriority, summary, description } = body;
@@ -173,10 +344,13 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
       return tx.ticket.create({
         data: {
           ticketNumber,
-          requesterId: req.requester!.id,
+          requesterId: req.user!.id,
           categoryId,
           relatedSystemId,
           requestedPriority,
+          // IT Priority starts as a copy of the Requested Priority (BR-30, BR-31);
+          // IT Staff can change it independently in a later Lab 3 issue.
+          itPriority: requestedPriority,
           summary: String(summary).trim(),
           description: String(description).trim(),
         },
@@ -200,11 +374,11 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
 // always part of the where clause, so filters compose with it and can never widen
 // the result set beyond the Requester's own Tickets (BR-27, BR-38). Invalid query
 // parameters fall back to documented defaults, never 400 (BR-36).
-app.get("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+app.get("/api/tickets", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
   const q = normalizeTicketQuery(req.query as Record<string, unknown>);
 
   const where: Prisma.TicketWhereInput = {
-    requesterId: req.requester!.id,
+    requesterId: req.user!.id,
     ...(q.categoryId ? { categoryId: q.categoryId } : {}),
     ...(q.relatedSystemId ? { relatedSystemId: q.relatedSystemId } : {}),
     ...(q.priority ? { requestedPriority: q.priority as Prisma.EnumRequestedPriorityFilter } : {}),
@@ -262,7 +436,7 @@ app.get("/api/tickets", requireRequester, async (req: Request, res: Response) =>
 // Lab 2 / Issue #17: one owned Ticket with embedded attachment metadata. A ticket
 // that does not exist, is not owned, or has a non-integer id all return the same
 // 404 so the API never reveals another Requester's Ticket (BR-28, D-06).
-app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response) => {
+app.get("/api/tickets/:id", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) {
     res.status(404).json({ error: "Ticket not found" });
@@ -270,30 +444,52 @@ app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response
   }
   try {
     const ticket = await getPrisma().ticket.findFirst({
-      where: { id, requesterId: req.requester!.id },
+      where: { id, ...ticketScope(req.user!) },
       select: {
         id: true,
         ticketNumber: true,
         summary: true,
         description: true,
         requestedPriority: true,
+        itPriority: true,
         currentStatus: true,
         ticketDate: true,
+        resolutionSignalledAt: true,
         createdAt: true,
         updatedAt: true,
         requester: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } },
         relatedSystem: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true } },
         attachments: { select: ATTACHMENT_SELECT, orderBy: { uploadedAt: "asc" } },
+        publicComments: { select: COMMENT_SELECT, orderBy: { createdAt: "asc" } },
       },
     });
     if (!ticket) {
       res.status(404).json({ error: "Ticket not found" });
       return;
     }
-    res.status(200).json({
+    const body = {
       ...ticket,
       attachments: ticket.attachments.map(serializeAttachment),
+      publicComments: ticket.publicComments.map(serializeComment),
+    };
+
+    // Role-shaped (api-spec §3.2). A Requester's body OMITS the internalNotes key
+    // entirely — not an empty array, which would still confirm notes exist (AC-40).
+    if (req.user!.role === "REQUESTER") {
+      res.status(200).json(body);
+      return;
+    }
+    const notes = await getPrisma().internalNote.findMany({
+      where: { ticketId: id },
+      select: COMMENT_SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    res.status(200).json({
+      ...body,
+      internalNotes: notes.map(serializeComment),
+      permittedTransitions: permittedTransitions(ticket.currentStatus as Status),
     });
   } catch {
     res.status(500).json({ error: "Unable to load ticket" });
@@ -301,7 +497,7 @@ app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response
 });
 
 // Attachment metadata for an owned Ticket, on its own so the panel can refresh.
-app.get("/api/tickets/:id/attachments", requireRequester, async (req: Request, res: Response) => {
+app.get("/api/tickets/:id/attachments", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) {
     res.status(404).json({ error: "Ticket not found" });
@@ -309,7 +505,7 @@ app.get("/api/tickets/:id/attachments", requireRequester, async (req: Request, r
   }
   try {
     const ticket = await getPrisma().ticket.findFirst({
-      where: { id, requesterId: req.requester!.id },
+      where: { id, ...ticketScope(req.user!) },
       select: { id: true },
     });
     if (!ticket) {
@@ -330,7 +526,7 @@ app.get("/api/tickets/:id/attachments", requireRequester, async (req: Request, r
 // Upload one attachment. Ownership → file present → size → detected type → active
 // count are all checked before any disk write, so a rejected upload leaves nothing
 // behind (BR-04, BR-05, BR-06, BR-30, BR-51).
-app.post("/api/tickets/:id/attachments", requireRequester, (req: Request, res: Response) => {
+app.post("/api/tickets/:id/attachments", requireAuth, requirePasswordChanged, (req: Request, res: Response) => {
   upload(req, res, async (uploadErr: unknown) => {
     if (uploadErr) {
       res.status(413).json({ error: "File exceeds the 5 MB limit." });
@@ -343,7 +539,7 @@ app.post("/api/tickets/:id/attachments", requireRequester, (req: Request, res: R
     }
     try {
       const ticket = await getPrisma().ticket.findFirst({
-        where: { id, requesterId: req.requester!.id },
+        where: { id, ...ticketScope(req.user!) },
         select: { id: true },
       });
       if (!ticket) {
@@ -390,7 +586,7 @@ app.post("/api/tickets/:id/attachments", requireRequester, (req: Request, res: R
           storedFilename,
           mimeType: detected as string,
           sizeBytes: file.size,
-          uploadedById: req.requester!.id,
+          uploadedById: req.user!.id,
         },
         select: { id: true, ticketId: true, originalFilename: true, mimeType: true, sizeBytes: true, uploadedAt: true, removedAt: true },
       });
@@ -403,7 +599,7 @@ app.post("/api/tickets/:id/attachments", requireRequester, (req: Request, res: R
 
 // Download an active attachment. A removed, not-owned, or missing attachment all
 // return the same 404, so a guessed id reveals nothing (BR-08, BR-29, AC-32).
-app.get("/api/attachments/:id/download", requireRequester, async (req: Request, res: Response) => {
+app.get("/api/attachments/:id/download", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) {
     res.status(404).json({ error: "Attachment not found" });
@@ -411,7 +607,7 @@ app.get("/api/attachments/:id/download", requireRequester, async (req: Request, 
   }
   try {
     const attachment = await getPrisma().attachment.findFirst({
-      where: { id, removedAt: null, ticket: { requesterId: req.requester!.id } },
+      where: { id, removedAt: null, ticket: ticketScope(req.user!) },
       select: { storedFilename: true, originalFilename: true, mimeType: true },
     });
     if (!attachment) {
@@ -436,7 +632,7 @@ app.get("/api/attachments/:id/download", requireRequester, async (req: Request, 
 // Soft-remove an attachment with a mandatory reason. Ownership is checked before
 // validation so probing another Requester's ids yields 404, not a 400 that would
 // confirm existence (BR-07, BR-53, BR-54).
-app.delete("/api/attachments/:id", requireRequester, async (req: Request, res: Response) => {
+app.delete("/api/attachments/:id", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) {
     res.status(404).json({ error: "Attachment not found" });
@@ -444,7 +640,7 @@ app.delete("/api/attachments/:id", requireRequester, async (req: Request, res: R
   }
   try {
     const attachment = await getPrisma().attachment.findFirst({
-      where: { id, ticket: { requesterId: req.requester!.id } },
+      where: { id, ticket: ticketScope(req.user!) },
       select: { id: true, removedAt: true },
     });
     if (!attachment) {
@@ -467,7 +663,7 @@ app.delete("/api/attachments/:id", requireRequester, async (req: Request, res: R
 
     const updated = await getPrisma().attachment.update({
       where: { id },
-      data: { removedAt: new Date(), removedById: req.requester!.id, removalReason: reason },
+      data: { removedAt: new Date(), removedById: req.user!.id, removalReason: reason },
       select: {
         id: true,
         removedAt: true,
@@ -480,3 +676,703 @@ app.delete("/api/attachments/:id", requireRequester, async (req: Request, res: R
     res.status(500).json({ error: "Unable to remove attachment" });
   }
 });
+
+// --- Public Comments and the Requester's resolution signal (api-spec §4) ------
+
+// GET /api/tickets/:id/comments — owner / staff / admin. Ordered oldest-first so
+// the thread reads like a conversation (api-spec §4.1).
+app.get("/api/tickets/:id/comments", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const ticket = await findAccessibleTicket(id, req.user!);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    const comments = await getPrisma().publicComment.findMany({
+      where: { ticketId: id },
+      select: COMMENT_SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    res.status(200).json(comments.map(serializeComment));
+  } catch {
+    res.status(500).json({ error: "Unable to load comments" });
+  }
+});
+
+// POST /api/tickets/:id/comments — owner / staff / admin. Author and timestamp are
+// server-owned; a closed or cancelled ticket can no longer be commented on
+// (api-spec §4.2). Ownership is checked before validation so probing another
+// requester's ticket yields 404, not a 400 that confirms existence.
+app.post("/api/tickets/:id/comments", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const ticket = await findAccessibleTicket(id, req.user!);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+
+    const bodyError = validateCommentBody(req.body?.body);
+    if (bodyError) {
+      res.status(400).json({ error: "Validation failed", fields: { body: bodyError } });
+      return;
+    }
+    if (TERMINAL_STATUSES.includes(ticket.currentStatus)) {
+      res.status(409).json({ error: "This ticket is closed and can no longer be updated." });
+      return;
+    }
+
+    const created = await getPrisma().publicComment.create({
+      data: { ticketId: id, authorId: req.user!.id, body: String(req.body.body).trim() },
+      select: COMMENT_SELECT,
+    });
+    res.status(201).json(serializeComment(created));
+  } catch {
+    res.status(500).json({ error: "Unable to add comment" });
+  }
+});
+
+// POST /api/tickets/:id/resolution-signal — the owning Requester only. Records a
+// current opinion that the problem looks fixed; it never changes currentStatus,
+// which is returned unchanged as proof (api-spec §4.3, BR-23). Signalling twice
+// overwrites the timestamp rather than erroring.
+app.post("/api/tickets/:id/resolution-signal", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  // Only the requester may signal — a distinct 403 message, so not requireRole.
+  if (req.user!.role !== "REQUESTER") {
+    res.status(403).json({ error: "Only the requester can signal resolution." });
+    return;
+  }
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const ticket = await findAccessibleTicket(id, req.user!);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    if (TERMINAL_STATUSES.includes(ticket.currentStatus)) {
+      res.status(409).json({ error: "This ticket is closed and can no longer be updated." });
+      return;
+    }
+
+    const updated = await getPrisma().ticket.update({
+      where: { id },
+      data: { resolutionSignalledAt: new Date(), resolutionSignalledById: req.user!.id },
+      select: {
+        currentStatus: true,
+        resolutionSignalledAt: true,
+        resolutionSignalledBy: { select: { id: true, name: true } },
+      },
+    });
+    res.status(200).json(updated);
+  } catch {
+    res.status(500).json({ error: "Unable to signal resolution" });
+  }
+});
+
+// --- IT Staff queue (api-spec §7) ---------------------------------------------
+
+// GET /api/staff/tickets — IT Staff and Administrators. Every ticket regardless of
+// submitter, with the §9.3 query contract. `itPriority` sorts by severity because
+// PostgreSQL orders an enum by declaration (LOW < MEDIUM < HIGH), not alphabetically.
+// `counts` are whole-queue header figures, independent of the current filters.
+app.get(
+  "/api/staff/tickets",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("IT_STAFF", "ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const q = normalizeQueueQuery(req.query as Record<string, unknown>);
+    const me = req.user!.id;
+
+    const ownerWhere: Prisma.TicketWhereInput =
+      q.owner?.kind === "unassigned" ? { ownerId: null }
+      : q.owner?.kind === "me" ? { ownerId: me }
+      : q.owner?.kind === "user" ? { ownerId: q.owner.id }
+      : {};
+
+    const where: Prisma.TicketWhereInput = {
+      ...ownerWhere,
+      ...(q.status ? { currentStatus: q.status as Prisma.EnumTicketStatusFilter } : {}),
+      ...(q.itPriority ? { itPriority: q.itPriority as Prisma.EnumRequestedPriorityFilter } : {}),
+      ...(q.categoryId ? { categoryId: q.categoryId } : {}),
+      ...(q.search
+        ? {
+            OR: [
+              { ticketNumber: { contains: q.search, mode: "insensitive" } },
+              { summary: { contains: q.search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const orderBy: Prisma.TicketOrderByWithRelationInput[] = [{ [q.sort]: q.order }, { id: "desc" }];
+
+    try {
+      const prisma = getPrisma();
+      const [totalItems, rows, unassigned, mine] = await prisma.$transaction([
+        prisma.ticket.count({ where }),
+        prisma.ticket.findMany({
+          where,
+          orderBy,
+          skip: (q.page - 1) * q.pageSize,
+          take: q.pageSize,
+          select: {
+            id: true,
+            ticketNumber: true,
+            summary: true,
+            requestedPriority: true,
+            itPriority: true,
+            currentStatus: true,
+            ticketDate: true,
+            updatedAt: true,
+            resolutionSignalledAt: true,
+            category: { select: { id: true, name: true } },
+            requester: { select: { id: true, name: true } },
+            owner: { select: { id: true, name: true } },
+          },
+        }),
+        prisma.ticket.count({ where: { ownerId: null } }),
+        prisma.ticket.count({ where: { ownerId: me } }),
+      ]);
+
+      // Description is omitted (unbounded, never rendered in a row); the signal is
+      // a boolean because the queue only needs the chip (api-spec §7.1).
+      const items = rows.map(({ resolutionSignalledAt, ...t }) => ({
+        ...t,
+        resolutionSignalled: resolutionSignalledAt !== null,
+      }));
+
+      res.status(200).json({
+        items,
+        page: q.page,
+        pageSize: q.pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / q.pageSize),
+        counts: { unassigned, mine },
+      });
+    } catch {
+      res.status(500).json({ error: "Failed to load the ticket queue" });
+    }
+  }
+);
+
+// GET /api/staff/assignees — active IT Staff and Administrators, by name. Just
+// enough to hand over a ticket: no email, activation flag, or timestamps (§7.2).
+app.get(
+  "/api/staff/assignees",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("IT_STAFF", "ADMINISTRATOR"),
+  async (_req: Request, res: Response) => {
+    try {
+      const users = await getPrisma().user.findMany({
+        where: { isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, role: true },
+      });
+      res.status(200).json(users);
+    } catch {
+      res.status(500).json({ error: "Failed to load assignees" });
+    }
+  }
+);
+
+// --- Ticket operations: IT Staff and Administrator (api-spec §6) ---------------
+
+const STAFF = ["IT_STAFF", "ADMINISTRATOR"] as const;
+
+// PATCH /api/tickets/:id/owner — claim (own id), reassign (another id), and release
+// (null) through one endpoint, since they are one state change on one field. Only
+// an active IT Staff or Administrator may own a ticket (BR-26, BR-28); a
+// deactivated owner keeps tickets already assigned (BR-29), so the rule applies
+// only to the new owner being written.
+app.patch(
+  "/api/tickets/:id/owner",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole(...STAFF),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    try {
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found" });
+        return;
+      }
+
+      const raw = req.body?.ownerId;
+      let ownerId: number | null;
+      if (raw === null) {
+        ownerId = null;
+      } else if (Number.isInteger(raw) && raw > 0) {
+        const candidate = await prisma.user.findUnique({
+          where: { id: raw },
+          select: { role: true, isActive: true },
+        });
+        const fieldError = !candidate
+          ? "That user does not exist."
+          : candidate.role === "REQUESTER"
+            ? "Ticket owner must be IT Staff or an Administrator."
+            : !candidate.isActive
+              ? "That user is deactivated."
+              : null;
+        if (fieldError) {
+          res.status(400).json({ error: "Validation failed", fields: { ownerId: fieldError } });
+          return;
+        }
+        ownerId = raw;
+      } else {
+        res.status(400).json({
+          error: "Validation failed",
+          fields: { ownerId: "Choose an owner, or null to release the ticket." },
+        });
+        return;
+      }
+
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: { ownerId },
+        select: { id: true, owner: { select: { id: true, name: true } } },
+      });
+      res.status(200).json(updated);
+    } catch {
+      res.status(500).json({ error: "Unable to update the owner" });
+    }
+  }
+);
+
+// PATCH /api/tickets/:id/it-priority — sets only IT Priority; Requested Priority is
+// immutable after creation, and both are returned so the caller can see they are
+// now independent (BR-30, AC-36).
+app.patch(
+  "/api/tickets/:id/it-priority",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole(...STAFF),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    try {
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found" });
+        return;
+      }
+      const priorityError = validatePriority(req.body?.itPriority);
+      if (priorityError) {
+        res.status(400).json({ error: "Validation failed", fields: { itPriority: priorityError } });
+        return;
+      }
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: { itPriority: req.body.itPriority },
+        select: { id: true, itPriority: true, requestedPriority: true },
+      });
+      res.status(200).json(updated);
+    } catch {
+      res.status(500).json({ error: "Unable to update the IT Priority" });
+    }
+  }
+);
+
+// PATCH /api/tickets/:id/status — the target must be reachable under the §5.7
+// matrix (BR-35); nothing leaves CLOSED or CANCELLED (BR-36). The write is a
+// compare-and-set on the status that was checked, so two staff members moving the
+// same ticket at once cannot both pass a stale check: the loser updates zero rows
+// and gets a 409 against the status that actually won (api-spec §6.3).
+app.patch(
+  "/api/tickets/:id/status",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole(...STAFF),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    const target: unknown = req.body?.status;
+    try {
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found" });
+        return;
+      }
+      if (!isStatus(target)) {
+        res.status(400).json({ error: "Validation failed", fields: { status: "Choose a valid status." } });
+        return;
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const read = async () =>
+          (await tx.ticket.findUniqueOrThrow({ where: { id }, select: { currentStatus: true } }))
+            .currentStatus as Status;
+        const current = await read();
+        if (isTerminal(current) || !isTransitionPermitted(current, target)) {
+          return { ok: false as const, from: current };
+        }
+        const written = await tx.ticket.updateMany({
+          where: { id, currentStatus: current },
+          data: { currentStatus: target },
+        });
+        if (written.count === 0) return { ok: false as const, from: await read() };
+        return { ok: true as const };
+      });
+
+      if (!result.ok) {
+        const error = isTerminal(result.from)
+          ? "This ticket is closed and can no longer be updated."
+          : `Cannot move a ${STATUS_LABEL[result.from]} ticket to ${STATUS_LABEL[target]}.`;
+        res.status(409).json({ error });
+        return;
+      }
+      res.status(200).json({ id, currentStatus: target, permittedTransitions: permittedTransitions(target) });
+    } catch {
+      res.status(500).json({ error: "Unable to change the status" });
+    }
+  }
+);
+
+// --- Internal Notes: IT Staff and Administrator only (api-spec §5) -------------
+
+const NOTES_FORBIDDEN = { error: "You do not have permission to perform this action." };
+
+// Resolves the ticket for a notes request in the order api-spec §5.2 fixes. The
+// ownership check runs first, so a Requester asking about another user's ticket
+// gets the same 404 as a missing one and existence stays hidden. A Requester
+// asking about their own ticket then gets a 403 that carries no note text, author,
+// or count; the ticket's existence is already known to them (AC-24, AUTHZ-09).
+async function resolveNotesTicket(req: Request, res: Response) {
+  const id = parseId(req.params.id);
+  const ticket = id === null ? null : await findAccessibleTicket(id, req.user!);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found" });
+    return null;
+  }
+  if (req.user!.role === "REQUESTER") {
+    res.status(403).json(NOTES_FORBIDDEN);
+    return null;
+  }
+  return ticket;
+}
+
+app.get("/api/tickets/:id/notes", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  try {
+    const ticket = await resolveNotesTicket(req, res);
+    if (!ticket) return;
+    const notes = await getPrisma().internalNote.findMany({
+      where: { ticketId: ticket.id },
+      select: COMMENT_SELECT,
+      orderBy: { createdAt: "asc" },
+    });
+    res.status(200).json(notes.map(serializeComment));
+  } catch {
+    res.status(500).json({ error: "Unable to load notes" });
+  }
+});
+
+app.post("/api/tickets/:id/notes", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  try {
+    const ticket = await resolveNotesTicket(req, res);
+    if (!ticket) return;
+
+    const bodyError = validateCommentBody(req.body?.body);
+    if (bodyError) {
+      res.status(400).json({ error: "Validation failed", fields: { body: bodyError.replace("Comment", "Note") } });
+      return;
+    }
+    if (TERMINAL_STATUSES.includes(ticket.currentStatus)) {
+      res.status(409).json({ error: "This ticket is closed and can no longer be updated." });
+      return;
+    }
+
+    const created = await getPrisma().internalNote.create({
+      data: { ticketId: ticket.id, authorId: req.user!.id, body: String(req.body.body).trim() },
+      select: COMMENT_SELECT,
+    });
+    res.status(201).json(serializeComment(created));
+  } catch {
+    res.status(500).json({ error: "Unable to add the note" });
+  }
+});
+
+// --- Administrator User Management (api-spec §8) ------------------------------
+// Every route here is Administrator-only; IT Staff and Requesters get 403 — the
+// routes are not secret, the data behind them is (AUTHZ-04/05). There is no delete
+// route: deactivation is the only removal (BR-57).
+
+const ROLES = ["REQUESTER", "IT_STAFF", "ADMINISTRATOR"] as const;
+type RoleValue = (typeof ROLES)[number];
+const isRole = (v: unknown): v is RoleValue => typeof v === "string" && (ROLES as readonly string[]).includes(v);
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DUPLICATE_EMAIL = { error: "That email address is already registered." };
+const LAST_ADMIN = { error: "The system must keep at least one active administrator." };
+
+// The §8.1 shape. Built field by field, so a passwordHash can never ride along.
+const USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  isActive: true,
+  mustChangePassword: true,
+  createdAt: true,
+} as const;
+
+function validateName(raw: unknown): string | undefined {
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (name.length < 1 || name.length > 120) return "Name must be 1–120 characters.";
+  return undefined;
+}
+
+function validateEmail(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || !EMAIL_FORMAT.test(raw.trim())) return "Enter a valid email address.";
+  return undefined;
+}
+
+const ROLE_MESSAGE = "Choose exactly one role: Requester, IT Staff, or Administrator.";
+
+const isUniqueViolation = (err: unknown) =>
+  typeof err === "object" && err !== null && (err as { code?: string }).code === "P2002";
+
+// GET /api/admin/users — search name or email, optional role filter. No pagination
+// and no sorting parameters (§3.2); ordered by name.
+app.get(
+  "/api/admin/users",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const role = isRole(req.query.role) ? req.query.role : undefined;
+    try {
+      const users = await getPrisma().user.findMany({
+        where: {
+          ...(role ? { role } : {}),
+          ...(search
+            ? {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" } },
+                  { email: { contains: search, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        select: USER_SELECT,
+      });
+      res.status(200).json(users);
+    } catch {
+      res.status(500).json({ error: "Failed to load users" });
+    }
+  }
+);
+
+// POST /api/admin/users — exactly one role, and always flagged for a password
+// change: mustChangePassword is not accepted from the request (BR-49).
+app.post(
+  "/api/admin/users",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const body = req.body ?? {};
+    const fields: Record<string, string> = {};
+    const nameError = validateName(body.name);
+    if (nameError) fields.name = nameError;
+    const emailError = validateEmail(body.email);
+    if (emailError) fields.email = emailError;
+    if (!isRole(body.role)) fields.role = ROLE_MESSAGE;
+    if (body.isActive !== undefined && typeof body.isActive !== "boolean") fields.isActive = "Status must be active or inactive.";
+    const passwordError = validateNewPassword(body.initialPassword);
+    if (passwordError) fields.initialPassword = passwordError;
+    if (Object.keys(fields).length > 0) {
+      res.status(400).json({ error: "Validation failed", fields });
+      return;
+    }
+
+    const email = normalizeEmail(body.email);
+    try {
+      const prisma = getPrisma();
+      // Emails are stored lower-cased (BR-12), so this catches any casing.
+      if (await prisma.user.findUnique({ where: { email }, select: { id: true } })) {
+        res.status(409).json(DUPLICATE_EMAIL);
+        return;
+      }
+      const created = await prisma.user.create({
+        data: {
+          name: String(body.name).trim(),
+          email,
+          role: body.role,
+          isActive: body.isActive ?? true,
+          passwordHash: await hashPassword(body.initialPassword),
+          mustChangePassword: true,
+        },
+        select: { id: true, name: true, email: true, role: true, isActive: true, mustChangePassword: true },
+      });
+      res.status(201).json(created);
+    } catch (err) {
+      // A concurrent create with the same email loses the unique constraint race.
+      if (isUniqueViolation(err)) {
+        res.status(409).json(DUPLICATE_EMAIL);
+        return;
+      }
+      res.status(500).json({ error: "Unable to create the user" });
+    }
+  }
+);
+
+// PATCH /api/admin/users/:id — name, email, role, activation; nothing else (BR-50).
+// The last-active-Administrator check locks the active Administrator rows inside
+// the writing transaction, so two concurrent edits cannot each see one other
+// Administrator and both succeed, leaving none (BR-56, api-spec §8.3).
+app.patch(
+  "/api/admin/users/:id",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    const body = req.body ?? {};
+    try {
+      const prisma = getPrisma();
+      const target = id === null ? null : await prisma.user.findUnique({ where: { id }, select: USER_SELECT });
+      if (!target) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const fields: Record<string, string> = {};
+      if (body.name !== undefined) {
+        const e = validateName(body.name);
+        if (e) fields.name = e;
+      }
+      if (body.email !== undefined) {
+        const e = validateEmail(body.email);
+        if (e) fields.email = e;
+      }
+      if (body.role !== undefined && !isRole(body.role)) fields.role = ROLE_MESSAGE;
+      if (body.isActive !== undefined && typeof body.isActive !== "boolean") fields.isActive = "Status must be active or inactive.";
+      if (Object.keys(fields).length > 0) {
+        res.status(400).json({ error: "Validation failed", fields });
+        return;
+      }
+
+      const self = target.id === req.user!.id;
+      const nextRole: RoleValue = body.role ?? target.role;
+      const nextActive: boolean = body.isActive ?? target.isActive;
+      if (self && nextActive === false) {
+        res.status(409).json({ error: "You cannot deactivate your own account." }); // BR-54
+        return;
+      }
+      if (self && nextRole !== target.role) {
+        res.status(409).json({ error: "You cannot change your own role." }); // BR-55
+        return;
+      }
+
+      const data: { name?: string; email?: string; role?: RoleValue; isActive?: boolean } = {};
+      if (body.name !== undefined) data.name = String(body.name).trim();
+      if (body.email !== undefined) data.email = normalizeEmail(body.email);
+      if (body.role !== undefined) data.role = body.role;
+      if (body.isActive !== undefined) data.isActive = body.isActive;
+
+      if (data.email && data.email !== target.email) {
+        const taken = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });
+        if (taken && taken.id !== target.id) {
+          res.status(409).json(DUPLICATE_EMAIL);
+          return;
+        }
+      }
+
+      const removesAnAdmin =
+        target.role === "ADMINISTRATOR" && target.isActive && (nextRole !== "ADMINISTRATOR" || !nextActive);
+
+      const outcome = await prisma.$transaction(async (tx) => {
+        if (removesAnAdmin) {
+          // Lock EVERY active Administrator row, in id order. Two concurrent edits
+          // (A deactivating B while B deactivates A) then queue on the same locks
+          // instead of each locking a different row and deadlocking; the second
+          // re-reads after the first commits and finds no one left. Locking only
+          // "the others" would lock different rows per transaction.
+          const active = await tx.$queryRaw<{ id: number }[]>`
+            SELECT id FROM "User"
+            WHERE role = 'ADMINISTRATOR' AND "isActive" = true
+            ORDER BY id
+            FOR UPDATE`;
+          if (!wouldKeepAnActiveAdmin(active.map((r) => r.id), target.id)) return null;
+        }
+        return tx.user.update({ where: { id: target.id }, data, select: USER_SELECT });
+      });
+
+      if (!outcome) {
+        res.status(409).json(LAST_ADMIN);
+        return;
+      }
+      res.status(200).json(outcome);
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        res.status(409).json(DUPLICATE_EMAIL);
+        return;
+      }
+      res.status(500).json({ error: "Unable to update the user" });
+    }
+  }
+);
+
+// POST /api/admin/users/:id/initial-password — atomically replaces the hash, sets
+// mustChangePassword, and deletes every session the user has, so an open tab stops
+// working (BR-53). The password is never echoed back.
+app.post(
+  "/api/admin/users/:id/initial-password",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    try {
+      const prisma = getPrisma();
+      const target = id === null ? null : await prisma.user.findUnique({ where: { id }, select: { id: true } });
+      if (!target) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+      const passwordError = validateNewPassword(req.body?.initialPassword);
+      if (passwordError) {
+        res.status(400).json({ error: "Validation failed", fields: { initialPassword: passwordError } });
+        return;
+      }
+      const passwordHash = await hashPassword(req.body.initialPassword);
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: target.id }, data: { passwordHash, mustChangePassword: true } }),
+        prisma.session.deleteMany({ where: { userId: target.id } }),
+      ]);
+      res.status(200).json({ id: target.id, mustChangePassword: true });
+    } catch {
+      res.status(500).json({ error: "Unable to set the initial password" });
+    }
+  }
+);

@@ -32,12 +32,12 @@ the authority for that sprint.
 | :--- | :--- | :--- |
 | **`AGENTS.md`** | **Process entrypoint & lifecycle** | This file: lifecycle, agent roles, work norms, conventions. |
 | **`README.md`** | **Setup & run guide** | Install, database provisioning, dev servers, test commands. |
-| **`docs/lab-02/specification.md`** | **Sprint SDS** (Steps 4–6) | Scope, FR, BR, data model, API contract, acceptance criteria, Definition of Done. |
-| **`docs/lab-02/api-spec.md`** | **API contract** (Step 6) | Endpoint paths, request/response shapes, statuses, error semantics. |
-| **`docs/lab-02/ui-spec.md`** | **UI design specification** (Steps 4/6) | Zen Green tokens, component states, responsive rules, visual checklist. |
-| **`docs/lab-02/tests.md`** | **Software Test Spec (STS)** (Steps 6/8) | Planned-test table, AC traceability, commands, final results. |
-| **`docs/lab-02/reviewer.md`** | **Peer review record** | Reviewer identity, PR links, comments exchanged, approvals. |
-| **`docs/lab-02/ai-use.md`** | **AI use & reflection** | LLM used, 6–10 key prompts, decomposed sub-agent tasks, reflection. |
+| **`docs/lab-03/specification.md`** | **Sprint SDS** (Steps 4–6) | Scope, FR, BR, data model, API contract, acceptance criteria, Definition of Done. |
+| **`docs/lab-03/api-spec.md`** | **API contract** (Step 6) | Endpoint paths, request/response shapes, statuses, error semantics. |
+| **`docs/lab-03/ui-spec.md`** | **UI design specification** (Steps 4/6) | Zen Green tokens, component states, responsive rules, visual checklist. |
+| **`docs/lab-03/tests.md`** | **Software Test Spec (STS)** (Steps 6/8) | Planned-test table, AC traceability, commands, final results. |
+| **`docs/lab-03/reviewer.md`** | **Peer review record** | Reviewer identity, PR links, comments exchanged, approvals. |
+| **`docs/lab-03/ai-use.md`** | **AI use & reflection** | LLM used, 6–10 key prompts, decomposed sub-agent tasks, reflection. |
 | **`docs/skills/skill-sprint-implementation.md`** | **Construction playbook** (Step 7) | Build order for the Builder Agent implementing one Issue. |
 | **`docs/skills/skill-sprint-verification.md`** | **QA & verification playbook** (Step 8) | Test, review, and visual-drift checklist before claiming done. |
 | **Lab sheet PDF** (not in repo) | **SRS** (Steps 1–3) | Issued per lab. When attached to a session it is the requirements of record. |
@@ -198,6 +198,7 @@ toktickit/
 │   ├── src/                     # App, screens, components, api client
 │   ├── tests/lab-01/            # Lab 1 Vitest UI tests
 │   ├── tests/lab-02/            # Lab 2 Vitest UI tests
+│   ├── tests/lab-03/            # Lab 3 Vitest UI + style tests
 │   ├── vite.config.ts           # pure Vite (plugins, server) — NO `test` key
 │   └── vitest.config.ts         # Vitest `test` config lives here
 ├── server/                      # Express + TS (ESM)
@@ -205,12 +206,16 @@ toktickit/
 │   ├── prisma/                  # schema.prisma, seed.ts, migrations/
 │   ├── tests/lab-01/            # Lab 1 Vitest + Supertest
 │   ├── tests/lab-02/            # Lab 2 Vitest + Supertest
+│   ├── tests/lab-03/            # Lab 3 Vitest + Supertest (API, authz, migration)
+│   ├── tests/helpers/           # ensureUser / loginCookie for authenticated tests
 │   └── uploads/                 # attachment storage — gitignored
-├── e2e/lab-02/                  # Playwright end-to-end specs
-├── artifacts/lab-02/screenshots/ # responsive evidence: desktop/tablet/mobile
+├── e2e/lab-03/                  # Playwright end-to-end + responsive specs (lab-02 retired)
+├── artifacts/lab-02/screenshots/ # Lab 2 responsive evidence
+├── artifacts/lab-03/screenshots/ # Lab 3 responsive evidence: desktop/tablet/mobile
 ├── docs/
 │   ├── lab-01/                  # Lab 1 contract + evidence
 │   ├── lab-02/                  # Lab 2 contract + evidence
+│   ├── lab-03/                  # Lab 3 contract + evidence
 │   └── skills/                  # agent playbooks
 ├── .gitignore
 ├── README.md
@@ -311,25 +316,25 @@ keys, so they are safe to re-run.
 | Lab | State | Branch |
 |-----|-------|--------|
 | Lab 1 — foundation, health check, category seed, category list | **complete, merged to `main`** | `lab1-staging` |
-| Lab 2 — Requester Ticketing MVP + Zen Green UI | **in progress** — contract approved; implementing | `lab2-staging` |
-| Lab 3 — authentication and roles | not started | — |
+| Lab 2 — Requester Ticketing MVP + Zen Green UI | **complete, merged to `main`** | `lab2-staging` |
+| Lab 3 — users, roles, IT Staff ticketing, admin screens | **all Issues merged to `lab3-staging`**; release PR next | `lab3-staging` |
 | Lab 4 — not yet released | not started | — |
 
-**Lab 1 endpoints in production on `main`:** `GET /api/health` →
-`{status:"ok",service:"TokTickIT API"}`; `GET /api/categories` → the four seeded
-categories in id order. Tests green: server 4/4, client 4/4.
+The current lab's contract is `docs/lab-03/`; its E2E suite is `e2e/lab-03/`
+(the Lab 2 specs were retired with the Development Requester selector).
 
-**Lab 2 progress:**
+**Lab 3 progress:**
 
 | Issue | State |
 |-------|-------|
-| #11 Sprint specification and test plan | merged to `lab2-staging` |
-| #12 Zen Green UI foundation and application shell | merged to `lab2-staging` (PR #21) |
-| #13 Data model, migration, and seed | in review (PR #22 → `lab2-staging`) |
-| #14 Development Requester context | not started |
-| #15 Create Ticket · #16 My Tickets · #17 Ticket Detail + attachments | not started |
-| #19 E2E, responsive evidence, release integration | not started |
+| #29 Sprint engineering contract | merged (PR #37) |
+| #30 Data model, migration, seed | merged (PR #38) |
+| #31 Authentication foundation | merged (PR #39) |
+| #32 Requester regression and Public Comments | merged (PR #40) |
+| #33 IT Staff Ticket Queue | merged (PR #41) |
+| #34 IT Staff Ticket Detail and operations | merged (PR #42) |
+| #35 Administrator User Management | merged (PR #43) |
+| #36 E2E, responsive evidence, release integration | merged (PR #44) |
 
-**Lab 2 next steps:** merge #13, then implement in dependency order —
-Development Requester context (#14) → Ticket creation (#15) → My Tickets (#16) →
-Ticket Detail and attachments (#17) → E2E and visual evidence (#19).
+**Lab 3 next steps:** re-run the full suite on `lab3-staging`, open the release
+PR `lab3-staging` → `main`, then re-confirm `tests.md` §6 on `main`.

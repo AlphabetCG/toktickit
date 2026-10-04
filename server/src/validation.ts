@@ -28,3 +28,14 @@ export function validatePriority(raw: unknown): string | undefined {
   }
   return undefined;
 }
+
+// Public Comment / Internal Note body: trimmed, 1–2000 characters, never
+// whitespace-only (BR-44). Lab 3 §4.2/§5.2.
+export const COMMENT_BODY_MAX = 2000;
+
+export function validateCommentBody(raw: unknown): string | undefined {
+  const value = trim(raw);
+  if (value.length < 1) return "Comment cannot be empty.";
+  if (value.length > COMMENT_BODY_MAX) return `Comment must be at most ${COMMENT_BODY_MAX} characters.`;
+  return undefined;
+}
