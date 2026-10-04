@@ -493,3 +493,53 @@ export async function setTicketStatus(
   if (!res.ok) return operationFailure(res, "Unable to change the status.");
   return res.json();
 }
+
+// --- Administrator User Management (Lab 3 Issue 7, api-spec §8) ----------------
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  createdAt?: string;
+}
+
+export interface UserInput {
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+}
+
+export async function listUsers(params: { search?: string; role?: string } = {}): Promise<AdminUser[]> {
+  const qs = new URLSearchParams();
+  if (params.search) qs.set("search", params.search);
+  if (params.role) qs.set("role", params.role);
+  const res = await request(`/api/admin/users?${qs.toString()}`);
+  await guard(res);
+  if (!res.ok) throw new Error(`Users request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function createUser(input: UserInput & { initialPassword: string }): Promise<AdminUser> {
+  const res = await request("/api/admin/users", jsonInit("POST", input));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to create the user.");
+  return res.json();
+}
+
+export async function updateUser(id: number, input: Partial<UserInput>): Promise<AdminUser> {
+  const res = await request(`/api/admin/users/${id}`, jsonInit("PATCH", input));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to save the user.");
+  return res.json();
+}
+
+export async function setInitialPassword(id: number, initialPassword: string): Promise<{ id: number; mustChangePassword: boolean }> {
+  const res = await request(`/api/admin/users/${id}/initial-password`, jsonInit("POST", { initialPassword }));
+  await guard(res);
+  if (!res.ok) return operationFailure(res, "Unable to set the initial password.");
+  return res.json();
+}

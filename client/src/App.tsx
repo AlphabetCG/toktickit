@@ -8,18 +8,8 @@ import { MyTickets } from "./screens/MyTickets.js";
 import { RequesterTicketDetail } from "./screens/RequesterTicketDetail.js";
 import { StaffTicketQueue } from "./screens/StaffTicketQueue.js";
 import { StaffTicketDetail } from "./screens/StaffTicketDetail.js";
+import { UserManagement } from "./screens/UserManagement.js";
 import { LoadingSkeleton } from "./components/States.js";
-
-// Staff and Administrator destinations exist so role navigation is complete
-// (AC-53); their screens arrive in later Lab 3 issues.
-function Placeholder({ title }: { title: string }) {
-  return (
-    <section>
-      <h1 className="zg-page-title">{title}</h1>
-      <p className="zg-field-message">This area arrives in a later Lab 3 issue.</p>
-    </section>
-  );
-}
 
 // The role's default landing path once past the password gate.
 function roleLanding(role: string): string {
@@ -47,7 +37,7 @@ function RoleRoutes({ role }: { role: string }) {
           <Route path="/staff/tickets/:id" element={<StaffTicketDetail />} />
         </>
       )}
-      {role === "ADMINISTRATOR" && <Route path="/admin/users" element={<Placeholder title="User Management" />} />}
+      {role === "ADMINISTRATOR" && <Route path="/admin/users" element={<UserManagement />} />}
       <Route path="*" element={<Navigate to={roleLanding(role)} replace />} />
     </Routes>
   );

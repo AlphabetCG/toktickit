@@ -25,6 +25,7 @@ import { allocateTicketNumber } from "./ticketNumber.js";
 import { validateSummary, validateDescription, validatePriority, validateCommentBody } from "./validation.js";
 import { normalizeTicketQuery } from "./ticketQuery.js";
 import { normalizeQueueQuery } from "./queueQuery.js";
+import { wouldKeepAnActiveAdmin } from "./adminRules.js";
 import {
   isStatus,
   isTerminal,
@@ -1117,3 +1118,261 @@ app.post("/api/tickets/:id/notes", requireAuth, requirePasswordChanged, async (r
     res.status(500).json({ error: "Unable to add the note" });
   }
 });
+
+// --- Administrator User Management (api-spec §8) ------------------------------
+// Every route here is Administrator-only; IT Staff and Requesters get 403 — the
+// routes are not secret, the data behind them is (AUTHZ-04/05). There is no delete
+// route: deactivation is the only removal (BR-57).
+
+const ROLES = ["REQUESTER", "IT_STAFF", "ADMINISTRATOR"] as const;
+type RoleValue = (typeof ROLES)[number];
+const isRole = (v: unknown): v is RoleValue => typeof v === "string" && (ROLES as readonly string[]).includes(v);
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DUPLICATE_EMAIL = { error: "That email address is already registered." };
+const LAST_ADMIN = { error: "The system must keep at least one active administrator." };
+
+// The §8.1 shape. Built field by field, so a passwordHash can never ride along.
+const USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  isActive: true,
+  mustChangePassword: true,
+  createdAt: true,
+} as const;
+
+function validateName(raw: unknown): string | undefined {
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (name.length < 1 || name.length > 120) return "Name must be 1–120 characters.";
+  return undefined;
+}
+
+function validateEmail(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || !EMAIL_FORMAT.test(raw.trim())) return "Enter a valid email address.";
+  return undefined;
+}
+
+const ROLE_MESSAGE = "Choose exactly one role: Requester, IT Staff, or Administrator.";
+
+const isUniqueViolation = (err: unknown) =>
+  typeof err === "object" && err !== null && (err as { code?: string }).code === "P2002";
+
+// GET /api/admin/users — search name or email, optional role filter. No pagination
+// and no sorting parameters (§3.2); ordered by name.
+app.get(
+  "/api/admin/users",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const role = isRole(req.query.role) ? req.query.role : undefined;
+    try {
+      const users = await getPrisma().user.findMany({
+        where: {
+          ...(role ? { role } : {}),
+          ...(search
+            ? {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" } },
+                  { email: { contains: search, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        select: USER_SELECT,
+      });
+      res.status(200).json(users);
+    } catch {
+      res.status(500).json({ error: "Failed to load users" });
+    }
+  }
+);
+
+// POST /api/admin/users — exactly one role, and always flagged for a password
+// change: mustChangePassword is not accepted from the request (BR-49).
+app.post(
+  "/api/admin/users",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const body = req.body ?? {};
+    const fields: Record<string, string> = {};
+    const nameError = validateName(body.name);
+    if (nameError) fields.name = nameError;
+    const emailError = validateEmail(body.email);
+    if (emailError) fields.email = emailError;
+    if (!isRole(body.role)) fields.role = ROLE_MESSAGE;
+    if (body.isActive !== undefined && typeof body.isActive !== "boolean") fields.isActive = "Status must be active or inactive.";
+    const passwordError = validateNewPassword(body.initialPassword);
+    if (passwordError) fields.initialPassword = passwordError;
+    if (Object.keys(fields).length > 0) {
+      res.status(400).json({ error: "Validation failed", fields });
+      return;
+    }
+
+    const email = normalizeEmail(body.email);
+    try {
+      const prisma = getPrisma();
+      // Emails are stored lower-cased (BR-12), so this catches any casing.
+      if (await prisma.user.findUnique({ where: { email }, select: { id: true } })) {
+        res.status(409).json(DUPLICATE_EMAIL);
+        return;
+      }
+      const created = await prisma.user.create({
+        data: {
+          name: String(body.name).trim(),
+          email,
+          role: body.role,
+          isActive: body.isActive ?? true,
+          passwordHash: await hashPassword(body.initialPassword),
+          mustChangePassword: true,
+        },
+        select: { id: true, name: true, email: true, role: true, isActive: true, mustChangePassword: true },
+      });
+      res.status(201).json(created);
+    } catch (err) {
+      // A concurrent create with the same email loses the unique constraint race.
+      if (isUniqueViolation(err)) {
+        res.status(409).json(DUPLICATE_EMAIL);
+        return;
+      }
+      res.status(500).json({ error: "Unable to create the user" });
+    }
+  }
+);
+
+// PATCH /api/admin/users/:id — name, email, role, activation; nothing else (BR-50).
+// The last-active-Administrator check locks the active Administrator rows inside
+// the writing transaction, so two concurrent edits cannot each see one other
+// Administrator and both succeed, leaving none (BR-56, api-spec §8.3).
+app.patch(
+  "/api/admin/users/:id",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    const body = req.body ?? {};
+    try {
+      const prisma = getPrisma();
+      const target = id === null ? null : await prisma.user.findUnique({ where: { id }, select: USER_SELECT });
+      if (!target) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const fields: Record<string, string> = {};
+      if (body.name !== undefined) {
+        const e = validateName(body.name);
+        if (e) fields.name = e;
+      }
+      if (body.email !== undefined) {
+        const e = validateEmail(body.email);
+        if (e) fields.email = e;
+      }
+      if (body.role !== undefined && !isRole(body.role)) fields.role = ROLE_MESSAGE;
+      if (body.isActive !== undefined && typeof body.isActive !== "boolean") fields.isActive = "Status must be active or inactive.";
+      if (Object.keys(fields).length > 0) {
+        res.status(400).json({ error: "Validation failed", fields });
+        return;
+      }
+
+      const self = target.id === req.user!.id;
+      const nextRole: RoleValue = body.role ?? target.role;
+      const nextActive: boolean = body.isActive ?? target.isActive;
+      if (self && nextActive === false) {
+        res.status(409).json({ error: "You cannot deactivate your own account." }); // BR-54
+        return;
+      }
+      if (self && nextRole !== target.role) {
+        res.status(409).json({ error: "You cannot change your own role." }); // BR-55
+        return;
+      }
+
+      const data: { name?: string; email?: string; role?: RoleValue; isActive?: boolean } = {};
+      if (body.name !== undefined) data.name = String(body.name).trim();
+      if (body.email !== undefined) data.email = normalizeEmail(body.email);
+      if (body.role !== undefined) data.role = body.role;
+      if (body.isActive !== undefined) data.isActive = body.isActive;
+
+      if (data.email && data.email !== target.email) {
+        const taken = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });
+        if (taken && taken.id !== target.id) {
+          res.status(409).json(DUPLICATE_EMAIL);
+          return;
+        }
+      }
+
+      const removesAnAdmin =
+        target.role === "ADMINISTRATOR" && target.isActive && (nextRole !== "ADMINISTRATOR" || !nextActive);
+
+      const outcome = await prisma.$transaction(async (tx) => {
+        if (removesAnAdmin) {
+          // Lock EVERY active Administrator row, in id order. Two concurrent edits
+          // (A deactivating B while B deactivates A) then queue on the same locks
+          // instead of each locking a different row and deadlocking; the second
+          // re-reads after the first commits and finds no one left. Locking only
+          // "the others" would lock different rows per transaction.
+          const active = await tx.$queryRaw<{ id: number }[]>`
+            SELECT id FROM "User"
+            WHERE role = 'ADMINISTRATOR' AND "isActive" = true
+            ORDER BY id
+            FOR UPDATE`;
+          if (!wouldKeepAnActiveAdmin(active.map((r) => r.id), target.id)) return null;
+        }
+        return tx.user.update({ where: { id: target.id }, data, select: USER_SELECT });
+      });
+
+      if (!outcome) {
+        res.status(409).json(LAST_ADMIN);
+        return;
+      }
+      res.status(200).json(outcome);
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        res.status(409).json(DUPLICATE_EMAIL);
+        return;
+      }
+      res.status(500).json({ error: "Unable to update the user" });
+    }
+  }
+);
+
+// POST /api/admin/users/:id/initial-password — atomically replaces the hash, sets
+// mustChangePassword, and deletes every session the user has, so an open tab stops
+// working (BR-53). The password is never echoed back.
+app.post(
+  "/api/admin/users/:id/initial-password",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("ADMINISTRATOR"),
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    try {
+      const prisma = getPrisma();
+      const target = id === null ? null : await prisma.user.findUnique({ where: { id }, select: { id: true } });
+      if (!target) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+      const passwordError = validateNewPassword(req.body?.initialPassword);
+      if (passwordError) {
+        res.status(400).json({ error: "Validation failed", fields: { initialPassword: passwordError } });
+        return;
+      }
+      const passwordHash = await hashPassword(req.body.initialPassword);
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: target.id }, data: { passwordHash, mustChangePassword: true } }),
+        prisma.session.deleteMany({ where: { userId: target.id } }),
+      ]);
+      res.status(200).json({ id: target.id, mustChangePassword: true });
+    } catch {
+      res.status(500).json({ error: "Unable to set the initial password" });
+    }
+  }
+);

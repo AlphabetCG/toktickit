@@ -80,6 +80,7 @@ path itself is exercised on every request rather than stubbed.
 | UNIT-08 | Unit | AC-39, BR-36 | Terminal statuses | No transition leaves `CLOSED` or `CANCELLED` | `server/tests/lab-03/status-transitions.unit.test.ts` | Pass |
 | UNIT-09 | Unit | BR-08, D-03 | Session token | 32 bytes of entropy, tokens differ across calls, only the SHA-256 digest is persisted, and an expired row is treated as absent | `server/tests/lab-03/session.unit.test.ts` | Pass |
 | UNIT-10 | Unit | BR-61, §9.3 | Lab 2 list accepts every status | The My Tickets normaliser keeps all eight statuses; the Lab 2-era list knew only `NEW` and silently dropped every other status filter | `server/tests/lab-03/validation.unit.test.ts` | **Pass** |
+| UNIT-11 | Unit | BR-56 | Last-active-Administrator rule | Removing the only active Administrator is refused; removing one of several, or a non-Administrator, is allowed | `server/tests/lab-03/admin-rules.unit.test.ts` | **Pass** |
 
 ### 2.2 API / integration
 
@@ -113,16 +114,16 @@ path itself is exercised on every request rather than stubbed.
 | API-26 | API | AC-39, BR-36 | Terminal ticket | Every transition from `CLOSED` returns 409 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pass |
 | API-27 | API | AC-40, BR-41 | Internal note created | 201 for IT Staff; the note is absent from the Requester's view of the same Ticket | `server/tests/lab-03/comments-notes.api.test.ts` | Pass |
 | API-28 | API | AC-41, BR-46 | Append on a terminal Ticket | Comment and note both rejected on `CLOSED` and `CANCELLED` | `server/tests/lab-03/comments-notes.api.test.ts` | Pass — comment half in PR #40, note half in PR #42 |
-| API-29 | API | AC-43 | User list | 200; each row carries name, email, role, and activation state, and **no** password hash | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-30 | API | AC-44 | User search | Matches on name and on email, case-insensitively | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-31 | API | AC-45 | Role filter | Only users holding the requested role are returned | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-32 | API | AC-46, BR-49 | Create user | 201; exactly one role; `mustChangePassword` true | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-33 | API | AC-47, BR-51 | Duplicate email | 409 on create and on edit, including a case-differing duplicate; nothing written | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-34 | API | AC-48, BR-52 | Invalid role | 400; nothing written | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-35 | API | AC-49, BR-54 | Self-deactivation | 409; the Administrator stays active | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-36 | API | AC-50, BR-56 | Last active Administrator | Deactivating **or** demoting the only active Administrator returns 409 | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-37 | API | AC-51, BR-53 | New initial password | The target user is re-flagged and the new password authenticates | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| API-38 | API | AC-52, BR-53 | Initial password invalidates sessions | The target user's existing session returns 401 afterwards | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
+| API-29 | API | AC-43 | User list | 200; each row carries name, email, role, and activation state, and **no** password hash | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-30 | API | AC-44 | User search | Matches on name and on email, case-insensitively | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-31 | API | AC-45 | Role filter | Only users holding the requested role are returned | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-32 | API | AC-46, BR-49 | Create user | 201; exactly one role; `mustChangePassword` true | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-33 | API | AC-47, BR-51 | Duplicate email | 409 on create and on edit, including a case-differing duplicate; nothing written | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-34 | API | AC-48, BR-52 | Invalid role | 400; nothing written | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-35 | API | AC-49, BR-54 | Self-deactivation | 409; the Administrator stays active | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-36 | API | AC-50, BR-56 | Last active Administrator | Deactivating **or** demoting the only active Administrator returns 409 | `server/tests/lab-03/users-admin.api.test.ts` | Pass — via concurrent removal: a single request cannot reach this guard, because the acting Administrator is always active and self-removal is refused first (API-35, AUTHZ-12). Two Administrators removing each other at once leave exactly one; the rule itself is UNIT-11 |
+| API-37 | API | AC-51, BR-53 | New initial password | The target user is re-flagged and the new password authenticates | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
+| API-38 | API | AC-52, BR-53 | Initial password invalidates sessions | The target user's existing session returns 401 afterwards | `server/tests/lab-03/users-admin.api.test.ts` | Pass |
 | API-39 | API | api-spec §2.4, BR-01 | Wrong current password on change | 400 naming `currentPassword`; the password is unchanged, so the old one still authenticates and the proposed one does not | `server/tests/lab-03/auth.api.test.ts` | **Pass** |
 | API-40 | API | api-spec §4.3, BR-22 | Signal on a terminal Ticket | `CLOSED` and `CANCELLED` both return 409; no signal recorded; status untouched | `server/tests/lab-03/comments-notes.api.test.ts` | **Pass** |
 | API-41 | API | §6.1 matrix, BR-23 | Administrator / IT Staff rights on the Requester's conversation | Resolution signal refused for IT Staff and Administrator (403, nothing recorded); an Administrator may read Public Comments (200) — exactly the matrix's rows | `server/tests/lab-03/comments-notes.api.test.ts` | **Pass** |
@@ -131,6 +132,8 @@ path itself is exercised on every request rather than stubbed.
 | API-44 | API | api-spec §7.2, BR-28 | Assignee list | Only active IT Staff and Administrators, ordered by name, carrying only `id`, `name`, `role` | `server/tests/lab-03/staff-queue.api.test.ts` | **Pass** |
 | API-45 | API | api-spec §3.2 | Staff role-shaped detail | IT Staff receive the Requester body plus `internalNotes` and `permittedTransitions` computed from §5.7 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | **Pass** |
 | API-46 | API | spec §6.1 | Staff access to attachments | IT Staff can list and download attachments on a ticket they did not submit (the matrix grants `any`; the Lab 2 routes were still owner-only) | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | **Pass** |
+| API-47 | API | api-spec §1.3 | Deactivation ends a live session | A user deactivated by an Administrator gets 401 on their very next request with the cookie they already hold | `server/tests/lab-03/users-admin.api.test.ts` | **Pass** |
+| API-48 | API | BR-50 | Edit scope | A user edit ignores `mustChangePassword` and any password field; only name, email, role, and activation change | `server/tests/lab-03/users-admin.api.test.ts` | **Pass** |
 
 ### 2.3 Authorization
 
@@ -142,16 +145,15 @@ wrong role or the wrong user. None of them render a component (BR-16).
 | AUTHZ-01 | Authorization | AC-10, BR-13 | Unauthenticated access | Every protected route returns 401 with no session, and no resource is read | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-02 | Authorization | AC-12, BR-03 | Client-supplied identity ignored | A Requester sending another user's id in the body, query, or an `X-Requester-Id` header still receives only their own data | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-03 | Authorization | AC-13, BR-14 | Requester → queue | 403; no queue data in the body | `server/tests/lab-03/authorization.api.test.ts` | Pass |
-| AUTHZ-04 | Authorization | AC-14 | Requester → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| AUTHZ-05 | Authorization | AC-15, BR-18 | IT Staff → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| AUTHZ-04 | Authorization | AC-14 | Requester → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Pass |
+| AUTHZ-05 | Authorization | AC-15, BR-18 | IT Staff → Administrator routes | Every `/api/admin/*` route returns 403 | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-06 | Authorization | AC-16, BR-15 | Requester → another's Ticket | 404, **byte-identical** to the response for a Ticket id that does not exist | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-07 | Authorization | AC-17 | IT Staff → any Ticket | 200 regardless of submitter | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-08 | Authorization | AC-23 | Comment on a Ticket not owned | 404; nothing written | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-09 | Authorization | AC-24, BR-24 | Requester → Internal Notes | 403 on read and on create; the body carries no note text, author, or count | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-10 | Authorization | AC-40, BR-41 | Notes absent from Requester payloads | `GET /api/tickets/:id` as the owning Requester contains no `internalNotes` key at all, on a Ticket that has notes | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | AUTHZ-11 | Authorization | BR-37 | Requester → status and priority | Status, IT Priority, and ownership routes each return 403 for a Requester, including on their own Ticket | `server/tests/lab-03/authorization.api.test.ts` | Pass |
-| AUTHZ-12 | Authorization | BR-19, BR-55 | Self role change | An Administrator editing their own role is rejected | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-
+| AUTHZ-12 | Authorization | BR-19, BR-55 | Self role change | An Administrator editing their own role is rejected | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 ### 2.4 Migration and regression
 
 These run against a database seeded in the **Lab 2 shape**, migrated, and then
@@ -202,6 +204,9 @@ inspected — not against rows created after the migration.
 | UI-34 | UI | api-spec §1.4 | 403 classification in the API client | A 403 role refusal maps to `ForbiddenError`, a 403 carrying `passwordChangeRequired` to `PasswordChangeRequiredError`, a 401 to `UnauthenticatedError` | `client/tests/lab-03/api-guard.test.tsx` | **Pass** |
 | UI-35 | UI | AC-41 | Terminal ticket on the Requester detail | On `CLOSED` and `CANCELLED` the comment composer is disabled with an explanation and the resolve action is absent | `client/tests/lab-03/RequesterComments.test.tsx` | **Pass** |
 | UI-36 | UI | ui-spec §6.4, AC-38 | Status conflict | A 409 from the status endpoint renders inline in the operations panel and the ticket is reloaded, so stale transitions are not offered again | `client/tests/lab-03/StaffTicketDetail.test.tsx` | **Pass** |
+| UI-37 | UI | AC-49, BR-55 | Self-guards anticipated | Editing your own account disables Role and Status, each with its explanation, before any request | `client/tests/lab-03/UserManagement.test.tsx` | **Pass** |
+| UI-38 | UI | BR-57 | No delete control | No delete or remove control exists in the list or the edit panel | `client/tests/lab-03/UserManagement.test.tsx` | **Pass** |
+| UI-39 | UI | handout §8.6 | User Management forbidden state | A role refusal renders an explanation, not the failure callout and not a table | `client/tests/lab-03/UserManagement.test.tsx` | **Pass** |
 | UI-10 | UI | AC-53, FR-08 | Requester navigation | My Tickets and Create Ticket present; queue and User Management absent from the DOM | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-11 | UI | AC-53 | IT Staff navigation | Ticket Queue present; User Management absent | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
 | UI-12 | UI | AC-53 | Administrator navigation | User Management present | `client/tests/lab-03/RoleNavigation.test.tsx` | Pass |
@@ -218,19 +223,18 @@ inspected — not against rows created after the migration.
 | UI-23 | UI | AC-38, BR-38 | Status control | Only permitted targets are offered for the current status, and `CANCELLED` requires confirmation | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
 | UI-24 | UI | AC-42, BR-47 | Comments and notes separated | Two distinct regions; the note composer carries a persistent "Visible to IT Staff only" label beside the input | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
 | UI-25 | UI | AC-41 | Terminal ticket composers | On a `CLOSED` Ticket both composers are disabled with an explanation | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
-| UI-26 | UI | AC-43 | User list columns | Name, Email, Role, Status, and an Edit action render for each user | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-| UI-27 | UI | AC-44, AC-45 | User search and filter | Typing a term and selecting a role each issue the matching request | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-| UI-28 | UI | AC-46, AC-48 | Create user form | Required fields validate inline; exactly one role can be chosen | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-| UI-29 | UI | AC-47, AC-49, AC-50 | Guard feedback | Duplicate email, self-deactivation, and last-Administrator refusals each surface a specific message, not a generic failure | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-| UI-30 | UI | AC-51 | Set initial password | The action confirms and reports that the user must change it at next login | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-
+| UI-26 | UI | AC-43 | User list columns | Name, Email, Role, Status, and an Edit action render for each user | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
+| UI-27 | UI | AC-44, AC-45 | User search and filter | Typing a term and selecting a role each issue the matching request | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
+| UI-28 | UI | AC-46, AC-48 | Create user form | Required fields validate inline; exactly one role can be chosen | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
+| UI-29 | UI | AC-47, AC-49, AC-50 | Guard feedback | Duplicate email, self-deactivation, and last-Administrator refusals each surface a specific message, not a generic failure | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
+| UI-30 | UI | AC-51 | Set initial password | The action confirms and reports that the user must change it at next login | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
 ### 2.6 UI style
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
 | STYLE-01 | UI style | AC-55 | No literal colour | No Lab 3 component source contains a `#rrggbb` or `rgba()` literal; every colour comes from a Lab 2 token | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
 | STYLE-02 | UI style | §7.5 | Status badge coverage | All eight statuses render through the shared badge with visible text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
-| STYLE-03 | UI style | §7.5 | Role badge | Each role renders as a badge carrying its name as text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Planned |
+| STYLE-03 | UI style | §7.5 | Role badge | Each role renders as a badge carrying its name as text | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 | STYLE-04 | UI style | §7.2 | Editable vs read-only | On IT Staff Ticket Detail, operational fields carry the editable class and Requester-owned fields carry the read-only class | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 | STYLE-05 | UI style | AC-42, BR-47 | Note audience marker | The Internal Note composer's audience label is present and programmatically associated with the input | `client/tests/lab-03/zen-green-lab3.test.tsx` | Pass |
 ### 2.7 Responsive
@@ -258,8 +262,8 @@ Screenshots are written to
 | E2E-07 | E2E | AC-46, AC-51 | Create and first login | An Administrator creates a user, then that user logs in and is forced through the password change | `e2e/lab-03/user-administration.spec.ts` | Planned |
 | E2E-08 | E2E | AC-49, AC-50 | Administrator guards | Self-deactivation and last-Administrator removal are both refused with a visible message | `e2e/lab-03/user-administration.spec.ts` | Planned |
 
-**Totals:** 10 unit · 46 API · 12 authorization · 7 migration/regression ·
-36 UI component · 5 UI style · 4 responsive · 8 E2E = **128 planned tests**.
+**Totals:** 11 unit · 48 API · 12 authorization · 7 migration/regression ·
+39 UI component · 5 UI style · 4 responsive · 8 E2E = **134 planned tests**.
 
 ---
 

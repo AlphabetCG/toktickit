@@ -150,6 +150,18 @@ No changes requested. The PR's review-focus questions — whole-queue `counts`
 independent of the active filters, and the `guard()` change that now separates a
 role refusal (`ForbiddenError`) from the password gate — were accepted as delivered.
 
+
+### PR #42 — feat: IT Staff Ticket Detail, operations, and Internal Notes (Issue #34 / Lab 3 Issue 6)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/42
+- **Base:** `lab3-staging` ← **Head:** `feature/6-staff-ticket-detail`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-10-04 — "โค๊ดโอเคครบถ้วนครับ"
+  (the code is fine and complete). PR merged into `lab3-staging`.
+
+No changes requested. The two review-focus points — the notes route answering 404
+before 403 so another user's ticket stays hidden, and widening ticket detail and
+attachments to staff `any` per spec §6.1 — were accepted as delivered.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
@@ -358,4 +370,11 @@ with no localhost guard; `RequireRole`'s page-level forbidden panel uses
 the last-admin E2E mocks the server's refusal, so its `tests.md` row should say it
 is a UI-level check (they already point to API-29 for the real rule).
 
-- **Resolution:** awaiting @copter549365's response.
+- **Resolution:** an `APPROVED` review was then posted from this account (2026-09-30
+  12:16, four minutes after the `COMMENTED` review), reporting clean re-runs on
+  `2f80411` — server 172/172 twice, client 87/87 over ten runs, E2E 41/41 twice —
+  plus three non-blocking release notes (staging flow, placeholder links in their
+  `reviewer.md`, and `reuseExistingServer`). PR #51 merged the same day.
+  **The `e2e/lab-02/` point was not resolved before merge:** the directory was still
+  present at the merged head and no reply addressed it, and the approval did not
+  mention it. Carried forward as an open item for their release PR into `main`.
