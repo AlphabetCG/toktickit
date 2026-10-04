@@ -182,6 +182,30 @@ describe("User Management", () => {
     expect(await screen.findByText(/must choose a new password at their next sign-in/)).toBeInTheDocument();
   });
 
+  // Regression found by E2E-07: a <button> defaults to type="submit", so the
+  // panel's secondary buttons were saving the form behind the dialog.
+  it("never saves when Cancel or Set new initial password is pressed inside the form", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(within(await rowOf("Anong Srisai")).getByRole("button", { name: "Edit Anong Srisai" }));
+    await user.click(within(dialog()).getByRole("button", { name: "Set new initial password" }));
+    expect(screen.getByRole("dialog", { name: "Edit user" })).toBeInTheDocument();
+    await user.click(within(screen.getByRole("dialog", { name: "Set new initial password" })).getByRole("button", { name: "Cancel" }));
+    await user.click(within(dialog()).getByRole("button", { name: "Cancel" }));
+
+    await user.click(screen.getByRole("button", { name: "+ Create user" }));
+    await user.type(within(dialog()).getByLabelText(/Name/), "Wanida Chaiyo");
+    await user.type(within(dialog()).getByLabelText(/Email/), "wanida@t.test");
+    await user.selectOptions(within(dialog()).getByLabelText(/Role/), "REQUESTER");
+    await user.type(within(dialog()).getByLabelText(/Initial password/), "Welcome-Initial-1");
+    await user.click(within(dialog()).getByRole("button", { name: "Cancel" }));
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(createUser).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("offers no delete control anywhere (BR-57)", async () => {
     const user = userEvent.setup();
     renderScreen();

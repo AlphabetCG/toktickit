@@ -130,3 +130,41 @@ describe("STYLE-03: role badge", () => {
     expect(rule).toMatch(/--zg-border-strong/);
   });
 });
+
+// STYLE-01 — AC-55: no literal colour anywhere in a Lab 3 component, and in the
+// stylesheet a literal may appear only as a --zg-* token declaration, so every
+// colour on screen is a Zen Green token.
+describe("STYLE-01: no literal colour", () => {
+  const LITERAL = /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i;
+  const LAB3_SOURCES = [
+    "screens/Login.tsx",
+    "screens/ChangePassword.tsx",
+    "screens/RequesterTicketDetail.tsx",
+    "screens/StaffTicketQueue.tsx",
+    "screens/StaffTicketDetail.tsx",
+    "screens/UserManagement.tsx",
+    "components/AppShell.tsx",
+    "components/Badge.tsx",
+    "components/Button.tsx",
+    "components/PublicComments.tsx",
+    "components/InternalNotes.tsx",
+  ];
+
+  it.each(LAB3_SOURCES)("%s contains no colour literal", async (file) => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const source = readFileSync(join(process.cwd(), "src", file), "utf8");
+    const hits = source.split("\n").filter((line) => LITERAL.test(line));
+    expect(hits).toEqual([]);
+  });
+
+  it("theme.css uses colour literals only to declare --zg-* tokens", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const css = readFileSync(join(process.cwd(), "src", "theme.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const hits = css
+      .split("\n")
+      .filter((line) => LITERAL.test(line) && !/^\s*--zg-[\w-]+\s*:/.test(line));
+    expect(hits).toEqual([]);
+  });
+});

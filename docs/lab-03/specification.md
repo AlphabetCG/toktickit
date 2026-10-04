@@ -769,7 +769,7 @@ Every criterion maps to at least one planned test in [`tests.md`](./tests.md).
 - [ ] Unit, API, UI component, UI style, responsive, **authorization**,
       **migration/regression**, and E2E suites all pass from the documented
       commands on the final `main` branch.
-- [ ] No test is skipped, disabled, `.todo`, or commented out.
+- [x] No test is skipped, disabled, `.todo`, or commented out.
 - [ ] The §6.1 matrix is enforced server-side and every row is proven by a test
       that calls the API directly, bypassing the UI.
 - [ ] Every Lab 2 acceptance criterion still passes after migration (BR-61).
@@ -778,20 +778,20 @@ Every criterion maps to at least one planned test in [`tests.md`](./tests.md).
 - [ ] A migration test proves Ticket and Attachment rows, ids, and relationships
       survive the rename (BR-58).
 - [ ] No password appears in plaintext in the database, any response, or any log.
-- [ ] The session cookie is `httpOnly` and unreadable from client JavaScript.
+- [x] The session cookie is `httpOnly` and unreadable from client JavaScript.
 - [ ] The Development Requester selector, its route, its client state, and the
       `X-Requester-Id` header are gone from the codebase.
 - [ ] Every screen implements loading, validation, success, empty, no-results,
       forbidden, not-found, conflict, and safe-failure feedback where meaningful.
-- [ ] Desktop, tablet, and mobile screenshots exist for every Lab 3 screen under
+- [x] Desktop, tablet, and mobile screenshots exist for every Lab 3 screen under
       `artifacts/lab-03/screenshots/`.
-- [ ] `.env` stays untracked; no credential or secret is committed.
+- [x] `.env` stays untracked; no credential or secret is committed.
 - [ ] README setup, seeded-credential documentation, and test instructions are
       current and were followed on a clean checkout.
 
 ### 11.2 Course delivery
 
-- [ ] Every unit of work has a GitHub Issue and its own feature branch.
+- [x] Every unit of work has a GitHub Issue and its own feature branch.
 - [ ] Every feature branch entered `lab3-staging` through a peer-reviewed PR.
 - [ ] One release PR merged `lab3-staging` into `main`.
 - [ ] Substantive review comments and replies exist in **both** directions,

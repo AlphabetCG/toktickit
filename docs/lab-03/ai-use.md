@@ -74,33 +74,64 @@ _(Appended as each Issue lands.)_
 | 12 | #33 IT Staff Ticket Queue | *"changing branch, start implementing next issue"* + the standing sub-instructions: record both review directions first, then open a PR and add @copter549365 as reviewer, and test/re-implement on any bug. | Recorded copter's approval of PR #40 and a cycle check (the partner has no PR newer than #50). Then built the queue exactly to spec §9.3 / api-spec §7: a pure `normalizeQueueQuery` (UNIT-05) so invalid parameters fall back instead of failing; `GET /api/staff/tickets` with search, status / IT Priority / owner (`unassigned`, `me` resolved server-side, or an id) / category filters, four sorts with an `id DESC` tiebreak, pagination, and whole-queue `counts`; and `GET /api/staff/assignees` returning only what a hand-over needs. IT Priority sorts by severity for free because PostgreSQL orders an enum by declaration — proven by API-42 rather than assumed. Client: the Ticket Queue screen (seven columns, cards below 768px via the shared table CSS, "Unassigned" as a word, a "Requester says resolved" chip) with loading, empty, no-results, forbidden, and failure states. Reading the contract surfaced **three latent bugs already on `lab3-staging`**, which it fixed with tests: the Lab 2 list normaliser only accepted status `NEW`, silently dropping every other status filter (UNIT-10); `StatusBadge` only knew `NEW`, so a Requester viewing any seeded Open/Closed ticket saw an **empty badge** (now the full eight-status set with the ui-spec tokens, STYLE-02); and the client's `guard()` treated **every** 403 as the password gate, so a role refusal would have shown the wrong explanation (now split by the `passwordChangeRequired` body flag). It mutation-checked each fix — and that caught a gap in its own tests: the forbidden-state test mocked the API module, so it never exercised the real `guard()`, and reverting the guard fix left the suite green. It added UI-34 to drive the real client against a stubbed `fetch`, and found in the process that the client config only collects `*.test.tsx`, so a `.ts` test file would have silently never run. Proved UNIT-05/10, API-15…19 and 42…44, AUTHZ-03, UI-17…20 and 33…34, STYLE-02. Verified: server **143/143**, client **83/83**, both tsc clean, client build; `tests.md` 118 → 124. |
 | 13 | #34 IT Staff Ticket Detail and operations | *"changing branch, start implementing next issue"* (after a *"re login please"* check: `gh` was already authenticated) + the standing sub-instructions. | Recorded copter's approval of PR #41, then **reviewed the partner's new release-prep PR #51** (41 E2E tests): pulled `playwright.config.ts` and the `e2e/` tree from their branch before commenting, and found that `e2e/lab-02/` still sits in the tree while `testDir` now runs only `e2e/lab-03`, so four Lab 2 specs are never executed (and would fail, since they drive the removed selector) — un-run tests on `main` against the Definition of Done. Then built the sprint's largest issue: the §5.7 transition matrix as a pure module; `PATCH …/owner` (claim / reassign / release through one endpoint, rejecting a Requester, a deactivated user, or an unknown id while a deactivated owner keeps existing tickets); `PATCH …/it-priority` (Requested Priority untouched); `PATCH …/status` with a **compare-and-set** write so two staff moving the same ticket cannot both pass a stale check; `GET`/`POST …/notes`; and a **role-shaped** detail where a Requester's body **omits the `internalNotes` key entirely** and staff get notes plus `permittedTransitions`. The notes route follows api-spec §5.2's order exactly — ownership first, so another Requester's ticket is an identical 404, then the 403 for the Requester's own ticket carrying no note text, author, or count. It also noticed the matrix grants staff `any` on attachments while the Lab 2 attachment routes were still owner-only, which would have broken attachments on the new screen, and applied one role-aware scope to detail and every attachment route (API-46). Client: the IT Staff Ticket Detail (read-only information vs a separate Ticket Operations card; Claim / Release; a Status select offering only `permittedTransitions`; a Cancel confirmation; conflicts inline, with a reload so stale transitions are not offered again) and an Internal Notes region with its own surface colour, a heading naming the audience, a label beside the input announced via `aria-describedby`, and an "Add note" verb. Both composers — and the Requester's resolve action — are disabled with an explanation on a terminal ticket. UNIT-06…08 encode the §5.7 matrix **independently in the test** so it cannot pass by reading the implementation's table back, and every confidentiality rule was mutation-checked (leaking notes to the Requester, or refusing before the ownership check, each fails a test). One limit stated plainly: the compare-and-set is not exercised by a concurrent-request test, because any pair of racing transitions has a legitimate sequential outcome that makes the assertion order-dependent. Proved UNIT-06…08, API-20…28 and 45…46, AUTHZ-07/09/10/11, UI-21…25 and 35…36, STYLE-04/05. Verified: server **247/247**, client **97/97**, both tsc clean, client build; `tests.md` 124 → 128. |
 | 14 | #35 Administrator User Management | *"changing branch, start implementing next issue"* + the standing sub-instructions. | Recorded copter's approval of PR #42. On the partner side it checked what actually happened to PR #51 rather than assuming: an `APPROVED` had been posted from this account four minutes after the `COMMENTED` review, and `e2e/lab-02/` was still present at the merged head — so `reviewer.md` records that point as **unresolved and carried forward**, not as fixed. It also caught that it had committed onto the already-merged `feature/6` branch and moved the commit onto a fresh branch off `lab3-staging`. Then built the deliberately small screen to api-spec §8: list with search and one role filter (no pagination, no sorting), create (one role, always flagged for a password change, `mustChangePassword` never accepted from the request), edit limited to name / email / role / activation, and a separate initial-password action that atomically replaces the hash, re-flags the user, and **deletes their sessions**. There is no delete route or control. The design finding worth keeping: **the last-active-Administrator guard (BR-56) cannot be triggered by a single request** — the acting Administrator is always active, and self-removal is refused first by BR-54/BR-55 — so its only real path is two Administrators removing each other at once. It therefore locks **every** active Administrator row in id order inside the writing transaction (locking only "the others" would have each transaction lock a different row and deadlock), extracts the rule as a pure function (UNIT-11), and proves the API path with a concurrent test (API-36) asserting what holds in any interleaving: exactly one request wins and at least one Administrator survives. A mutation check showed the race is real — with an unlocked count, API-36 failed 5 of 6 cases over three runs, leaving zero Administrators — while the locked version passed 10 of 10 over five runs; the test temporarily deactivates every other Administrator in the shared database and restores them afterwards, which it verified. Client: User Management with guard refusals routed to the control that caused them, your own Role and Status disabled with the explanation up front, and a confirmation for the initial password that states both consequences. It also fixed a spec drift from #31: the role badge used enum-derived classes and filled colours, while ui-spec §3.3 specifies `role-staff` / `role-admin` and an outline (STYLE-03). Proved UNIT-11, API-29…38 and 47…48, AUTHZ-04/05/12, UI-26…30 and 37…39, STYLE-03. Verified: server **284/284**, client **111/111**, both tsc clean, client build; `tests.md` 128 → 134. |
+| 15 | #36 E2E, responsive evidence, release integration | *"changing branch, start implementing next issue"* + the standing sub-instructions. | Recorded copter's approval of PR #43 and a cycle check (no partner PR newer than #51; the `e2e/lab-02/` point stays open). The branch name `feature/8-e2e-visual-release` was already taken by the merged **Lab 2** Issue #19 branch, so the agent used `feature/8-lab3-e2e-visual-release` rather than reuse it. It wrote the Lab 3 Playwright suite (`e2e/lab-03/`): E2E-01…08 and RESP-01…04 plus the full 34-file ui-spec §12 screenshot set. Every account a spec signs in as is **created through the real Administrator API** and deactivated in `afterAll`, so the suite never edits a seeded password or writes to PostgreSQL behind the server. E2E-03 checks the cookie's `httpOnly` flag *and* that `document.cookie` cannot see it (cookies are host-scoped, so a non-HttpOnly cookie *would* leak across ports); a mutation check that flipped the flag made it fail. It retired `e2e/lab-02/` (the same point it raised on the partner's #51) and mapped each retired flow to its Lab 3 coverage in `tests.md` §7. **Running the suite found seven real defects**, each fixed test-first: (1) `Button` rendered the native `type="submit"`, so **Cancel** in the user form *saved* the edit and **Set new initial password** closed the panel along with its own dialog. UI-30 passed throughout because it never asserted `updateUser` stayed uncalled; the new UI-40 reproduced two stray saves before the fix. (2) The tablet queue was 1001 px wide at 820 px; the ui-spec §10 Category/Owner fold had never been built (UI-41). (3) A long requester email pushed mobile Staff Detail 91 px off-screen (`1fr` cannot shrink below an unbroken word; now `minmax(0, 1fr)`), and RESP-03 now uses a deliberately long email so this stays guarded. (4) Mobile controls were 40 px, below the 44 px touch target, fixed through `--zg-control-h` in the mobile breakpoint. (5) Looking at the screenshots instead of trusting the green run showed a long owner name pushing the Owner select past its panel; a new panel-containment assertion failed on `owner` before the fix. (6) The ui-spec §6.3 mobile filter disclosure was missing (UI-42). (7) STYLE-01 found a literal `rgba()` scrim, now `color-mix` of `--zg-text`. The four states a populated shared DB cannot produce honestly (empty queue, forbidden queue, status conflict, last Administrator) use `page.route` with the server's exact body. They are named as routed in `tests.md` §7, with the API tests that prove the real behaviour. Verified: server **284/284**, client **126/126**, E2E **16/16** twice, both tsc clean, client build; `tests.md` 134 → 137, all passing. |
 
 ---
 
 ## My Reflection
 
-_(To be completed at the end of the sprint, in my own words. Points that
-actually happened, to draw on:)_
+### สิ่งที่ทำให้ prompt ดีขึ้นตลอด sprint นี้
 
-- Prompt 1 asked for a **plan and a screenshot schedule**, not code. That is
-  what surfaced the Part 2 timestamp requirement early enough to act on — the
-  same lesson as Lab 2, applied deliberately this time instead of by luck.
-- Asking the agent to **name the decisions it could not make** kept 18 choices
-  visible and mine, rather than buried in generated prose.
-- The agent **flagged a trap I would have walked into**: Prisma renders a model
-  rename as `DROP TABLE` + `CREATE TABLE`, which would have destroyed every user
-  row and orphaned every ticket. It is now BR-59, D-10, and Issue #30's stated
-  reason for existing.
-- Carrying the **Lab 2 contract forward as an input** meant Lab 3's API changed
-  no route path or response shape — the `X-Requester-Id` header chosen in Lab 2
-  D-07 was designed for exactly this swap, and that paid off.
-- **Peer review caught something the test plan missed.** The wrong-current-password
-  refusal was implemented and documented in `api-spec.md` §2.4, yet had no AC, no
-  row in `tests.md`, and no test. My reviewer found it by reading the diff. Under
-  this sprint's Definition of Done that behaviour was not finished, and it would
-  have reached release unnoticed — a concrete case of why the rubric asks for a
-  substantive review rather than an approval.
-- **Instructing the agent to verify before answering changed the outcome.** Two of
-  the three review points were genuine and one was not; a reply drafted from the
-  review text alone would have "fixed" all three or defended all three. Reading
-  `app.ts` first is what separated them.
+**ขอแผนกับตารางเก็บหลักฐานก่อนขอโค้ด.** Prompt แรกของ Lab 3 ผมไม่ได้สั่งให้ implement
+แต่ขอแผนและลำดับการแคปหน้าจอ ทำให้เห็นตั้งแต่ต้นว่า commit ของ spec ต้องมาก่อนโค้ด
+(หลักฐาน Part 2) — เป็นบทเรียนเดียวกับ Lab 2 แต่ครั้งนี้ทำโดยตั้งใจ ไม่ได้รอดเพราะโชค
+
+**บังคับให้ AI ลิสต์ decision ที่มันตัดสินใจแทนผมไม่ได้.** มันคืนมา 18 เรื่อง เช่น อายุ
+session, cost ของ bcrypt, 403 หรือ 404 เมื่อเข้าถึงข้อมูลคนอื่น ทุกข้อผมเป็นคนเลือกเอง
+และมีเหตุผลอยู่ใน §12 ไม่ได้จมอยู่ในข้อความที่ AI เขียนให้
+
+**ใช้ contract ของ Lab 2 เป็น input ของ Lab 3.** เพราะ Lab 2 ออกแบบ `X-Requester-Id`
+ไว้ให้สลับเป็น session ได้ Lab 3 จึงเปลี่ยนวิธียืนยันตัวตนโดยไม่ต้องเปลี่ยน path หรือ
+shape ของ response เลย
+
+**สั่งให้ "ตรวจสอบก่อนตอบ" ทุกครั้งที่รับ review.** ใน PR #40 เพื่อนชี้มาสามจุด มีสอง
+จุดที่จริง และหนึ่งจุดที่ spec §6.1 อนุมัติไว้แล้ว ถ้าให้ AI ตอบจากข้อความ review อย่าง
+เดียว มันจะ "แก้" ทั้งสามข้อ หรือแก้ตัวทั้งสามข้อ การให้มันเปิด `app.ts` กับ spec ก่อน
+คือสิ่งที่แยกสองกรณีนี้ออกจากกัน
+
+**ให้ mutation-check ทุก test ใหม่.** ลองถอด guard ออกแล้วดูว่า test ล้มจริงไหม วิธีนี้จับ
+test ของตัวเองที่ "ผ่านแต่ไม่ได้พิสูจน์อะไร" ได้หลายครั้ง เช่น test สถานะ forbidden ที่
+mock API ไว้จนไม่เคยรัน `guard()` จริง และ test ฝั่ง client ที่ตั้งชื่อเป็น `.ts` เลยไม่ถูก
+รันเลยโดยไม่มีใครรู้
+
+### สิ่งที่ AI ช่วยได้จริง
+
+- **เตือนกับดักที่ผมคงเดินเข้าไปเอง:** Prisma แปลงการ rename model เป็น `DROP TABLE` +
+  `CREATE TABLE` ซึ่งจะลบ user ทุกแถวและทำให้ ticket ทุกใบไม่มีเจ้าของ ตอนนี้กลายเป็น
+  BR-59 และเป็นเหตุผลที่ Issue #30 มีอยู่
+- **ชี้ว่ากฎ "ต้องเหลือ Administrator อย่างน้อยหนึ่งคน" (BR-56) ยิงด้วย request เดียวไม่ได้**
+  เกิดได้ทางเดียวคือ Admin สองคนลบกันเองพร้อมกัน จึงต้อง lock แถว Admin ทั้งหมดตามลำดับ
+  id และพิสูจน์ด้วย test ที่ยิงพร้อมกันจริง ซึ่งตอนไม่มี lock ล้ม 5 ใน 6 ครั้ง
+- **E2E กับ responsive test ใน Issue สุดท้ายเจอ bug จริงเจ็ดตัว** ที่ test ระดับ component
+  มองไม่เห็น ตัวที่ร้ายที่สุดคือปุ่ม **Cancel** ในฟอร์มผู้ใช้ที่จริง ๆ แล้ว *บันทึก* การแก้ไข
+  เพราะ `<button>` มีค่าเริ่มต้นเป็น `submit` — UI-30 ผ่านมาตลอดเพราะไม่เคยเช็กว่า
+  `updateUser` ไม่ถูกเรียก
+
+### จุดที่ต้องเข้าไปคุม AI (process error)
+
+- **commit `reviewer.md` ลงบน branch ที่ merge ไปแล้ว** (`feature/6`) ต้องย้ายไป branch
+  ใหม่ที่แตกจาก `lab3-staging`
+- **เกือบใช้ชื่อ branch ซ้ำกับ Lab 2** (`feature/8-e2e-visual-release` มีอยู่แล้วจาก Issue #19)
+  ต้องตั้งชื่อใหม่แทนการทับของเดิม
+- **บันทึกสถานะ review ผิด** — PR #39 ยังเขียนว่า "awaiting re-review" ทั้งที่ approve แล้ว
+  และ PR #51 ของเพื่อนที่ผม approve ไปโดยที่ประเด็น `e2e/lab-02/` ยังไม่ได้แก้ ผมเลือกบันทึก
+  ตามจริงว่า "ยังไม่ได้แก้" แทนที่จะเขียนว่าเรียบร้อย
+- **screenshot ที่ test ผ่านไม่ได้แปลว่าหน้าตาถูก** — RESP ผ่านหมดแล้ว แต่พอเปิดภาพดูจริง
+  ยังเห็น select ของ Owner ล้นกรอบบนมือถือ และภาพรายชื่อผู้ใช้ยาว 40,000 px อ่านไม่ได้
+  ต้องเพิ่ม assertion ใหม่และเปลี่ยนวิธีแคป
+
+### ถ้าเริ่ม sprint ใหม่จะทำต่างไป
+
+เขียน E2E กับ responsive test **ตั้งแต่ Issue แรก ๆ** ไม่ใช่รวบไว้ที่ Issue สุดท้าย bug ทั้ง
+เจ็ดตัวที่เจอใน #36 อยู่ในโค้ดตั้งแต่ #31–#35 และผ่าน review มาแล้วทั้งหมด ถ้ามี RESP-02
+ตั้งแต่ #33 คิวบน tablet จะไม่หลุดมาถึงตอนท้าย sprint

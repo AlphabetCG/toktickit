@@ -12,8 +12,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 // Every button carries visible text — icons support text, never replace it
-// (ui-spec section 4).
+// (ui-spec section 4). It defaults to type="button" rather than the native
+// "submit", so only a button that says type="submit" can submit its form.
 export function Button({
+  type = "button",
   variant = "secondary",
   busy = false,
   busyLabel,
@@ -29,6 +31,7 @@ export function Button({
   return (
     <button
       {...rest}
+      type={type}
       className={classes}
       disabled={disabled || busy}
       aria-busy={busy || undefined}

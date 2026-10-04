@@ -162,6 +162,19 @@ No changes requested. The two review-focus points — the notes route answering 
 before 403 so another user's ticket stays hidden, and widening ticket detail and
 attachments to staff `any` per spec §6.1 — were accepted as delivered.
 
+
+### PR #43 — feat: Administrator User Management (Issue #35 / Lab 3 Issue 7)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/43
+- **Base:** `lab3-staging` ← **Head:** `feature/7-user-management`
+- **Review verdict:** `APPROVED` by @copter549365, 2026-10-04 — "โค๊ดโอเคครับหมูเด้ง"
+  (the code is fine). PR merged into `lab3-staging`.
+
+No changes requested. The review-focus points — locking every active
+Administrator row (`ORDER BY id FOR UPDATE`) inside the writing transaction so
+the last-admin rule (BR-56) holds under concurrency, and the pure rule in
+`adminRules.ts` covered by UNIT-11 — were accepted as delivered.
+
 ---
 
 ## Direction B — @AlphabetCG reviews @copter549365
@@ -378,3 +391,7 @@ is a UI-level check (they already point to API-29 for the real rule).
   **The `e2e/lab-02/` point was not resolved before merge:** the directory was still
   present at the merged head and no reply addressed it, and the approval did not
   mention it. Carried forward as an open item for their release PR into `main`.
+
+> **Cycle check (start of my Issue #36, 2026-10-04).** @copter549365 has opened no
+> pull request since #51, so there is no new partner PR to review this cycle. Their
+> `e2e/lab-02/` item from #51 remains open for their release into `main`.

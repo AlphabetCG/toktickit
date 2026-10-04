@@ -15,13 +15,13 @@ sprint's engineering contract lives under `docs/lab-0N/`.
 
 ```
 client/src           App.tsx, api.ts, main.tsx, components/, theme.css
-client/tests         lab-01/, lab-02/ — Vitest UI + style tests
+client/tests         lab-01/, lab-02/, lab-03/ — Vitest UI + style tests
 server/src           app.ts, index.ts, prisma.ts
 server/prisma        schema.prisma, seed.ts, migrations/
-server/tests         lab-01/, lab-02/ — Vitest + Supertest API tests
-e2e/lab-02           Playwright end-to-end specs
+server/tests         lab-01/, lab-02/, lab-03/ — Vitest + Supertest API tests
+e2e/lab-03           Playwright end-to-end + responsive specs
 docs/lab-01          ai_use.md, reviewer.md, tests.md
-docs/lab-02          specification.md, api-spec.md, ui-spec.md, tests.md, reviewer.md, ai-use.md
+docs/lab-02, lab-03  specification.md, api-spec.md, ui-spec.md, tests.md, reviewer.md, ai-use.md
 docs/skills          agent playbooks
 ```
 
@@ -88,19 +88,29 @@ npm run test:e2e:report        # open the last HTML report
 
 The Playwright config **starts both servers itself** (`server` on :3000 and the
 Vite client on :5173), so the suite runs against a real Express API and a real
-PostgreSQL — no mocks. It runs Chromium only, serially, and drives the five
-end-to-end journeys (`e2e/lab-02/requester-ticket-flow.spec.ts`) plus the
-responsive/no-overflow checks (`e2e/lab-02/responsive.spec.ts`). The responsive
-spec writes the desktop/tablet/mobile evidence to
-`artifacts/lab-02/screenshots/` (ui-spec §13).
+PostgreSQL — no mocks. It runs Chromium only and serially:
+
+- `e2e/lab-03/authentication.spec.ts` — E2E-01…04 (session, first-login change,
+  HttpOnly cookie, keyboard-only)
+- `e2e/lab-03/staff-ticket-flow.spec.ts` — E2E-05, E2E-06 (staff journey,
+  two-sided conversation, note confidentiality)
+- `e2e/lab-03/user-administration.spec.ts` — E2E-07, E2E-08 (create and first
+  login, Administrator guards)
+- `e2e/lab-03/responsive.spec.ts` — RESP-01…04, plus the ui-spec §12 screenshot
+  set written to `artifacts/lab-03/screenshots/`
+
+The suite signs in as the seeded `arthit.admin` only to create its own accounts
+through the Administrator API, and deactivates them afterwards, so the seeded
+accounts' passwords are never changed. The Lab 2 specs were retired with the
+Development Requester selector; `docs/lab-03/tests.md` §7 maps their coverage.
 
 To rebuild the database from scratch: `cd server && npx prisma migrate reset --force`
 (re-applies every migration and re-seeds).
 
 ## Status
 
-Lab 1 is merged to `main`. Lab 2 work happens on feature branches off
-`lab2-staging`. The authoritative per-lab status table is in
+Labs 1 and 2 are merged to `main`. Lab 3 work happens on feature branches off
+`lab3-staging`. The authoritative per-lab status table is in
 [`AGENTS.md`](./AGENTS.md) §10, and each Issue is tracked on the
 **TokTickIT Individual Sprints** GitHub Project board.
 
