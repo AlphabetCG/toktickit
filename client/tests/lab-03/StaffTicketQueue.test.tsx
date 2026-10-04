@@ -146,4 +146,45 @@ describe("IT Staff Ticket Queue", () => {
     expect(await screen.findByRole("heading", { name: /don't have access to the ticket queue/i })).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
+
+  // ui-spec §10 (found by RESP-02): at tablet width Category and Owner fold into
+  // the Summary cell; their own columns carry the class the breakpoint hides.
+  it("folds Category and Owner into the Summary cell for the tablet layout", async () => {
+    getStaffQueue.mockResolvedValue(page([ROW(), ROW({ id: 13, ticketNumber: "TKT-2026-000013", owner: null })]));
+    renderQueue();
+
+    const first = (await screen.findByText("TKT-2026-000012")).closest("tr") as HTMLElement;
+    expect(within(first).getByText("Hardware · Anong Srisai")).toHaveClass("zg-cell-summary__meta");
+    const second = screen.getByText("TKT-2026-000013").closest("tr") as HTMLElement;
+    expect(within(second).getByText("Hardware · Unassigned")).toHaveClass("zg-cell-summary__meta");
+
+    const folded = (label: string) => [
+      screen.getByRole("columnheader", { name: label }),
+      first.querySelector(`td[data-label="${label}"]`),
+    ];
+    for (const el of [...folded("Category"), ...folded("Owner")]) expect(el).toHaveClass("zg-col-fold");
+  });
+
+  // ui-spec §6.3 (found by RESP-04): on mobile the filters sit behind a
+  // "Filters" disclosure that shows how many are active.
+  it("puts the filters behind a Filters disclosure that shows the active count", async () => {
+    const user = userEvent.setup();
+    getStaffQueue.mockResolvedValue(page([ROW()]));
+    renderQueue();
+    await screen.findByText("TKT-2026-000012");
+
+    const toggle = screen.getByRole("button", { name: "Filters" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(panel).toContainElement(screen.getByLabelText("Filter by status"));
+    expect(panel).not.toHaveClass("zg-filters--open");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(panel).toHaveClass("zg-filters--open");
+
+    await user.selectOptions(screen.getByLabelText("Filter by status"), "NEW");
+    await user.selectOptions(screen.getByLabelText("Filter by IT priority"), "HIGH");
+    expect(screen.getByRole("button", { name: "Filters (2 active)" })).toBe(toggle);
+  });
 });

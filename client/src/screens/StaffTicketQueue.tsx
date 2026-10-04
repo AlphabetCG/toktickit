@@ -73,6 +73,7 @@ export function StaffTicketQueue() {
   const [query, setQuery] = useState<Query>(INITIAL);
   const [data, setData] = useState<QueueResponse | null>(null);
   const [load, setLoad] = useState<Load>("loading");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     getCategories()
@@ -105,6 +106,8 @@ export function StaffTicketQueue() {
   }, [query]);
 
   const filtersActive = Boolean(query.search || query.status || query.itPriority || query.ownerId || query.categoryId);
+  // The disclosure's count covers what it hides; search stays visible beside it.
+  const activeFilterCount = [query.status, query.itPriority, query.ownerId, query.categoryId].filter(Boolean).length;
 
   function update(patch: Partial<Query>) {
     setQuery((q) => ({ ...q, ...patch, page: patch.page ?? 1 }));
@@ -146,47 +149,59 @@ export function StaffTicketQueue() {
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
-        <select className="zg-field" aria-label="Filter by status" value={query.status} onChange={(e) => update({ status: e.target.value })}>
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-        <select className="zg-field" aria-label="Filter by IT priority" value={query.itPriority} onChange={(e) => update({ itPriority: e.target.value })}>
-          <option value="">All IT priorities</option>
-          <option value="HIGH">High</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="LOW">Low</option>
-        </select>
-        <select className="zg-field" aria-label="Filter by owner" value={query.ownerId} onChange={(e) => update({ ownerId: e.target.value })}>
-          <option value="">All owners</option>
-          <option value="unassigned">Unassigned</option>
-          <option value="me">Assigned to me</option>
-        </select>
-        <select className="zg-field" aria-label="Filter by category" value={query.categoryId} onChange={(e) => update({ categoryId: e.target.value })}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select className="zg-field" aria-label="Sort by" value={query.sort} onChange={(e) => update({ sort: e.target.value })}>
-          {SORTS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
+        {/* Mobile only (ui-spec §6.3): the filters collapse behind this disclosure. */}
         <Button
           variant="secondary"
-          aria-label={`Sort direction: ${direction}`}
-          title={`Sort direction: ${direction}`}
-          onClick={() => update({ order: query.order === "desc" ? "asc" : "desc" })}
+          className="zg-filter-toggle"
+          aria-expanded={filtersOpen}
+          aria-controls="queue-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
         >
-          {query.order === "desc" ? "↓" : "↑"}
+          {activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : "Filters"}
         </Button>
-        {filtersActive && (
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
+        <div id="queue-filters" className={`zg-filters${filtersOpen ? " zg-filters--open" : ""}`}>
+          <select className="zg-field" aria-label="Filter by status" value={query.status} onChange={(e) => update({ status: e.target.value })}>
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <select className="zg-field" aria-label="Filter by IT priority" value={query.itPriority} onChange={(e) => update({ itPriority: e.target.value })}>
+            <option value="">All IT priorities</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+          <select className="zg-field" aria-label="Filter by owner" value={query.ownerId} onChange={(e) => update({ ownerId: e.target.value })}>
+            <option value="">All owners</option>
+            <option value="unassigned">Unassigned</option>
+            <option value="me">Assigned to me</option>
+          </select>
+          <select className="zg-field" aria-label="Filter by category" value={query.categoryId} onChange={(e) => update({ categoryId: e.target.value })}>
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select className="zg-field" aria-label="Sort by" value={query.sort} onChange={(e) => update({ sort: e.target.value })}>
+            {SORTS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <Button
+            variant="secondary"
+            aria-label={`Sort direction: ${direction}`}
+            title={`Sort direction: ${direction}`}
+            onClick={() => update({ order: query.order === "desc" ? "asc" : "desc" })}
+          >
+            {query.order === "desc" ? "↓" : "↑"}
           </Button>
-        )}
+          {filtersActive && (
+            <Button variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
       </div>
 
       {load === "loading" && <LoadingSkeleton rows={6} label="Loading the ticket queue…" />}
@@ -217,10 +232,10 @@ export function StaffTicketQueue() {
               <tr>
                 <th>Ticket No.</th>
                 <th>Summary</th>
-                <th>Category</th>
+                <th className="zg-col-fold">Category</th>
                 <th>IT Priority</th>
                 <th>Status</th>
-                <th>Owner</th>
+                <th className="zg-col-fold">Owner</th>
                 <th>Last Updated</th>
               </tr>
             </thead>
@@ -242,8 +257,12 @@ export function StaffTicketQueue() {
                   </td>
                   <td data-label="Summary" className="zg-cell-summary" title={t.summary}>
                     {t.summary}
+                    {/* Tablet only (ui-spec §10): Category and Owner fold in here. */}
+                    <span className="zg-cell-summary__meta">
+                      {t.category.name} · {t.owner ? t.owner.name : "Unassigned"}
+                    </span>
                   </td>
-                  <td data-label="Category">{t.category.name}</td>
+                  <td data-label="Category" className="zg-col-fold">{t.category.name}</td>
                   <td data-label="IT Priority">
                     <PriorityBadge value={t.itPriority} />
                   </td>
@@ -251,7 +270,7 @@ export function StaffTicketQueue() {
                     <StatusBadge value={t.currentStatus} />
                     {t.resolutionSignalled && <span className="zg-signal-chip">Requester says resolved</span>}
                   </td>
-                  <td data-label="Owner">
+                  <td data-label="Owner" className="zg-col-fold">
                     {/* "Unassigned" as muted text — an empty cell reads as a rendering bug. */}
                     {t.owner ? t.owner.name : <span className="zg-muted">Unassigned</span>}
                   </td>
