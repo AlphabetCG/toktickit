@@ -32,12 +32,12 @@ the authority for that sprint.
 | :--- | :--- | :--- |
 | **`AGENTS.md`** | **Process entrypoint & lifecycle** | This file: lifecycle, agent roles, work norms, conventions. |
 | **`README.md`** | **Setup & run guide** | Install, database provisioning, dev servers, test commands. |
-| **`docs/lab-03/specification.md`** | **Sprint SDS** (Steps 4–6) | Scope, FR, BR, data model, API contract, acceptance criteria, Definition of Done. |
-| **`docs/lab-03/api-spec.md`** | **API contract** (Step 6) | Endpoint paths, request/response shapes, statuses, error semantics. |
-| **`docs/lab-03/ui-spec.md`** | **UI design specification** (Steps 4/6) | Zen Green tokens, component states, responsive rules, visual checklist. |
-| **`docs/lab-03/tests.md`** | **Software Test Spec (STS)** (Steps 6/8) | Planned-test table, AC traceability, commands, final results. |
-| **`docs/lab-03/reviewer.md`** | **Peer review record** | Reviewer identity, PR links, comments exchanged, approvals. |
-| **`docs/lab-03/ai-use.md`** | **AI use & reflection** | LLM used, 6–10 key prompts, decomposed sub-agent tasks, reflection. |
+| **`docs/lab-04/specification.md`** | **Sprint SDS** (Steps 4–6) | Scope, FR, BR, data model, API contract, acceptance criteria, Definition of Done. |
+| **`docs/lab-04/api-spec.md`** | **API contract** (Step 6) | Endpoint paths, request/response shapes, statuses, error semantics. |
+| **`docs/lab-04/ui-spec.md`** | **UI design specification** (Steps 4/6) | Zen Green tokens, component states, responsive rules, visual checklist. |
+| **`docs/lab-04/tests.md`** | **Software Test Spec (STS)** (Steps 6/8) | Planned-test table, AC traceability, commands, final results. |
+| **`docs/lab-04/reviewer.md`** | **Peer review record** | Reviewer identity, PR links, comments exchanged, approvals. |
+| **`docs/lab-04/ai-use.md`** | **AI use & reflection** | LLM used, 6–10 key prompts, decomposed sub-agent tasks, reflection. |
 | **`docs/skills/skill-sprint-implementation.md`** | **Construction playbook** (Step 7) | Build order for the Builder Agent implementing one Issue. |
 | **`docs/skills/skill-sprint-verification.md`** | **QA & verification playbook** (Step 8) | Test, review, and visual-drift checklist before claiming done. |
 | **Lab sheet PDF** (not in repo) | **SRS** (Steps 1–3) | Issued per lab. When attached to a session it is the requirements of record. |
@@ -199,6 +199,7 @@ toktickit/
 │   ├── tests/lab-01/            # Lab 1 Vitest UI tests
 │   ├── tests/lab-02/            # Lab 2 Vitest UI tests
 │   ├── tests/lab-03/            # Lab 3 Vitest UI + style tests
+│   ├── tests/lab-04/            # Lab 4 Vitest UI tests (dashboards, Actions Taken, workflow)
 │   ├── vite.config.ts           # pure Vite (plugins, server) — NO `test` key
 │   └── vitest.config.ts         # Vitest `test` config lives here
 ├── server/                      # Express + TS (ESM)
@@ -207,15 +208,19 @@ toktickit/
 │   ├── tests/lab-01/            # Lab 1 Vitest + Supertest
 │   ├── tests/lab-02/            # Lab 2 Vitest + Supertest
 │   ├── tests/lab-03/            # Lab 3 Vitest + Supertest (API, authz, migration)
+│   ├── tests/lab-04/            # Lab 4 Vitest + Supertest (Actions Taken, workflow, dashboards)
 │   ├── tests/helpers/           # ensureUser / loginCookie for authenticated tests
 │   └── uploads/                 # attachment storage — gitignored
-├── e2e/lab-03/                  # Playwright end-to-end + responsive specs (lab-02 retired)
+├── e2e/lab-03/                  # Lab 3 Playwright end-to-end + responsive specs (lab-02 retired)
+├── e2e/lab-04/                  # Lab 4 Playwright: actions-taken flow, resolution, dashboards
 ├── artifacts/lab-02/screenshots/ # Lab 2 responsive evidence
 ├── artifacts/lab-03/screenshots/ # Lab 3 responsive evidence: desktop/tablet/mobile
+├── artifacts/lab-04/screenshots/ # Lab 4: staff-dashboard/, requester-dashboard/, actions-taken/
 ├── docs/
 │   ├── lab-01/                  # Lab 1 contract + evidence
 │   ├── lab-02/                  # Lab 2 contract + evidence
 │   ├── lab-03/                  # Lab 3 contract + evidence
+│   ├── lab-04/                  # Lab 4 contract + evidence
 │   └── skills/                  # agent playbooks
 ├── .gitignore
 ├── README.md
@@ -317,24 +322,28 @@ keys, so they are safe to re-run.
 |-----|-------|--------|
 | Lab 1 — foundation, health check, category seed, category list | **complete, merged to `main`** | `lab1-staging` |
 | Lab 2 — Requester Ticketing MVP + Zen Green UI | **complete, merged to `main`** | `lab2-staging` |
-| Lab 3 — users, roles, IT Staff ticketing, admin screens | **all Issues merged to `lab3-staging`**; release PR next | `lab3-staging` |
-| Lab 4 — not yet released | not started | — |
+| Lab 3 — users, roles, IT Staff ticketing, admin screens | **complete, merged to `main`** (PR #46) | `lab3-staging` |
+| Lab 4 — Actions Taken, dashboards, final regression | **specification in progress** | `lab4-staging` |
 
-The current lab's contract is `docs/lab-03/`; its E2E suite is `e2e/lab-03/`
-(the Lab 2 specs were retired with the Development Requester selector).
+The current lab's contract is `docs/lab-04/`; its E2E suite will be `e2e/lab-04/`.
+`docs/lab-03/` and `e2e/lab-03/` stay as the regression baseline — Lab 4 must not
+break them.
 
-**Lab 3 progress:**
+**Lab 4 plan:**
 
-| Issue | State |
-|-------|-------|
-| #29 Sprint engineering contract | merged (PR #37) |
-| #30 Data model, migration, seed | merged (PR #38) |
-| #31 Authentication foundation | merged (PR #39) |
-| #32 Requester regression and Public Comments | merged (PR #40) |
-| #33 IT Staff Ticket Queue | merged (PR #41) |
-| #34 IT Staff Ticket Detail and operations | merged (PR #42) |
-| #35 Administrator User Management | merged (PR #43) |
-| #36 E2E, responsive evidence, release integration | merged (PR #44) |
+| # | Issue | Branch | Depends on |
+|---|-------|--------|------------|
+| 1 | #47 Sprint 4 engineering contract | `feature/1-sprint4-specification` | — |
+| 2 | #48 Data model, migration, seed | `feature/2-lab4-data-model` | #47 |
+| 3 | #49 Actions Taken API and authorization | `feature/3-actions-taken-api` | #48 |
+| 4 | #50 Actions Taken UI on Ticket Detail | `feature/4-actions-taken-ui` | #49 |
+| 5 | #51 Ticket workflow: gate, stale updates, status history | `feature/5-ticket-workflow` | #49 |
+| 6 | #52 IT Staff / Administrator dashboard | `feature/6-staff-dashboard` | #51 |
+| 7 | #53 Requester dashboard | `feature/7-requester-dashboard` | #51 |
+| 8 | #54 Hardening, regression, E2E, responsive evidence, release | `feature/8-lab4-hardening-release` | #50, #52, #53 |
 
-**Lab 3 next steps:** re-run the full suite on `lab3-staging`, open the release
-PR `lab3-staging` → `main`, then re-confirm `tests.md` §6 on `main`.
+Issues 4 and 5 both depend only on #49, and 6 and 7 only on #51, but branches
+are still cut one at a time from `lab4-staging` after the previous Issue merges
+(§8). Order: #47 → #48 → #49 → #50 → #51 → #52 → #53 → #54.
+
+**Lab 4 next step:** contract PR for #47 under review; #48 starts after it merges.
