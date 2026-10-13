@@ -323,7 +323,7 @@ keys, so they are safe to re-run.
 | Lab 1 — foundation, health check, category seed, category list | **complete, merged to `main`** | `lab1-staging` |
 | Lab 2 — Requester Ticketing MVP + Zen Green UI | **complete, merged to `main`** | `lab2-staging` |
 | Lab 3 — users, roles, IT Staff ticketing, admin screens | **complete, merged to `main`** (PR #46) | `lab3-staging` |
-| Lab 4 — Actions Taken, dashboards, final regression | **specification in progress** | `lab4-staging` |
+| Lab 4 — Actions Taken, dashboards, final regression | **in progress** — contract merged; implementing | `lab4-staging` |
 
 The current lab's contract is `docs/lab-04/`; its E2E suite will be `e2e/lab-04/`.
 `docs/lab-03/` and `e2e/lab-03/` stay as the regression baseline — Lab 4 must not
@@ -346,4 +346,6 @@ Issues 4 and 5 both depend only on #49, and 6 and 7 only on #51, but branches
 are still cut one at a time from `lab4-staging` after the previous Issue merges
 (§8). Order: #47 → #48 → #49 → #50 → #51 → #52 → #53 → #54.
 
-**Lab 4 next step:** contract PR for #47 under review; #48 starts after it merges.
+**Lab 4 progress:** #47 merged (PR #55). #48 data model, migration, and seed
+in review; its rollback script is `server/prisma/rollback/lab4_down.sql`.
+**Next:** #49 starts after #48 merges.

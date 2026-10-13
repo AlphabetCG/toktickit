@@ -162,11 +162,11 @@ row counts of a shared database, and authenticates through
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| REG-01 | Migration | AC-55, BR-54 | Migration is additive | The migration SQL contains no `DROP`, `RENAME`, or `ALTER COLUMN … TYPE` on an existing table; adds `version` with `DEFAULT 1`; backfills history and `resolvedAt`; creates the trigger **after** the backfill; `prisma migrate diff` reports no drift | `server/tests/lab-04/migration.api.test.ts` | Planned |
-| REG-02 | Migration | AC-55, BR-55, BR-56 | Runtime invariants | Every Ticket has `version ≥ 1` and at least one history entry whose first entry is a creation or a backfill; every Resolved or Closed Ticket has `resolvedAt`; every Lab 3 relation (requester, owner, attachments, comments, notes) still resolves | `server/tests/lab-04/migration.api.test.ts` | Planned |
-| REG-03 | Migration | AC-35, BR-33 | History is append-only in the database | `UPDATE` and `DELETE` on `TicketStatusChange` through `$executeRaw` raise; the row is unchanged | `server/tests/lab-04/migration.api.test.ts` | Planned |
-| REG-04 | Regression | AC-57, BR-58 | Seed idempotency | Running the seed twice leaves the row count of every table identical | `server/tests/lab-04/migration.api.test.ts` | Planned |
-| REG-05 | Regression | BR-59 | Seed coverage | Seeded data includes all 8 statuses, 3 IT Priorities, assigned and unassigned; Tickets with 0, 1, and ≥ 3 actions; all 4 action statuses; a pending follow-up; a Requester with no Tickets; an IT Staff member with no owned Tickets or actions; two active Administrators | `server/tests/lab-04/migration.api.test.ts` | Planned |
+| REG-01 | Migration | AC-55, BR-54 | Migration is additive | The migration SQL contains no `DROP`, `RENAME`, or `ALTER COLUMN … TYPE` on an existing table; adds `version` with `DEFAULT 1`; backfills history and `resolvedAt`; creates the trigger **after** the backfill; `prisma migrate diff` reports no drift | `server/tests/lab-04/migration.api.test.ts` | Pass |
+| REG-02 | Migration | AC-55, BR-55, BR-56 | Runtime invariants | Every Ticket has `version ≥ 1` and at least one history entry whose first entry is a creation or a backfill; every Resolved or Closed Ticket has `resolvedAt`; every Lab 3 relation (requester, owner, attachments, comments, notes) still resolves | `server/tests/lab-04/migration.api.test.ts` | Pass |
+| REG-03 | Migration | AC-35, BR-33 | History is append-only in the database | `UPDATE` and `DELETE` on `TicketStatusChange` through `$executeRaw` raise; the row is unchanged | `server/tests/lab-04/migration.api.test.ts` | Pass |
+| REG-04 | Regression | AC-57, BR-58 | Seed idempotency | Running the seed twice leaves the row count of every table identical | `server/tests/lab-04/migration.api.test.ts` | Pass |
+| REG-05 | Regression | BR-59 | Seed coverage | Seeded data includes all 8 statuses, 3 IT Priorities, assigned and unassigned; Tickets with 0, 1, and ≥ 3 actions; all 4 action statuses; a pending follow-up; a Requester with no Tickets; an IT Staff member with no owned Tickets or actions; two active Administrators | `server/tests/lab-04/migration.api.test.ts` | Pass |
 
 The two migration levels that cannot be a unit test — the **rollback drill**
 (AC-56) and the **full Lab 1–3 regression run** (AC-58) — are evidenced by
@@ -410,15 +410,76 @@ Ticket Details with Actions Taken, at desktop, tablet, and mobile:
 ### 4.3 Data, migration, and recovery
 
 - [ ] `npx prisma migrate reset --force` rebuilds and reseeds without error
-- [ ] The seed runs twice with identical row counts
-- [ ] **Rollback drill (AC-56):** restore a Lab 3 `pg_dump` into
+- [x] The seed runs twice with identical row counts (REG-04, every table, Issue #48)
+- [x] **Rollback drill (AC-56):** restore a Lab 3 `pg_dump` into
       `toktickit_rollback`, apply the Lab 4 migration, run
       `server/prisma/rollback/lab4_down.sql`, run the Lab 3 migration test
-      against it — command output pasted below
+      against it — command output pasted below (2026-10-14, Issue #48)
 - [ ] `git diff main -- server/tests/lab-03 client/tests/lab-03 e2e/lab-03`
       touches only the files in §2.12
-- [ ] `git ls-files | grep -E '\.env$'` returns nothing
+- [x] `git ls-files | grep -E '\.env$'` returns nothing (2026-10-14)
 - [ ] No test is skipped, `.todo`, `.skip`, or commented out in any suite
+
+#### Rollback drill output (AC-56)
+
+Run on 2026-10-14 for Issue #48. The dump was taken from the development
+database while it was still at the Lab 3 schema, before the Lab 4 migration was
+first applied. The last three commands run from a worktree of `main` at the Lab 3
+release (`08ef17d`), so they use Lab 3's own schema, Prisma client, and test.
+Credentials are omitted.
+
+```text
+$ dropdb --if-exists toktickit_rollback && createdb toktickit_rollback
+NOTICE:  database "toktickit_rollback" does not exist, skipping
+created toktickit_rollback
+
+$ pg_restore --no-owner -d toktickit_rollback lab3-before-lab4.dump   # the Lab 3 pg_dump
+restored
+Lab 3 rows: tickets=8 users=11 comments=9 notes=7
+
+$ prisma migrate deploy   # apply Lab 4 (from feature/2-lab4-data-model)
+4 migrations found in prisma/migrations
+Applying migration `20261013193901_lab4_actions_workflow_dashboards`
+The following migration(s) have been applied:
+All migrations have been successfully applied.
+Lab 4 present: history rows=8 tickets at version 1=8
+
+$ psql -v ON_ERROR_STOP=1 -f server/prisma/rollback/lab4_down.sql
+BEGIN
+DROP TRIGGER
+DROP FUNCTION
+DROP TABLE
+DROP TABLE
+DROP INDEX
+DROP INDEX
+ALTER TABLE
+ALTER TABLE
+DROP TYPE
+DELETE 1
+COMMIT
+after rollback: lab4 tables=0 lab4 Ticket columns=0 ActionStatus type=0 tickets=8 users=11
+
+$ # from a worktree of main (the Lab 3 release, 08ef17d)
+$ prisma generate && prisma migrate status
+✔ Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client
+3 migrations found in prisma/migrations
+Database schema is up to date!
+
+$ prisma migrate diff --from-url <toktickit_rollback> --to-schema-datamodel prisma/schema.prisma --exit-code   # Lab 3 schema
+No difference detected.
+
+exit code: 0
+
+$ npx vitest run tests/lab-03/migration.api.test.ts   # Lab 3 migration test
+ ✓ tests/lab-03/migration.api.test.ts (12 tests) 856ms
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+```
+
+Result: the migration applies on top of real Lab 3 data and backfills it, and the
+rollback returns the database to a state that Lab 3's tooling reports as up to
+date, with no schema difference and every Lab 3 row intact. Lab 3's migration test
+passes against it (12/12).
 
 ---
 
@@ -473,3 +534,5 @@ release (submission Part 3).
 | Idempotency of Ticket, comment, note, and upload creation | UI single-flight only | D-16; covered by UI-40, not by a server key |
 | E2E development-database residue | Known | Carried from Lab 2 and Lab 3 — E2E runs write to the development database; reset before capturing evidence |
 | Rollback drill | Manual | Needs a second database restored from a dump, which the automated suite does not provision |
+| REG-02 history and `resolvedAt` invariants | Scoped to pre-migration Tickets | REG-02 asserts the backfilled history and `resolvedAt` only for Tickets that existed when the migration was applied (read from `_prisma_migrations.finished_at`), which is what the migration is responsible for. Tickets created afterwards get their creation entry and `resolvedAt` from the workflow (BR-31, BR-32, Issue #51), which is covered by that Issue's own tests. An unscoped check failed depending on test order: Lab 2/3 suites create Closed Tickets through Lab 3 code, which does not maintain `resolvedAt` yet |
+| Seeded history on an already-migrated database | By design (BR-58) | The seed writes a seeded Ticket's history only when it has none. On a database that was migrated rather than reset, the seeded Tickets keep their single "Recorded at upgrade" entry. `npx prisma migrate reset --force` gives them the full seeded path |
