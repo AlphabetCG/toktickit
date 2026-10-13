@@ -50,7 +50,7 @@ The seed upserts on natural keys (category/related-system `name`, user `email`),
 so it is safe to re-run. It creates 4 categories, 7 related systems, 10 users, and
 8 demo tickets spanning every status.
 
-### Development credentials (Lab 3)
+### Development credentials (Labs 3–4)
 
 Every seeded account shares one **development-only** password — it is not a real
 secret (BR-65). Sign in with any seeded email plus this password:
@@ -64,6 +64,16 @@ Password for all seeded accounts:  ChangeMe123!
 | Requester | `somchai.prasert@toktickit.test`, `nadia.rahman@toktickit.test`, `anong.srisai@toktickit.test`, `peter.chen@toktickit.test` (+ 1 inactive) | **prompted to change password** (migrated from Lab 2, BR-60) |
 | IT Staff | `isara.thongchai@toktickit.test`, `malee.boonmee@toktickit.test`, `decha.phumipat@toktickit.test` (+ 1 inactive) | ready to use |
 | Administrator | `arthit.admin@toktickit.test` | ready to use |
+| *Lab 4* Administrator (second) | `ratana.admin@toktickit.test` | ready to use |
+| *Lab 4* Requester with no Tickets | `lalita.chaiyo@toktickit.test` | **prompted to change password** |
+| *Lab 4* IT Staff with no work | `thanin.rakdee@toktickit.test` | ready to use |
+
+The Lab 4 accounts exist for demonstrations: two active Administrators show the
+self-deactivation and last-Administrator guards separately, and the idle
+Requester and IT Staff show each dashboard at zero. The eight seeded Tickets
+(`TKT-2026-900001`…`900008`) carry Actions Taken and status history: 900003 has
+several actions in all four action statuses, 900004 passes the resolution gate,
+and 900007 has an outstanding follow-up that blocks it.
 
 Requesters carry `mustChangePassword = true`, so any requester account also
 demonstrates the mandatory first-login password-change flow.
@@ -72,6 +82,39 @@ Emails are stored lower-cased. The Lab 3 migration **renames** Lab 2's
 `RequesterUser` table to `User` rather than recreating it, so every existing
 Ticket and Attachment is preserved; run `npx prisma migrate reset --force` to
 rebuild and re-seed from scratch.
+
+### Migrating to Lab 4, and rolling back
+
+The Lab 4 migration (`lab4_actions_workflow_dashboards`) is **additive**. It adds
+Actions Taken, status history, `Ticket.version`, and `Ticket.resolvedAt`; it
+backfills one history row and `version = 1` for every existing Ticket; and it
+drops or rewrites nothing. On a database with data worth keeping, back it up
+first:
+
+```bash
+pg_dump -Fc -d toktickit -f before-lab4.dump   # backup
+cd server && npm run prisma:migrate             # apply (dev); `npx prisma migrate deploy` elsewhere
+npm run prisma:seed                             # safe to re-run: upserts on natural keys
+```
+
+Two ways back, from least to most drastic:
+
+1. **Application rollback.** Redeploy `main` at the Lab 3 release. The Lab 3 build
+   runs unchanged on the Lab 4 schema, because every new column has a default
+   and Lab 3 never reads the new tables.
+2. **Schema rollback.** This removes every Lab 4 table, column, trigger, and type,
+   and **deletes all Actions Taken and status history**:
+
+   ```bash
+   psql -v ON_ERROR_STOP=1 -d toktickit -f server/prisma/rollback/lab4_down.sql
+   ```
+
+   The database is then exactly at the Lab 3 schema: `prisma migrate status` on
+   the Lab 3 code reports it up to date. The drill that proves this is recorded in
+   `docs/lab-04/tests.md` §4.3.
+
+As a last resort, `pg_restore --clean -d toktickit before-lab4.dump` restores the
+backup.
 
 ## Tests
 
