@@ -110,9 +110,13 @@ describe("REG-02: every Lab 3 row survives with its invariants", () => {
     }
   });
 
-  it("gives every Resolved or Closed Ticket a resolvedAt", async () => {
+  // Scoped like the history check: keeping resolvedAt current on later
+  // transitions is the workflow's job (BR-31, Issue #51), not the migration's.
+  it("gives every pre-migration Resolved or Closed Ticket a resolvedAt", async () => {
     expect(
-      await prisma.ticket.count({ where: { currentStatus: { in: ["RESOLVED", "CLOSED"] }, resolvedAt: null } })
+      await prisma.ticket.count({
+        where: { id: { in: legacyIds }, currentStatus: { in: ["RESOLVED", "CLOSED"] }, resolvedAt: null },
+      })
     ).toBe(0);
   });
 
