@@ -30,6 +30,15 @@ enum TicketStatus {
   CANCELLED
 }
 
+// Lab 4 — the lifecycle of one Action Taken (BR-13, BR-14). Completed and
+// Cancelled are final.
+enum ActionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 // Lab 3 — the three account roles (FR-13, BR-24).
 enum Role {
   REQUESTER
@@ -72,14 +81,18 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  submittedTickets  Ticket[]        @relation("SubmittedBy")
-  ownedTickets      Ticket[]        @relation("OwnedBy")
-  resolutionSignals Ticket[]        @relation("ResolutionSignalledBy")
+  submittedTickets  Ticket[]             @relation("SubmittedBy")
+  ownedTickets      Ticket[]             @relation("OwnedBy")
+  resolutionSignals Ticket[]             @relation("ResolutionSignalledBy")
   sessions          Session[]
   comments          PublicComment[]
   notes             InternalNote[]
-  uploaded          Attachment[]    @relation("UploadedBy")
-  removed           Attachment[]    @relation("RemovedBy")
+  uploaded          Attachment[]         @relation("UploadedBy")
+  removed           Attachment[]         @relation("RemovedBy")
+  // Lab 4 — back-relations only; no User column changes (§7.1).
+  actionsPerformed  ActionTaken[]        @relation("ActionPerformedBy")
+  actionsCreated    ActionTaken[]        @relation("ActionCreatedBy")
+  statusChanges     TicketStatusChange[]
 
   @@index([role, isActive]) // the Administrator list's only filter (FR-19)
 }
@@ -102,33 +115,39 @@ model Session {
 // One IT support ticket. Ticket Number, Ticket Date, and Current Status are set
 // by the server and never accepted from the client (BR-15, BR-16, BR-18).
 model Ticket {
-  id                Int               @id @default(autoincrement())
-  ticketNumber      String            @unique
-  requesterId       Int
-  categoryId        Int
-  relatedSystemId   Int
-  summary           String            @db.VarChar(150)
-  description       String            @db.Text
-  requestedPriority RequestedPriority
+  id                      Int               @id @default(autoincrement())
+  ticketNumber            String            @unique
+  requesterId             Int
+  categoryId              Int
+  relatedSystemId         Int
+  summary                 String            @db.VarChar(150)
+  description             String            @db.Text
+  requestedPriority       RequestedPriority
   // Lab 3 — a real column initialised from requestedPriority (BR-30, BR-31), not a
   // computed fallback, so a deliberate staff decision is distinguishable.
   itPriority              RequestedPriority
-  currentStatus           TicketStatus @default(NEW)
-  ticketDate              DateTime     @default(now())
+  currentStatus           TicketStatus      @default(NEW)
+  ticketDate              DateTime          @default(now())
   ownerId                 Int? // zero or one owner (BR-25)
   resolutionSignalledAt   DateTime?
   resolutionSignalledById Int?
-  createdAt               DateTime     @default(now())
-  updatedAt               DateTime     @updatedAt
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  // Lab 4 — optimistic concurrency (BR-37) and the "recently resolved" read
+  // optimisation (BR-31, §7.2 decision 4).
+  version                 Int               @default(1)
+  resolvedAt              DateTime?
 
-  requester             User          @relation("SubmittedBy", fields: [requesterId], references: [id])
-  category              Category      @relation(fields: [categoryId], references: [id])
-  relatedSystem         RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  owner                 User?         @relation("OwnedBy", fields: [ownerId], references: [id])
-  resolutionSignalledBy User?         @relation("ResolutionSignalledBy", fields: [resolutionSignalledById], references: [id])
+  requester             User                 @relation("SubmittedBy", fields: [requesterId], references: [id])
+  category              Category             @relation(fields: [categoryId], references: [id])
+  relatedSystem         RelatedSystem        @relation(fields: [relatedSystemId], references: [id])
+  owner                 User?                @relation("OwnedBy", fields: [ownerId], references: [id])
+  resolutionSignalledBy User?                @relation("ResolutionSignalledBy", fields: [resolutionSignalledById], references: [id])
   attachments           Attachment[]
   publicComments        PublicComment[]
   internalNotes         InternalNote[]
+  actions               ActionTaken[]
+  statusChanges         TicketStatusChange[]
 
   // Every My Tickets query filters by requesterId and sorts by ticketDate desc;
   // the composite index satisfies both from one scan (§7.3). The second supports
@@ -139,6 +158,57 @@ model Ticket {
   // status+priority filter (§8.2).
   @@index([ownerId, updatedAt(sort: Desc)])
   @@index([currentStatus, itPriority])
+  // Lab 4 — the dashboards' recently-resolved and recently-updated lists (§5.8).
+  @@index([requesterId, resolvedAt(sort: Desc)])
+  @@index([requesterId, updatedAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+}
+
+// Lab 4 — one piece of work on a Ticket (§7.1). A child table rather than JSON on
+// Ticket, so the performer is a real foreign key and dashboards can count by
+// performer and status (§7.2 decision 3). Two CHECK constraints in the migration
+// back up BR-07 and BR-08 for writes that bypass the API.
+model ActionTaken {
+  id               Int          @id @default(autoincrement())
+  ticketId         Int
+  actionAt         DateTime // Action Date/Time (BR-10)
+  description      String       @db.VarChar(2000)
+  result           String       @default("") @db.VarChar(2000)
+  status           ActionStatus @default(PLANNED)
+  performedById    Int // chosen, active staff/admin (BR-04)
+  createdById      Int // from the session (BR-03)
+  followUpRequired Boolean      @default(false)
+  followUpNote     String       @default("") @db.VarChar(1000)
+  attachmentNotes  String       @default("") @db.VarChar(500)
+  clientRequestId  String       @db.VarChar(64) // idempotency key (BR-44)
+  version          Int          @default(1)
+  completedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  ticket      Ticket @relation(fields: [ticketId], references: [id])
+  performedBy User   @relation("ActionPerformedBy", fields: [performedById], references: [id])
+  createdBy   User   @relation("ActionCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([ticketId, clientRequestId])
+  @@index([ticketId, actionAt, id]) // the Ticket Detail list (BR-12)
+  @@index([performedById, status]) // "my open actions" (§5.8)
+}
+
+// Lab 4 — append-only status history (BR-32…BR-36). A trigger in the migration
+// refuses UPDATE and DELETE, so history cannot be rewritten even by a direct query.
+model TicketStatusChange {
+  id          Int           @id @default(autoincrement())
+  ticketId    Int
+  fromStatus  TicketStatus? // null for creation and backfill
+  toStatus    TicketStatus
+  changedById Int? // null only for backfilled rows
+  changedAt   DateTime      @default(now())
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id])
+  changedBy User?  @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId, changedAt, id]) // stable history order (BR-34)
 }
 
 // File attached to a ticket. Removal is soft: `removedAt IS NULL` means active,
