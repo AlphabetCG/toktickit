@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import bcrypt from "bcryptjs";
-import { PrismaClient, Role, type RequestedPriority, type TicketStatus } from "@prisma/client";
+import { PrismaClient, Role, type ActionStatus, type RequestedPriority, type TicketStatus } from "@prisma/client";
 import { getPrisma } from "../src/prisma.js";
 
 // One documented development password shared by every seeded account. It is not a
@@ -57,6 +57,19 @@ export const USERS: SeedUser[] = [
 
 export const REQUESTERS = USERS.filter((u) => u.role === Role.REQUESTER);
 
+// Lab 4 additions (BR-59), kept apart from USERS so the Lab 2 and Lab 3 seed
+// regressions, which pin those lists, run unchanged (BR-57):
+//   • a second active Administrator, so the self-deactivation and
+//     last-Administrator guards can be demonstrated separately;
+//   • an active Requester with no Tickets — the Requester dashboard at zero;
+//   • an active IT Staff member who owns and performs nothing — the staff
+//     dashboard's "Assigned to me" and "My open actions" at zero.
+export const LAB4_USERS: SeedUser[] = [
+  { name: "Ratana Siriwan", email: "ratana.admin@toktickit.test", role: Role.ADMINISTRATOR, isActive: true },
+  { name: "Lalita Chaiyo", email: "lalita.chaiyo@toktickit.test", role: Role.REQUESTER, isActive: true },
+  { name: "Thanin Rakdee", email: "thanin.rakdee@toktickit.test", role: Role.IT_STAFF, isActive: true },
+];
+
 // Eight demo Tickets, one per status, spread across Requesters and priorities,
 // assigned and unassigned, so every workflow state is visible (BR-64). Ticket
 // Numbers use a reserved 9xxxxx block so they never collide with app-allocated
@@ -75,6 +88,19 @@ interface SeedTicket {
   resolutionSignalled: boolean;
   publicComments: { authorEmail: string; body: string }[];
   internalNotes: { authorEmail: string; body: string }[];
+  actions?: SeedAction[];
+}
+
+// Lab 4 — one Action Taken on a seeded Ticket (§7.4). `hours` places it after the
+// Ticket Date, so every time is fixed and in the past (BR-10).
+interface SeedAction {
+  hours: number;
+  status: ActionStatus;
+  performedByEmail: string;
+  createdByEmail: string;
+  description: string;
+  result?: string;
+  followUpNote?: string; // present = Follow-Up Required (BR-08)
 }
 
 const R = {
@@ -89,7 +115,7 @@ const S = {
   decha: "decha.phumipat@toktickit.test",
 };
 
-const SEED_TICKETS: SeedTicket[] = [
+export const SEED_TICKETS: SeedTicket[] = [
   {
     ticketNumber: "TKT-2026-900001",
     requesterEmail: R.somchai,
@@ -134,6 +160,19 @@ const SEED_TICKETS: SeedTicket[] = [
     resolutionSignalled: false,
     publicComments: [{ authorEmail: S.malee, body: "We've identified a failing access point and ordered a replacement." }],
     internalNotes: [{ authorEmail: S.malee, body: "AP-3W-04 failing; RMA raised, ETA 2 days." }],
+    // Several actions in all four statuses, performed by staff other than the
+    // Owner (BR-02); still open, so the resolution gate would refuse (BR-25b).
+    actions: [
+      { hours: 2, status: "COMPLETED", performedByEmail: S.isara, createdByEmail: S.malee,
+        description: "Surveyed signal strength across the 3rd floor of the west building.",
+        result: "AP-3W-04 drops every client roughly every four minutes; the other APs are healthy." },
+      { hours: 3, status: "CANCELLED", performedByEmail: S.decha, createdByEmail: S.malee,
+        description: "Roll AP-3W-04 back to the previous firmware." },
+      { hours: 4, status: "IN_PROGRESS", performedByEmail: S.malee, createdByEmail: S.malee,
+        description: "Raise neighbouring AP power to cover the dead zone until the replacement arrives." },
+      { hours: 5, status: "PLANNED", performedByEmail: S.decha, createdByEmail: S.malee,
+        description: "Swap in the replacement access point when the RMA unit arrives." },
+    ],
   },
   {
     ticketNumber: "TKT-2026-900004",
@@ -149,6 +188,12 @@ const SEED_TICKETS: SeedTicket[] = [
     resolutionSignalled: false,
     publicComments: [{ authorEmail: S.isara, body: "Could you confirm which browser and version you're using?" }],
     internalNotes: [{ authorEmail: S.isara, body: "Suspected browser popup-blocker; awaiting requester detail." }],
+    // Exactly one Completed action, no follow-up: the resolution gate passes.
+    actions: [
+      { hours: 2, status: "COMPLETED", performedByEmail: S.isara, createdByEmail: S.isara,
+        description: "Reproduced the empty export in Chrome and Edge.",
+        result: "The export works once pop-ups are allowed for LEB2; asked the requester to confirm their browser." },
+    ],
   },
   {
     ticketNumber: "TKT-2026-900005",
@@ -164,6 +209,11 @@ const SEED_TICKETS: SeedTicket[] = [
     resolutionSignalled: true,
     publicComments: [{ authorEmail: S.decha, body: "Reinstalling the VPN service resolved it — please confirm you can connect." }],
     internalNotes: [{ authorEmail: S.decha, body: "Windows update stopped the helper service; reinstalled and re-enabled auto-start." }],
+    actions: [
+      { hours: 2, status: "COMPLETED", performedByEmail: S.decha, createdByEmail: S.decha,
+        description: "Reinstalled the VPN helper service and set it to start automatically.",
+        result: "The client connects on the first attempt after a reboot." },
+    ],
   },
   {
     ticketNumber: "TKT-2026-900006",
@@ -179,6 +229,11 @@ const SEED_TICKETS: SeedTicket[] = [
     resolutionSignalled: true,
     publicComments: [{ authorEmail: S.malee, body: "Duplex roller replaced and tested. Closing the ticket — reopen if it recurs." }],
     internalNotes: [{ authorEmail: S.malee, body: "Worn duplex roller; replaced from spares." }],
+    actions: [
+      { hours: 2, status: "COMPLETED", performedByEmail: S.malee, createdByEmail: S.malee,
+        description: "Replaced the duplex roller from spares and ran a 50-page duplex test.",
+        result: "No jams across the test run." },
+    ],
   },
   {
     ticketNumber: "TKT-2026-900007",
@@ -194,6 +249,17 @@ const SEED_TICKETS: SeedTicket[] = [
     resolutionSignalled: false,
     publicComments: [{ authorEmail: R.anong, body: "It locked again this morning — reopening." }],
     internalNotes: [{ authorEmail: S.isara, body: "Lockout recurring; checking for a stale cached credential." }],
+    // Worked, resolved, reopened, and worked again: the latest Completed action
+    // requests follow-up, so the resolution gate refuses (BR-25c).
+    actions: [
+      { hours: 2, status: "COMPLETED", performedByEmail: S.isara, createdByEmail: S.isara,
+        description: "Unlocked the account and reset the lockout counter.",
+        result: "Account unlocked; sign-in confirmed with the requester." },
+      { hours: 9, status: "COMPLETED", performedByEmail: S.isara, createdByEmail: S.isara,
+        description: "Cleared cached credentials on the requester's laptop.",
+        result: "A stale password in Windows Credential Manager was causing the repeated lockouts.",
+        followUpNote: "Confirm with the requester after 48 hours that no new lockouts have occurred." },
+    ],
   },
   {
     ticketNumber: "TKT-2026-900008",
@@ -232,8 +298,8 @@ export async function seedRelatedSystems(prisma: PrismaClient) {
 // set that demonstrates the mandatory first-login change (Part 5 evidence). IT
 // Staff and the Administrator are freshly provisioned here and are immediately
 // usable, so their demos need no change step.
-export async function seedUsers(prisma: PrismaClient, passwordHash: string) {
-  for (const { name, email, role, isActive } of USERS) {
+export async function seedUsers(prisma: PrismaClient, passwordHash: string, users: SeedUser[] = USERS) {
+  for (const { name, email, role, isActive } of users) {
     const mustChangePassword = role === Role.REQUESTER;
     await prisma.user.upsert({
       where: { email },
@@ -242,6 +308,30 @@ export async function seedUsers(prisma: PrismaClient, passwordHash: string) {
     });
   }
 }
+
+// Lab 4 — fixed Ticket Dates, one day apart from 1 September 2026, so history
+// and action times are deterministic and always in the past (BR-10, BR-58).
+const SEED_EPOCH = Date.UTC(2026, 8, 1, 2, 0, 0); // 09:00 Bangkok
+const HOUR = 3_600_000;
+const seedTicketDate = (index: number) => new Date(SEED_EPOCH + index * 24 * HOUR);
+
+// The shortest path through the §5.3 transition matrix from NEW to each seeded
+// status, so seeded history only ever shows permitted moves. Resolved, Closed,
+// and Reopened pass through In Progress, where their Completed actions were done.
+const STATUS_PATH: Record<TicketStatus, TicketStatus[]> = {
+  NEW: [],
+  OPEN: ["OPEN"],
+  IN_PROGRESS: ["IN_PROGRESS"],
+  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "WAITING_FOR_REQUESTER"],
+  RESOLVED: ["IN_PROGRESS", "RESOLVED"],
+  CLOSED: ["IN_PROGRESS", "RESOLVED", "CLOSED"],
+  REOPENED: ["IN_PROGRESS", "RESOLVED", "REOPENED"],
+  CANCELLED: ["CANCELLED"],
+};
+
+// Step 1 lands an hour after creation; later steps from hour 6, two hours apart,
+// so actions at hours 2–5 fall inside the In Progress window, before resolution.
+const stepHours = (step: number) => (step === 0 ? 1 : 6 + (step - 1) * 2);
 
 // Idempotent Ticket seeding: upsert each demo Ticket on its reserved Ticket Number,
 // then replace its comments and notes wholesale so a re-run produces the identical
@@ -254,9 +344,16 @@ export async function seedTickets(prisma: PrismaClient) {
   const categoryId = (name: string) => categories.find((c) => c.name === name)!.id;
   const systemId = (name: string) => systems.find((s) => s.name === name)!.id;
 
-  for (const t of SEED_TICKETS) {
+  for (const [index, t] of SEED_TICKETS.entries()) {
     const requesterId = userId(t.requesterEmail);
     const ownerId = t.ownerEmail ? userId(t.ownerEmail) : null;
+    const ticketDate = seedTicketDate(index);
+    const path = STATUS_PATH[t.currentStatus];
+    const at = (hours: number) => new Date(ticketDate.getTime() + hours * HOUR);
+    // BR-31: set on entering Resolved, kept through Closed, cleared on Reopened.
+    const resolvedStep = path.indexOf("RESOLVED");
+    const resolvedAt =
+      resolvedStep >= 0 && t.currentStatus !== "REOPENED" ? at(stepHours(resolvedStep)) : null;
     const data = {
       requesterId,
       categoryId: categoryId(t.categoryName),
@@ -269,6 +366,8 @@ export async function seedTickets(prisma: PrismaClient) {
       ownerId,
       resolutionSignalledAt: t.resolutionSignalled ? new Date() : null,
       resolutionSignalledById: t.resolutionSignalled ? requesterId : null,
+      ticketDate,
+      resolvedAt,
     };
     const ticket = await prisma.ticket.upsert({
       where: { ticketNumber: t.ticketNumber },
@@ -289,6 +388,51 @@ export async function seedTickets(prisma: PrismaClient) {
         data: { ticketId: ticket.id, authorId: userId(n.authorEmail), body: n.body },
       });
     }
+
+    // Status history is append-only (BR-33), so it cannot be replaced like the
+    // comments: it is written only when the Ticket has none (BR-58). Creation by
+    // the Requester, then each step by the Owner (or an IT Staff member when the
+    // Ticket is unassigned) — a Requester never changes status (BR-23).
+    if ((await prisma.ticketStatusChange.count({ where: { ticketId: ticket.id } })) === 0) {
+      const actorId = ownerId ?? userId(S.isara);
+      await prisma.ticketStatusChange.create({
+        data: { ticketId: ticket.id, fromStatus: null, toStatus: "NEW", changedById: requesterId, changedAt: ticketDate },
+      });
+      for (const [step, toStatus] of path.entries()) {
+        await prisma.ticketStatusChange.create({
+          data: {
+            ticketId: ticket.id,
+            fromStatus: step === 0 ? "NEW" : path[step - 1],
+            toStatus,
+            changedById: actorId,
+            changedAt: at(stepHours(step)),
+          },
+        });
+      }
+    }
+
+    // Actions Taken upsert on (ticketId, clientRequestId) with fixed keys, so a
+    // re-run updates rather than duplicates (BR-58, §7.4).
+    for (const [n, a] of (t.actions ?? []).entries()) {
+      const clientRequestId = `seed-${t.ticketNumber}-${n + 1}`;
+      const actionAt = at(a.hours);
+      const action = {
+        actionAt,
+        description: a.description,
+        result: a.result ?? "",
+        status: a.status,
+        performedById: userId(a.performedByEmail),
+        createdById: userId(a.createdByEmail),
+        followUpRequired: a.followUpNote !== undefined,
+        followUpNote: a.followUpNote ?? "",
+        completedAt: a.status === "COMPLETED" ? actionAt : null,
+      };
+      await prisma.actionTaken.upsert({
+        where: { ticketId_clientRequestId: { ticketId: ticket.id, clientRequestId } },
+        update: action,
+        create: { ticketId: ticket.id, clientRequestId, ...action },
+      });
+    }
   }
 }
 
@@ -297,6 +441,7 @@ export async function seed(prisma: PrismaClient) {
   await seedCategories(prisma);
   await seedRelatedSystems(prisma);
   await seedUsers(prisma, passwordHash);
+  await seedUsers(prisma, passwordHash, LAB4_USERS);
   await seedTickets(prisma);
 }
 
@@ -304,12 +449,15 @@ async function main() {
   const prisma = getPrisma();
   try {
     await seed(prisma);
-    const byRole = (role: Role) => USERS.filter((u) => u.role === role);
+    const all = [...USERS, ...LAB4_USERS];
+    const byRole = (role: Role) => all.filter((u) => u.role === role);
+    const actions = SEED_TICKETS.reduce((n, t) => n + (t.actions?.length ?? 0), 0);
     console.log(
       `Seeded ${CATEGORY_NAMES.length} categories, ${RELATED_SYSTEM_NAMES.length} related systems, ` +
-        `${USERS.length} users (${byRole(Role.REQUESTER).length} requesters, ` +
-        `${byRole(Role.IT_STAFF).length} IT staff, ${byRole(Role.ADMINISTRATOR).length} admin), ` +
-        `and ${SEED_TICKETS.length} tickets across every status. Dev password: ${DEV_PASSWORD}`
+        `${all.length} users (${byRole(Role.REQUESTER).length} requesters, ` +
+        `${byRole(Role.IT_STAFF).length} IT staff, ${byRole(Role.ADMINISTRATOR).length} admins), ` +
+        `${SEED_TICKETS.length} tickets across every status, and ${actions} actions taken. ` +
+        `Dev password: ${DEV_PASSWORD}`
     );
   } finally {
     await prisma.$disconnect();
