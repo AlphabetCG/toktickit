@@ -73,9 +73,9 @@ row counts of a shared database, and authenticates through
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| UNIT-01 | Unit | AC-11, AC-13, BR-14 | Action status transitions | All 16 cells of the action matrix: the five permitted transitions accepted, every other cell and every move out of Completed or Cancelled rejected | `server/tests/lab-04/action-rules.unit.test.ts` | Planned |
-| UNIT-02 | Unit | AC-06, AC-07, AC-08, AC-10, BR-06…BR-09 | Action field validation | Description `"   "`/0 rejected, 1 and 2000 accepted, 2001 rejected; Result required only for Completed; Follow-up Note required when follow-up is yes and discarded when no; Attachment Notes 500 accepted, 501 rejected | `server/tests/lab-04/action-rules.unit.test.ts` | Planned |
-| UNIT-03 | Unit | AC-09, BR-10 | Action Date/Time rules | Earlier than Ticket Date rejected; future accepted only while Planned; `now + 5 min` accepted and `now + 5 min + 1 s` rejected for a started or completed action | `server/tests/lab-04/action-rules.unit.test.ts` | Planned |
+| UNIT-01 | Unit | AC-11, AC-13, BR-14 | Action status transitions | All 16 cells of the action matrix: the five permitted transitions accepted, every other cell and every move out of Completed or Cancelled rejected | `server/tests/lab-04/action-rules.unit.test.ts` | Pass |
+| UNIT-02 | Unit | AC-06, AC-07, AC-08, AC-10, BR-06…BR-09 | Action field validation | Description `"   "`/0 rejected, 1 and 2000 accepted, 2001 rejected; Result required only for Completed; Follow-up Note required when follow-up is yes and discarded when no; Attachment Notes 500 accepted, 501 rejected | `server/tests/lab-04/action-rules.unit.test.ts` | Pass |
+| UNIT-03 | Unit | AC-09, BR-10 | Action Date/Time rules | Earlier than Ticket Date rejected; future accepted only while Planned; `now + 5 min` accepted and `now + 5 min + 1 s` rejected for a started or completed action | `server/tests/lab-04/action-rules.unit.test.ts` | Pass |
 | UNIT-04 | Unit | AC-26, AC-27, AC-28, BR-25, BR-26 | Resolution gate function | No Completed → unmet `noCompletedAction`; an open action → unmet `openAction`; latest Completed requests follow-up → unmet `followUpOutstanding`; a newer Completed without follow-up satisfies it; equal `actionAt` resolved by id | `server/tests/lab-04/resolution-gate.unit.test.ts` | Planned |
 | UNIT-05 | Unit | AC-25, AC-29, BR-28 | Gate-aware permitted transitions | With the gate met, results equal Lab 3's matrix for every status; with it unmet, `RESOLVED` is removed and nothing else changes | `server/tests/lab-04/resolution-gate.unit.test.ts` | Planned |
 | UNIT-06 | Unit | AC-47, BR-49 | Rolling window | A timestamp exactly `now − 168 h` is inside *last 7 days*; `now − 168 h − 1 min` is outside; same for 30 days | `server/tests/lab-04/dashboard-rules.unit.test.ts` | Planned |
@@ -85,25 +85,25 @@ row counts of a shared database, and authenticates through
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| API-01 | API | AC-17, BR-12 | Stable list order | Three actions with the same `actionAt` and one earlier: listed earliest first, then by id; two reads are identical | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-02 | API | AC-02 | Default performer | Created without `performedById`: performer = creator | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-03 | API | AC-01 | Create a valid Action Taken | 201; created under the correct Ticket with the authenticated creator and the approved performer; every field echoed; `version` 1 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-04 | API | AC-03, BR-02 | Performer differs from Owner | Staff A creates an action performed by Staff B on a Ticket owned by C; all three stored as given; Ticket owner unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-05 | API | AC-04, BR-04 | Inactive / non-staff performer | Deactivated staff, a Requester, and a nonexistent id each return 400 naming `performedById`, on create and on edit; no row written or changed | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-06 | API | AC-05, BR-03 | Client cannot set creator | `createdById` in the body is ignored; the session user is stored | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-07 | API | AC-06 | Description validation | Empty, whitespace, and 2001 characters return 400 naming `description` | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-08 | API | AC-07, BR-08 | Follow-up rules | Yes with empty note → 400 naming `followUpNote`; no with a note → 201 and the note stored empty | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-09 | API | AC-08, BR-07 | Completed needs a result | Create or move to Completed with empty Result → 400 naming `result` | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-10 | API | AC-09, BR-10 | Action Date/Time | Before Ticket Date → 400; future on Planned → 201; future on In Progress or Completed → 400; starting a future Planned action → 400 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-11 | API | AC-10, BR-09 | Attachment Notes | 501 characters → 400 naming `attachmentNotes`; valid notes → 201 and the Ticket's Attachment count is unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-12 | API | AC-11 | Action lifecycle | Planned → In Progress → Completed each 200; `version` 1 → 2 → 3; `completedAt` set on completion | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-13 | API | AC-12, BR-15 | Final actions are read-only | Any edit or status change on a Completed or a Cancelled action → 409; row unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-14 | API | AC-13, BR-13 | Invalid action starts and moves | Create as Cancelled → 400 naming `status`; Completed → In Progress → 409 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-15 | API | AC-15, BR-19 | Actions on inactive Tickets | Create or edit on a Resolved, Closed, or Cancelled Ticket → 409 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-16 | API | AC-18, BR-44 | Idempotent create | Same `clientRequestId` twice → 201 then 200 with the same id; one row. The same key on another Ticket creates a separate action | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-17 | API | BR-42 | Action writes touch the Ticket | Creating and editing an action advance `Ticket.updatedAt` and leave `Ticket.version` unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-18 | API | BR-05 | Deactivated performer kept | After the performer is deactivated, an edit that leaves `performedById` unchanged → 200 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| API-19 | API | AC-19, BR-11 | Markup stored as text | `<script>alert(1)</script>` is stored and returned verbatim, never transformed into markup | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| API-01 | API | AC-17, BR-12 | Stable list order | Three actions with the same `actionAt` and one earlier: listed earliest first, then by id; two reads are identical | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-02 | API | AC-02 | Default performer | Created without `performedById`: performer = creator | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-03 | API | AC-01 | Create a valid Action Taken | 201; created under the correct Ticket with the authenticated creator and the approved performer; every field echoed; `version` 1 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-04 | API | AC-03, BR-02 | Performer differs from Owner | Staff A creates an action performed by Staff B on a Ticket owned by C; all three stored as given; Ticket owner unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-05 | API | AC-04, BR-04 | Inactive / non-staff performer | Deactivated staff, a Requester, and a nonexistent id each return 400 naming `performedById`, on create and on edit; no row written or changed | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-06 | API | AC-05, BR-03 | Client cannot set creator | `createdById` in the body is ignored; the session user is stored | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-07 | API | AC-06 | Description validation | Empty, whitespace, and 2001 characters return 400 naming `description` | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-08 | API | AC-07, BR-08 | Follow-up rules | Yes with empty note → 400 naming `followUpNote`; no with a note → 201 and the note stored empty | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-09 | API | AC-08, BR-07 | Completed needs a result | Create or move to Completed with empty Result → 400 naming `result` | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-10 | API | AC-09, BR-10 | Action Date/Time | Before Ticket Date → 400; future on Planned → 201; future on In Progress or Completed → 400; starting a future Planned action → 400 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-11 | API | AC-10, BR-09 | Attachment Notes | 501 characters → 400 naming `attachmentNotes`; valid notes → 201 and the Ticket's Attachment count is unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-12 | API | AC-11 | Action lifecycle | Planned → In Progress → Completed each 200; `version` 1 → 2 → 3; `completedAt` set on completion | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-13 | API | AC-12, BR-15 | Final actions are read-only | Any edit or status change on a Completed or a Cancelled action → 409; row unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-14 | API | AC-13, BR-13 | Invalid action starts and moves | Create as Cancelled → 400 naming `status`; Completed → In Progress → 409 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-15 | API | AC-15, BR-19 | Actions on inactive Tickets | Create or edit on a Resolved, Closed, or Cancelled Ticket → 409 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-16 | API | AC-18, BR-44 | Idempotent create | Same `clientRequestId` twice → 201 then 200 with the same id; one row. The same key on another Ticket creates a separate action | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-17 | API | BR-42 | Action writes touch the Ticket | Creating and editing an action advance `Ticket.updatedAt` and leave `Ticket.version` unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-18 | API | BR-05 | Deactivated performer kept | After the performer is deactivated, an edit that leaves `performedById` unchanged → 200 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-19 | API | AC-19, BR-11 | Markup stored as text | `<script>alert(1)</script>` is stored and returned verbatim, never transformed into markup | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 
 ### 2.3 API / integration — Dashboards
 
@@ -140,7 +140,7 @@ row counts of a shared database, and authenticates through
 | WF-11 | Workflow | AC-36, BR-35 | Role-shaped history | Staff see actor names; the Requester sees "IT Support" for staff changes and the response contains no staff name or email | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
 | WF-12 | Workflow | BR-29 | Legacy and reopened Tickets | A Resolved Ticket with no actions keeps its status; once Reopened it must satisfy the gate again before `→ RESOLVED` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
 | WF-13 | Concurrency | AC-37, BR-40, BR-41 | Stale ticket writes | For status, owner, and IT Priority: two parallel PATCHes with the same `expectedVersion` → exactly one 200; the other 409 `conflict: "stale"` with `current.version` and current values | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
-| WF-14 | Concurrency | AC-38 | Stale action edits | Two parallel edits of one action at the same version → one 200, one 409; the row holds only the winner's values | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
+| WF-14 | Concurrency | AC-38 | Stale action edits | Two parallel edits of one action at the same version → one 200, one 409; the row holds only the winner's values | `server/tests/lab-04/concurrency.api.test.ts` | Pass |
 | WF-15 | Concurrency | AC-39, BR-39 | Version is required | Status, owner, and IT Priority PATCH without `expectedVersion`, or with `"1"`, → 400 naming `expectedVersion` | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
 | WF-16 | Concurrency | AC-41, BR-27 | Gate under a race | 20 rounds of a Planned-action create in parallel with `→ RESOLVED` on a gate-satisfied Ticket: never a Resolved Ticket holding an open action | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
 
@@ -148,13 +148,13 @@ row counts of a shared database, and authenticates through
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| AUTHZ-01 | Authorization | AC-20, BR-17 | Requester writes on own Ticket | Create, edit, and status change of an action on the Requester's own Ticket → 403; nothing written | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTHZ-02 | Authorization | AC-20 | Requester writes on another's Ticket | The same requests on another Requester's Ticket → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTHZ-03 | Authorization | AC-21, BR-18 | Requester read shape | Own Ticket's actions: every action returned with performer name; no `createdBy`, no email anywhere in the body | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTHZ-04 | Authorization | AC-22 | Requester reads another's | Another Requester's actions and status history → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Planned |
+| AUTHZ-01 | Authorization | AC-20, BR-17 | Requester writes on own Ticket | Create, edit, and status change of an action on the Requester's own Ticket → 403; nothing written | `server/tests/lab-04/authorization.api.test.ts` | Pass |
+| AUTHZ-02 | Authorization | AC-20 | Requester writes on another's Ticket | The same requests on another Requester's Ticket → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
+| AUTHZ-03 | Authorization | AC-21, BR-18 | Requester read shape | Own Ticket's actions: every action returned with performer name; no `createdBy`, no email anywhere in the body | `server/tests/lab-04/authorization.api.test.ts` | Pass |
+| AUTHZ-04 | Authorization | AC-22 | Requester reads another's | Another Requester's actions and status history → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Partial: actions pass (#49); status history in #51 |
 | AUTHZ-05 | Authorization | AC-23 | Dashboard roles | Requester → staff dashboard 403; IT Staff and Administrator → Requester dashboard 403 | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTHZ-06 | Authorization | AC-24 | Administrator acts as IT Staff | An Administrator creates, edits, and completes an action and resolves the Ticket | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTHZ-07 | Authorization | §6.1 | Gates on every new route | All six new endpoints: no session → 401; password change outstanding → 403 `passwordChangeRequired` | `server/tests/lab-04/authorization.api.test.ts` | Planned |
+| AUTHZ-06 | Authorization | AC-24 | Administrator acts as IT Staff | An Administrator creates, edits, and completes an action and resolves the Ticket | `server/tests/lab-04/authorization.api.test.ts` | Partial: create / edit / complete pass (#49); resolve step in #51 |
+| AUTHZ-07 | Authorization | §6.1 | Gates on every new route | All six new endpoints: no session → 401; password change outstanding → 403 `passwordChangeRequired` | `server/tests/lab-04/authorization.api.test.ts` | Partial: 3 Actions Taken routes pass (#49); history and dashboards in #51–#53 |
 | AUTHZ-08 | Authorization | BR-23 | Requester never changes status | A Requester's `PATCH /status` on their own Ticket, with a valid version → 403 | `server/tests/lab-04/authorization.api.test.ts` | Planned |
 | AUTHZ-09 | Authorization | AC-54, D-04 | Administrator ticket access | An Administrator reads the queue and a Ticket's detail, actions, and history (200 each) | `server/tests/lab-04/authorization.api.test.ts` | Planned |
 
