@@ -346,6 +346,7 @@ Issues 4 and 5 both depend only on #49, and 6 and 7 only on #51, but branches
 are still cut one at a time from `lab4-staging` after the previous Issue merges
 (§8). Order: #47 → #48 → #49 → #50 → #51 → #52 → #53 → #54.
 
-**Lab 4 progress:** #47 merged (PR #55). #48 data model, migration, and seed
-in review; its rollback script is `server/prisma/rollback/lab4_down.sql`.
-**Next:** #49 starts after #48 merges.
+**Lab 4 progress:** #47 merged (PR #55). #48 merged (PR #56); its rollback
+script is `server/prisma/rollback/lab4_down.sql`. #49 Actions Taken API in review;
+its pure rules are `server/src/actionRules.ts`.
+**Next:** #50 starts after #49 merges.

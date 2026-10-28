@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import multer from "multer";
 import { createReadStream } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { getPrisma } from "./prisma.js";
@@ -41,6 +42,16 @@ import {
   isWithinSizeLimit,
   generateStoredFilename,
 } from "./attachmentValidation.js";
+import {
+  parseActionInput,
+  actionRuleErrors,
+  isActionFinal,
+  isActionTransitionPermitted,
+  ACTION_STATUS_LABEL,
+  CLIENT_REQUEST_ID_MAX,
+  type ActionValues,
+  type ActionStatusValue,
+} from "./actionRules.js";
 import type { Prisma } from "@prisma/client";
 
 // The Vite dev origin. A wildcard is incompatible with credentialed requests and
@@ -1376,3 +1387,304 @@ app.post(
     }
   }
 );
+
+// --- Actions Taken (Lab 4, api-spec §2) -----------------------------------------
+
+const ACTION_SELECT = {
+  id: true,
+  ticketId: true,
+  actionAt: true,
+  description: true,
+  result: true,
+  status: true,
+  performedById: true,
+  performedBy: { select: { id: true, name: true } },
+  createdBy: { select: { id: true, name: true } },
+  followUpRequired: true,
+  followUpNote: true,
+  attachmentNotes: true,
+  version: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ActionTakenSelect;
+
+type ActionRow = Prisma.ActionTakenGetPayload<{ select: typeof ACTION_SELECT }>;
+
+// Role shaping (BR-18, api-spec §2.1): a Requester never sees who created an
+// action, and no email is selected for anyone. clientRequestId is never returned.
+function serializeAction(a: ActionRow, viewer: { role: string }) {
+  const { performedById: _performedById, createdBy, ...rest } = a;
+  return viewer.role === "REQUESTER" ? rest : { ...rest, createdBy };
+}
+
+const ACTION_NOT_FOUND = { error: "Action not found" };
+const ACTION_FORBIDDEN = { error: "Only IT Staff can record actions." };
+const TICKET_INACTIVE = { error: "Reopen the ticket before recording more work.", conflict: "ticketInactive" };
+const ACTION_FINAL = {
+  error: "Completed and cancelled actions cannot be changed. Record a new action instead.",
+  conflict: "actionFinal",
+};
+const ACTION_STALE = "This action was changed by someone else. Reload to see the latest version.";
+const PERFORMER_MESSAGE = "Choose an active IT Staff member.";
+// BR-19: actions are written only while the Ticket is active.
+const ACTION_INACTIVE_STATUSES: readonly string[] = ["RESOLVED", "CLOSED", "CANCELLED"];
+
+// BR-04: the performer must be an active IT Staff member or Administrator.
+async function performerError(tx: Prisma.TransactionClient, id: number): Promise<string | undefined> {
+  const user = await tx.user.findUnique({ where: { id }, select: { role: true, isActive: true } });
+  return user && user.isActive && user.role !== "REQUESTER" ? undefined : PERFORMER_MESSAGE;
+}
+
+// Locks the Ticket row for the rest of the transaction, so an action write cannot
+// interleave with a status change's resolution-gate check (BR-27, api-spec §2.3).
+async function lockTicket(tx: Prisma.TransactionClient, id: number) {
+  await tx.$queryRaw`SELECT id FROM "Ticket" WHERE id = ${id} FOR UPDATE`;
+  return tx.ticket.findUniqueOrThrow({ where: { id }, select: { currentStatus: true, ticketDate: true } });
+}
+
+// GET /api/tickets/:id/actions — every action on a Ticket the caller can reach,
+// in Action Date/Time order with id as the tie-breaker (BR-12). A Requester reads
+// their own Ticket's actions (BR-18); anyone else's is the Ticket 404 (BR-15).
+app.get("/api/tickets/:id/actions", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    if (!(await findAccessibleTicket(id, req.user!))) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    const items = await getPrisma().actionTaken.findMany({
+      where: { ticketId: id },
+      orderBy: [{ actionAt: "asc" }, { id: "asc" }],
+      select: ACTION_SELECT,
+    });
+    res.status(200).json({ items: items.map((a) => serializeAction(a, req.user!)) });
+  } catch {
+    res.status(500).json({ error: "Unable to load actions" });
+  }
+});
+
+// POST /api/tickets/:id/actions — IT Staff and Administrators only (BR-17). The
+// creator comes from the session (BR-03); a repeated clientRequestId returns the
+// action already created instead of a second one (BR-44).
+app.post("/api/tickets/:id/actions", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  const user = req.user!;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const findByKey = (key: string) =>
+    getPrisma().actionTaken.findUnique({
+      where: { ticketId_clientRequestId: { ticketId: id, clientRequestId: key } },
+      select: ACTION_SELECT,
+    });
+  try {
+    const prisma = getPrisma();
+    if (!(await findAccessibleTicket(id, user))) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    if (user.role === "REQUESTER") {
+      res.status(403).json(ACTION_FORBIDDEN);
+      return;
+    }
+
+    const parsed = parseActionInput(body, { partial: false });
+    const fields: Record<string, string> = { ...parsed.fields };
+    let clientRequestId: string | undefined;
+    if (body.clientRequestId !== undefined) {
+      const key = body.clientRequestId;
+      if (typeof key === "string" && key.length >= 1 && key.length <= CLIENT_REQUEST_ID_MAX) clientRequestId = key;
+      else fields.clientRequestId = `Request id must be 1–${CLIENT_REQUEST_ID_MAX} characters.`;
+    }
+
+    // A replay returns the action already created, unchanged (BR-44).
+    if (clientRequestId) {
+      const existing = await findByKey(clientRequestId);
+      if (existing) {
+        res.status(200).json(serializeAction(existing, user));
+        return;
+      }
+    }
+
+    const outcome = await prisma.$transaction(async (tx) => {
+      const ticket = await lockTicket(tx, id);
+      if (ACTION_INACTIVE_STATUSES.includes(ticket.currentStatus)) return { kind: "inactive" as const };
+
+      const performedById = parsed.performedById ?? user.id;
+      if (!fields.performedById) {
+        const performer = await performerError(tx, performedById);
+        if (performer) fields.performedById = performer;
+      }
+      const values = {
+        result: "",
+        status: "PLANNED",
+        followUpRequired: false,
+        followUpNote: "",
+        attachmentNotes: "",
+        ...parsed.values,
+      } as ActionValues;
+      // The merged-value rules need a complete, well-formed action; a format
+      // error on a field takes precedence over a rule error on the same field.
+      if (Object.keys(parsed.fields).length === 0) {
+        const rules = actionRuleErrors(values, { ticketDate: ticket.ticketDate, now: new Date() });
+        for (const [key, message] of Object.entries(rules)) fields[key] ??= message;
+      }
+      if (Object.keys(fields).length > 0) return { kind: "invalid" as const };
+
+      const created = await tx.actionTaken.create({
+        data: {
+          ...values,
+          ticketId: id,
+          performedById,
+          createdById: user.id,
+          clientRequestId: clientRequestId ?? randomUUID(),
+          completedAt: values.status === "COMPLETED" ? new Date() : null,
+        },
+        select: ACTION_SELECT,
+      });
+      // BR-42: the work shows as recent activity without changing Ticket.version.
+      await tx.ticket.update({ where: { id }, data: { updatedAt: new Date() } });
+      return { kind: "created" as const, created };
+    });
+
+    if (outcome.kind === "inactive") {
+      res.status(409).json(TICKET_INACTIVE);
+      return;
+    }
+    if (outcome.kind === "invalid") {
+      res.status(400).json({ error: "Validation failed", fields });
+      return;
+    }
+    res.status(201).json(serializeAction(outcome.created, user));
+  } catch (err) {
+    // Two simultaneous requests with one key: the loser of the unique race
+    // returns the winner's action, exactly as a later replay would.
+    if (isUniqueViolation(err) && typeof body.clientRequestId === "string") {
+      const existing = await findByKey(body.clientRequestId).catch(() => null);
+      if (existing) {
+        res.status(200).json(serializeAction(existing, user));
+        return;
+      }
+    }
+    res.status(500).json({ error: "Unable to save the action" });
+  }
+});
+
+// PATCH /api/actions/:id — edits fields, changes status, or both, against the
+// version the client last read (BR-39…BR-41). Errors follow api-spec §2.4's order:
+// format → stale → inactive Ticket → final action → transition → merged rules.
+app.patch("/api/actions/:id", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json(ACTION_NOT_FOUND);
+    return;
+  }
+  const user = req.user!;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  try {
+    const prisma = getPrisma();
+    const found = await prisma.actionTaken.findFirst({
+      where: { id, ticket: ticketScope(user) },
+      select: { ticketId: true },
+    });
+    if (!found) {
+      res.status(404).json(ACTION_NOT_FOUND);
+      return;
+    }
+    if (user.role === "REQUESTER") {
+      res.status(403).json(ACTION_FORBIDDEN);
+      return;
+    }
+
+    const parsed = parseActionInput(body, { partial: true });
+    const fields: Record<string, string> = { ...parsed.fields };
+    const expectedVersion = body.expectedVersion;
+    if (typeof expectedVersion !== "number" || !Number.isInteger(expectedVersion)) {
+      fields.expectedVersion = "Reload the ticket and try again.";
+    }
+    if (Object.keys(fields).length > 0) {
+      res.status(400).json({ error: "Validation failed", fields });
+      return;
+    }
+    const version = expectedVersion as number;
+
+    const outcome = await prisma.$transaction(async (tx) => {
+      const ticket = await lockTicket(tx, found.ticketId);
+      const reread = () => tx.actionTaken.findUniqueOrThrow({ where: { id }, select: ACTION_SELECT });
+      const current = await reread();
+      if (current.version !== version) return { kind: "stale" as const, current };
+      if (ACTION_INACTIVE_STATUSES.includes(ticket.currentStatus)) return { kind: "inactive" as const };
+      const from = current.status as ActionStatusValue;
+      if (isActionFinal(from)) return { kind: "final" as const };
+      const to = parsed.values.status;
+      if (to !== undefined && !isActionTransitionPermitted(from, to)) {
+        return { kind: "transition" as const, current, from, to };
+      }
+
+      const merged: ActionValues = {
+        actionAt: current.actionAt,
+        description: current.description,
+        result: current.result,
+        status: from,
+        followUpRequired: current.followUpRequired,
+        followUpNote: current.followUpNote,
+        attachmentNotes: current.attachmentNotes,
+        ...parsed.values,
+      };
+      const ruleFields = actionRuleErrors(merged, { ticketDate: ticket.ticketDate, now: new Date() });
+      // BR-05: restating a performer deactivated since is accepted; choosing one is not.
+      if (parsed.performedById !== undefined && parsed.performedById !== current.performedById) {
+        const performer = await performerError(tx, parsed.performedById);
+        if (performer) ruleFields.performedById = performer;
+      }
+      if (Object.keys(ruleFields).length > 0) return { kind: "invalid" as const, fields: ruleFields };
+
+      // BR-41: the comparison and the write are one conditional update.
+      const written = await tx.actionTaken.updateMany({
+        where: { id, version },
+        data: {
+          ...parsed.values,
+          ...(parsed.performedById !== undefined ? { performedById: parsed.performedById } : {}),
+          ...(to === "COMPLETED" ? { completedAt: new Date() } : {}),
+          version: { increment: 1 },
+        },
+      });
+      if (written.count === 0) return { kind: "stale" as const, current: await reread() };
+      await tx.ticket.update({ where: { id: found.ticketId }, data: { updatedAt: new Date() } });
+      return { kind: "updated" as const, action: await reread() };
+    });
+
+    switch (outcome.kind) {
+      case "stale":
+        res.status(409).json({ error: ACTION_STALE, conflict: "stale", current: serializeAction(outcome.current, user) });
+        return;
+      case "inactive":
+        res.status(409).json(TICKET_INACTIVE);
+        return;
+      case "final":
+        res.status(409).json(ACTION_FINAL);
+        return;
+      case "transition":
+        res.status(409).json({
+          error: `Cannot move a ${ACTION_STATUS_LABEL[outcome.from]} action to ${ACTION_STATUS_LABEL[outcome.to]}.`,
+          conflict: "transition",
+          current: serializeAction(outcome.current, user),
+        });
+        return;
+      case "invalid":
+        res.status(400).json({ error: "Validation failed", fields: outcome.fields });
+        return;
+      case "updated":
+        res.status(200).json(serializeAction(outcome.action, user));
+    }
+  } catch {
+    res.status(500).json({ error: "Unable to update the action" });
+  }
+});
