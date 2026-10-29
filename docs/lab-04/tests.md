@@ -176,20 +176,20 @@ recorded command output in §4.3 and §6, not by a single test row.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| UI-01 | UI | FR-05, AC-17 | Actions list | Rows render in API order with Action Date/Time, description, result, performer, action-status badge text, and a follow-up marker | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-02 | UI | FR-01, FR-02 | Create mode | *Add action* opens the form with performer defaulted to the current user and date/time to now; submit sends one request carrying a `clientRequestId` | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-03 | UI | AC-06, AC-07, AC-08 | Client-side validation | Empty description, follow-up yes without a note, and Completed without a result each show a message beneath the field and send nothing; the Follow-up Note field appears only when follow-up is yes | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-04 | UI | FR-03 | Edit mode | *Edit* on a Planned action prefills every field; save sends `expectedVersion` | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-05 | UI | AC-11, FR-04 | Start and complete | *Start* and *Complete* appear only where permitted; completing an action without a result asks for one first | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-06 | UI | AC-14, BR-16 | Cancel confirmation | *Cancel action* opens a confirmation dialog; dismissing it makes no request | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-07 | UI | AC-12, BR-15 | Final actions read-only | Completed and Cancelled rows show no *Edit*, *Start*, *Complete*, or *Cancel* | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-08 | UI | AC-04, AC-60 | Server field error | A 400 naming `performedById` appears beside Performed by, and every entered value is kept | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-09 | UI | AC-19 | Markup as text | A description of `<script>…</script>` renders as literal text and adds no element | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-10 | UI | AC-21, BR-18 | Requester read-only view | In Requester mode there is no *Add action* or row control, the performer name is shown, and no creator appears | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-11 | UI | BR-19 | Inactive Ticket | On a Resolved, Closed, or Cancelled Ticket, *Add action* is replaced by a short explanation | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-12 | UI | AC-59 | Double submit | A double click on *Save action* sends one request, and the button shows its busy label | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-13 | UI | AC-40 | Stale edit | A 409 `stale` shows the conflict banner with *Reload*; the entered values stay in the form until the user reloads | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| UI-14 | UI | FR-21 | Section states | Loading, empty ("No actions recorded yet"), and safe-failure with *Try again* | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
+| UI-01 | UI | FR-05, AC-17 | Actions list | Rows render in API order with Action Date/Time, description, result, performer, action-status badge text, and a follow-up marker | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-02 | UI | FR-01, FR-02 | Create mode | *Add action* opens the form with performer defaulted to the current user and date/time to now; submit sends one request carrying a `clientRequestId` | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-03 | UI | AC-06, AC-07, AC-08 | Client-side validation | Empty description, follow-up yes without a note, and Completed without a result each show a message beneath the field and send nothing; the Follow-up Note field appears only when follow-up is yes | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-04 | UI | FR-03 | Edit mode | *Edit* on a Planned action prefills every field; save sends `expectedVersion` | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-05 | UI | AC-11, FR-04 | Start and complete | *Start* and *Complete* appear only where permitted; completing an action without a result asks for one first | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-06 | UI | AC-14, BR-16 | Cancel confirmation | *Cancel action* opens a confirmation dialog; dismissing it makes no request | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-07 | UI | AC-12, BR-15 | Final actions read-only | Completed and Cancelled rows show no *Edit*, *Start*, *Complete*, or *Cancel* | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-08 | UI | AC-04, AC-60 | Server field error | A 400 naming `performedById` appears beside Performed by, and every entered value is kept | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-09 | UI | AC-19 | Markup as text | A description of `<script>…</script>` renders as literal text and adds no element | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-10 | UI | AC-21, BR-18 | Requester read-only view | In Requester mode there is no *Add action* or row control, the performer name is shown, and no creator appears | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-11 | UI | BR-19 | Inactive Ticket | On a Resolved, Closed, or Cancelled Ticket, *Add action* is replaced by a short explanation | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-12 | UI | AC-59 | Double submit | A double click on *Save action* sends one request, and the button shows its busy label | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-13 | UI | AC-40 | Stale edit | A 409 `stale` shows the conflict banner with *Reload*; the entered values stay in the form until the user reloads | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-14 | UI | FR-21 | Section states | Loading, empty ("No actions recorded yet"), and safe-failure with *Try again* | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-15 | UI | AC-29 | Gate unmet | The status control has no *Resolved* option and lists the unmet conditions in plain language | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
 | UI-16 | UI | AC-29 | Gate met | *Resolved* is offered | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
 | UI-17 | UI | AC-30, FR-08 | Refresh after a change | After a successful change the summary badge, the available transitions, and the history update without a reload; the request carried `expectedVersion` | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
@@ -223,11 +223,11 @@ recorded command output in §4.3 and §6, not by a single test row.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| STYLE-01 | UI style | AC-63 | No literal colour | No Lab 4 component or stylesheet addition contains a `#rrggbb`, `rgb()`, or `rgba()` literal; every colour is a Zen Green token | `client/tests/lab-04/zen-green-lab4.test.tsx` | Planned |
-| STYLE-02 | UI style | AC-63 | Action status badge | All four action statuses render through the shared badge with visible text, distinct from Ticket status badges | `client/tests/lab-04/zen-green-lab4.test.tsx` | Planned |
+| STYLE-01 | UI style | AC-63 | No literal colour | No Lab 4 component or stylesheet addition contains a `#rrggbb`, `rgb()`, or `rgba()` literal; every colour is a Zen Green token | `client/tests/lab-04/zen-green-lab4.test.tsx` | Pass |
+| STYLE-02 | UI style | AC-63 | Action status badge | All four action statuses render through the shared badge with visible text, distinct from Ticket status badges | `client/tests/lab-04/zen-green-lab4.test.tsx` | Pass |
 | STYLE-03 | UI style | ui-spec §2 | Metric card structure | Card carries the metric-card class, label, value, and a link; values use the numeric style | `client/tests/lab-04/zen-green-lab4.test.tsx` | Planned |
-| STYLE-04 | UI style | Part 9 checklist | Editable vs read-only | The staff action form uses the editable field class; the Requester's actions and every Completed action use the read-only class | `client/tests/lab-04/zen-green-lab4.test.tsx` | Planned |
-| STYLE-05 | UI style | Part 9 checklist | Validation placement | Every action-form error is rendered directly beneath its field and referenced by `aria-describedby` | `client/tests/lab-04/zen-green-lab4.test.tsx` | Planned |
+| STYLE-04 | UI style | Part 9 checklist | Editable vs read-only | The staff action form uses the editable field class; the Requester's actions and every Completed action use the read-only class | `client/tests/lab-04/zen-green-lab4.test.tsx` | Pass |
+| STYLE-05 | UI style | Part 9 checklist | Validation placement | Every action-form error is rendered directly beneath its field and referenced by `aria-describedby` | `client/tests/lab-04/zen-green-lab4.test.tsx` | Pass |
 
 ### 2.9 Responsive and accessibility
 

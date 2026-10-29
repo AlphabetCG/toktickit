@@ -772,6 +772,7 @@ endpoint remains; the conventions, three-gate lifecycle, and error shape
 | **D-15** | Ticket cancellation **cancels open actions** rather than being blocked by them | Cancelling a duplicate or withdrawn Ticket should not require cancelling each planned step first; leaving them open would pollute *My open actions*. |
 | **D-16** | Idempotency key only on Action Taken creation; other creates rely on single-flight buttons | Action creation is the new, most-repeated write of this sprint. Extending keys to tickets, comments, notes, and uploads is recorded as deferred rather than widened into this sprint. |
 | **D-17** | Seed a second Administrator | Lab 3's evidence showed the self-deactivation and last-Administrator guards cannot be demonstrated separately with one Administrator. |
+| **D-18** | Ticket status badges become **pills**; action-status badges stay square | ui-spec §2.5 distinguishes the two by shape, but no earlier sprint defined a pill, so every badge was square and the distinction did not exist. The status badges took the pill radius rather than the spec changing, keeping the action badge exactly as specified. A visual change only: no colour, no token, and no Lab 2 or Lab 3 test asserts the shape. *Decided 2026-10-29 during Issue #50.* |
 
 ### Open assumptions
 
