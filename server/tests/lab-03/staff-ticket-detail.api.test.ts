@@ -3,6 +3,7 @@ import request from "supertest";
 import { PrismaClient, type TicketStatus } from "@prisma/client";
 import { app } from "../../src/app.js";
 import { ensureUser, loginCookie } from "../helpers/auth.js";
+import { removeTickets } from "../helpers/cleanup.js";
 
 // API-20…API-26 (docs/lab-03/tests.md §2.2), plus the staff-side role-shaped
 // detail (api-spec §3.2) and staff access to a requester's attachments (§6.1).
@@ -39,9 +40,33 @@ async function ticket(status: TicketStatus = "NEW", ownerId: number | null = nul
   return t.id;
 }
 
-const patch = (id: number, path: string, body: object, cookie = staffCookie) =>
-  request(app).patch(`/api/tickets/${id}/${path}`).set("Cookie", cookie).send(body);
+// Lab 4 §5.10 (BR-61): Ticket writes carry the version the client last read, so
+// the helper reads it first. An explicit expectedVersion in `body` wins.
+const patch = async (id: number, path: string, body: object, cookie = staffCookie) => {
+  const current = await prisma.ticket.findUnique({ where: { id }, select: { version: true } });
+  return request(app)
+    .patch(`/api/tickets/${id}/${path}`)
+    .set("Cookie", cookie)
+    .send({ expectedVersion: current?.version ?? 1, ...body });
+};
 const saved = (id: number) => prisma.ticket.findUniqueOrThrow({ where: { id } });
+
+// Lab 4 §5.10 (BR-60): RESOLVED is offered only once the resolution gate is met,
+// so a Ticket whose expected transitions include RESOLVED first gets completed work.
+let actionSeq = 0;
+const completedAction = (ticketId: number) =>
+  prisma.actionTaken.create({
+    data: {
+      ticketId,
+      actionAt: new Date(),
+      description: "Fixture work.",
+      result: "Done.",
+      status: "COMPLETED",
+      performedById: staffId,
+      createdById: staffId,
+      clientRequestId: `${TOKEN}-done-${++actionSeq}`,
+    },
+  });
 
 beforeAll(async () => {
   requesterId = (await ensureUser(prisma, { email: "sdet.req@toktickit.test", role: "REQUESTER" })).id;
@@ -57,14 +82,10 @@ beforeAll(async () => {
   relatedSystemId = (await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })).id;
 });
 
+// Lab 4: a Ticket moved through the workflow now has append-only history (BR-33)
+// and cannot be deleted; the shared helper removes what it can.
 afterAll(async () => {
-  const ids = (await prisma.ticket.findMany({ where: { ticketNumber: { startsWith: TOKEN } }, select: { id: true } })).map(
-    (t) => t.id
-  );
-  await prisma.internalNote.deleteMany({ where: { ticketId: { in: ids } } });
-  await prisma.publicComment.deleteMany({ where: { ticketId: { in: ids } } });
-  await prisma.attachment.deleteMany({ where: { ticketId: { in: ids } } });
-  await prisma.ticket.deleteMany({ where: { id: { in: ids } } });
+  await removeTickets(prisma, { ticketNumber: { startsWith: TOKEN } });
   await prisma.$disconnect();
 });
 
@@ -73,7 +94,7 @@ it("API-20: claiming gives an unassigned ticket the claiming user as owner", asy
   const id = await ticket();
   const res = await patch(id, "owner", { ownerId: staffId });
   expect(res.status).toBe(200);
-  expect(res.body).toEqual({ id, owner: { id: staffId, name: expect.any(String) } });
+  expect(res.body).toEqual({ id, owner: { id: staffId, name: expect.any(String) }, version: 2 }); // Lab 4: + version
   expect((await saved(id)).ownerId).toBe(staffId);
 });
 
@@ -126,7 +147,7 @@ it("API-23: IT Priority changes while Requested Priority stays untouched", async
   const id = await ticket();
   const res = await patch(id, "it-priority", { itPriority: "HIGH" });
   expect(res.status).toBe(200);
-  expect(res.body).toEqual({ id, itPriority: "HIGH", requestedPriority: "MEDIUM" });
+  expect(res.body).toEqual({ id, itPriority: "HIGH", requestedPriority: "MEDIUM", version: 2 }); // Lab 4: + version
   const row = await saved(id);
   expect(row.itPriority).toBe("HIGH");
   expect(row.requestedPriority).toBe("MEDIUM");
@@ -140,12 +161,17 @@ it("API-23: IT Priority changes while Requested Priority stays untouched", async
 // API-24 — AC-37
 it("API-24: a permitted transition succeeds, persists, and returns the next permitted set", async () => {
   const id = await ticket("NEW");
+  await completedAction(id); // Lab 4 BR-60: RESOLVED is offered once the gate is met
   const res = await patch(id, "status", { status: "IN_PROGRESS" });
   expect(res.status).toBe(200);
   expect(res.body).toEqual({
     id,
     currentStatus: "IN_PROGRESS",
     permittedTransitions: ["WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
+    // Lab 4 additions (api-spec §3.2)
+    version: 2,
+    resolvedAt: null,
+    cancelledActions: 0,
   });
   expect((await saved(id)).currentStatus).toBe("IN_PROGRESS");
 });
@@ -155,7 +181,12 @@ it("API-25: RESOLVED → IN_PROGRESS returns 409 and leaves the status unchanged
   const id = await ticket("RESOLVED");
   const res = await patch(id, "status", { status: "IN_PROGRESS" });
   expect(res.status).toBe(409);
-  expect(res.body).toEqual({ error: "Cannot move a Resolved ticket to In Progress." });
+  // Lab 4 adds the conflict discriminator and the current state (api-spec §1.2).
+  expect(res.body).toEqual({
+    error: "Cannot move a Resolved ticket to In Progress.",
+    conflict: "transition",
+    current: expect.objectContaining({ currentStatus: "RESOLVED" }),
+  });
   expect((await saved(id)).currentStatus).toBe("RESOLVED");
 });
 
@@ -175,7 +206,11 @@ describe("API-26: nothing leaves a terminal ticket", () => {
     const id = await ticket("CLOSED");
     const res = await patch(id, "status", { status: to });
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ error: "This ticket is closed and can no longer be updated." });
+    expect(res.body).toEqual({
+      error: "This ticket is closed and can no longer be updated.",
+      conflict: "transition", // Lab 4 (api-spec §1.2)
+      current: expect.objectContaining({ currentStatus: "CLOSED" }),
+    });
     expect((await saved(id)).currentStatus).toBe("CLOSED");
   });
 
@@ -210,6 +245,7 @@ describe("status request validation", () => {
 // api-spec §3.2 — the staff body adds internalNotes and permittedTransitions.
 it("gives IT Staff the role-shaped detail with notes and permitted transitions", async () => {
   const id = await ticket("WAITING_FOR_REQUESTER", staffId);
+  await completedAction(id); // Lab 4 BR-60: RESOLVED is offered once the gate is met
   const res = await request(app).get(`/api/tickets/${id}`).set("Cookie", staffCookie);
   expect(res.status).toBe(200);
   expect(res.body).toMatchObject({

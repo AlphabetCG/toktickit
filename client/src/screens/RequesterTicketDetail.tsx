@@ -13,6 +13,7 @@ import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Bad
 import { AttachmentSection } from "../components/AttachmentSection.js";
 import { PublicComments } from "../components/PublicComments.js";
 import { ActionsTaken } from "../components/ActionsTaken.js";
+import { StatusHistory } from "../components/StatusHistory.js";
 import { Button } from "../components/Button.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
 
@@ -176,6 +177,8 @@ export function RequesterTicketDetail() {
 
       {/* Lab 4 §8: the work recorded on this ticket, read-only. */}
       <ActionsTaken ticketId={ticket.id} ticketStatus={ticket.currentStatus as TicketStatusValue} mode="requester" />
+      {/* Staff changes read "IT Support"; the Requester's own read "You" (BR-35). */}
+      <StatusHistory ticketId={ticket.id} viewer="requester" currentUserId={user?.id} />
 
       <AttachmentSection ticketId={ticket.id} initial={ticket.attachments} />
 

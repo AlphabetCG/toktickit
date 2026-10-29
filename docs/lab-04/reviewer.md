@@ -51,4 +51,17 @@ order (format, then stale, then merged rules), `ticketInactive` ahead of field
 errors on create, and a `clientRequestId` replay returning the original action
 even after the Ticket has become inactive. None was answered.
 
+### PR #58 — feat: Actions Taken UI on Ticket Detail (Issue #50 / Lab 4 Issue 4)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/58
+- **Base:** `lab4-staging` ← **Head:** `feature/4-actions-taken-ui`
+- **Review verdict:** `APPROVED` by @copter549365 at 14:03:12 UTC on 2026-10-29,
+  "เรียบร้อยดีครับ" (all good). Merged 8 seconds later, at 14:03:20 UTC.
+
+No inline comments. The PR asked three review-focus questions: treating a
+missing actions response as an empty list so the Lab 3 tests run unchanged, the
+mobile ⋯ menu as always-visible buttons inside `role="menu"`, and decision D-18
+(pill-shaped Ticket status badges). None was answered, so D-18 stands as my
+own decision with no peer comment.
+
 ## Direction B — @AlphabetCG reviews @copter549365

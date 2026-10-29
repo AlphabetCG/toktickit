@@ -34,10 +34,21 @@ type StaffProps = {
   currentUserId: number;
   /** Refetches the Ticket after a stale write, so its panels show the winner. */
   onTicketReload?: () => void;
+  /**
+   * Reports the list after every load (`mutated` false) and after every action
+   * write here (`mutated` true), so Ticket Detail can count open actions and
+   * refresh the resolution gate (Lab 4 ui-spec §7.4).
+   */
+  onActionsChange?: (actions: ActionTaken[], mutated: boolean) => void;
 };
 type RequesterProps = { mode: "requester" };
 
-type ActionsTakenProps = { ticketId: number; ticketStatus: TicketStatusValue } & (StaffProps | RequesterProps);
+type ActionsTakenProps = {
+  ticketId: number;
+  ticketStatus: TicketStatusValue;
+  /** Bumped by the parent when it changed actions itself, e.g. a Ticket cancel (BR-20). */
+  reloadKey?: number;
+} & (StaffProps | RequesterProps);
 
 /**
  * Actions Taken (ui-spec §7.2, §8). Staff record and progress work here; a
@@ -58,10 +69,15 @@ export function ActionsTaken(props: ActionsTakenProps) {
   const [conflict, setConflict] = useState<{ message: string; detail: string }>();
   const [opError, setOpError] = useState<string>();
 
+  function publish(list: ActionTaken[], mutated: boolean) {
+    setActions(list);
+    staff?.onActionsChange?.(list, mutated);
+  }
+
   async function fetchActions(): Promise<ActionTaken[]> {
     // A missing body is treated as no actions rather than a crash.
     const list = (await getActions(ticketId)) ?? [];
-    setActions(list);
+    publish(list, false);
     setLoad("ready");
     return list;
   }
@@ -71,7 +87,7 @@ export function ActionsTaken(props: ActionsTakenProps) {
     fetchActions().catch(() => setLoad("error"));
   }
 
-  useEffect(loadActions, [ticketId]);
+  useEffect(loadActions, [ticketId, props.reloadKey]);
 
   async function reloadAll(): Promise<ActionTaken[]> {
     staff?.onTicketReload?.();
@@ -79,7 +95,7 @@ export function ActionsTaken(props: ActionsTakenProps) {
   }
 
   function replace(updated: ActionTaken) {
-    setActions((list) => list.map((a) => (a.id === updated.id ? updated : a)));
+    publish(actions.map((a) => (a.id === updated.id ? updated : a)), true);
   }
 
   // Start, Complete, and Cancel from a row: one version-checked PATCH each.
@@ -114,12 +130,10 @@ export function ActionsTaken(props: ActionsTakenProps) {
 
   function onSaved(saved: ActionTaken) {
     setForm(null);
-    setActions((list) => {
-      const exists = list.some((a) => a.id === saved.id);
-      const next = exists ? list.map((a) => (a.id === saved.id ? saved : a)) : [...list, saved];
-      // Keep BR-12's order for a new or re-dated action.
-      return [...next].sort((a, b) => a.actionAt.localeCompare(b.actionAt) || a.id - b.id);
-    });
+    const exists = actions.some((a) => a.id === saved.id);
+    const next = exists ? actions.map((a) => (a.id === saved.id ? saved : a)) : [...actions, saved];
+    // Keep BR-12's order for a new or re-dated action.
+    publish([...next].sort((a, b) => a.actionAt.localeCompare(b.actionAt) || a.id - b.id), true);
   }
 
   const heading = load === "ready" ? `Actions Taken (${actions.length})` : "Actions Taken";

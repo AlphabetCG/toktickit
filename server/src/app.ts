@@ -52,6 +52,7 @@ import {
   type ActionValues,
   type ActionStatusValue,
 } from "./actionRules.js";
+import { evaluateResolutionGate, gatedTransitions } from "./resolutionGate.js";
 import type { Prisma } from "@prisma/client";
 
 // The Vite dev origin. A wildcard is incompatible with credentialed requests and
@@ -352,7 +353,7 @@ app.post("/api/tickets", requireAuth, requirePasswordChanged, requireRole("REQUE
     const year = new Date().getFullYear();
     const ticket = await prisma.$transaction(async (tx) => {
       const ticketNumber = await allocateTicketNumber(tx, year);
-      return tx.ticket.create({
+      const created = await tx.ticket.create({
         data: {
           ticketNumber,
           requesterId: req.user!.id,
@@ -373,6 +374,11 @@ app.post("/api/tickets", requireAuth, requirePasswordChanged, requireRole("REQUE
           requesterId: true,
         },
       });
+      // Lab 4 BR-32: creation is the first history entry, by the Requester.
+      await tx.ticketStatusChange.create({
+        data: { ticketId: created.id, fromStatus: null, toStatus: "NEW", changedById: req.user!.id },
+      });
+      return created;
     });
 
     res.status(201).json(ticket);
@@ -468,6 +474,8 @@ app.get("/api/tickets/:id", requireAuth, requirePasswordChanged, async (req: Req
         resolutionSignalledAt: true,
         createdAt: true,
         updatedAt: true,
+        version: true,
+        resolvedAt: true,
         requester: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } },
         relatedSystem: { select: { id: true, name: true } },
@@ -497,10 +505,19 @@ app.get("/api/tickets/:id", requireAuth, requirePasswordChanged, async (req: Req
       select: COMMENT_SELECT,
       orderBy: { createdAt: "asc" },
     });
+    // Computed on every staff read, even when RESOLVED is not reachable, so the
+    // UI can explain the rule in advance (api-spec §3.1, BR-28).
+    const resolutionGate = evaluateResolutionGate(
+      await getPrisma().actionTaken.findMany({
+        where: { ticketId: id },
+        select: { id: true, status: true, actionAt: true, followUpRequired: true },
+      })
+    );
     res.status(200).json({
       ...body,
       internalNotes: notes.map(serializeComment),
-      permittedTransitions: permittedTransitions(ticket.currentStatus as Status),
+      resolutionGate,
+      permittedTransitions: gatedTransitions(ticket.currentStatus as Status, resolutionGate.satisfied),
     });
   } catch {
     res.status(500).json({ error: "Unable to load ticket" });
@@ -905,11 +922,36 @@ app.get(
 
 const STAFF = ["IT_STAFF", "ADMINISTRATOR"] as const;
 
+// --- Ticket operations: version-checked (Lab 4, api-spec §3.2, §3.3) ---------
+
+const STALE_TICKET = "This ticket was changed by someone else. Reload to see the latest version.";
+const VERSION_MESSAGE = "Reload the ticket and try again.";
+
+// BR-39: every Ticket write sends the version the client last read.
+const isVersion = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v);
+
+// What a client needs to redraw after a stale write, and nothing it could not
+// already read (api-spec §1.1).
+async function ticketCurrent(tx: Prisma.TransactionClient, id: number) {
+  return tx.ticket.findUniqueOrThrow({
+    where: { id },
+    select: { version: true, currentStatus: true, itPriority: true, owner: { select: { id: true, name: true } } },
+  });
+}
+
+async function gateFor(tx: Prisma.TransactionClient, ticketId: number) {
+  const actions = await tx.actionTaken.findMany({
+    where: { ticketId },
+    select: { id: true, status: true, actionAt: true, followUpRequired: true },
+  });
+  return evaluateResolutionGate(actions);
+}
+
 // PATCH /api/tickets/:id/owner — claim (own id), reassign (another id), and release
 // (null) through one endpoint, since they are one state change on one field. Only
 // an active IT Staff or Administrator may own a ticket (BR-26, BR-28); a
 // deactivated owner keeps tickets already assigned (BR-29), so the rule applies
-// only to the new owner being written.
+// only to the new owner being written. Lab 4: version-checked (BR-61).
 app.patch(
   "/api/tickets/:id/owner",
   requireAuth,
@@ -929,8 +971,11 @@ app.patch(
         return;
       }
 
+      const fields: Record<string, string> = {};
+      const expectedVersion = req.body?.expectedVersion;
+      if (!isVersion(expectedVersion)) fields.expectedVersion = VERSION_MESSAGE;
       const raw = req.body?.ownerId;
-      let ownerId: number | null;
+      let ownerId: number | null = null;
       if (raw === null) {
         ownerId = null;
       } else if (Number.isInteger(raw) && raw > 0) {
@@ -945,25 +990,35 @@ app.patch(
             : !candidate.isActive
               ? "That user is deactivated."
               : null;
-        if (fieldError) {
-          res.status(400).json({ error: "Validation failed", fields: { ownerId: fieldError } });
-          return;
-        }
+        if (fieldError) fields.ownerId = fieldError;
         ownerId = raw;
       } else {
-        res.status(400).json({
-          error: "Validation failed",
-          fields: { ownerId: "Choose an owner, or null to release the ticket." },
-        });
+        fields.ownerId = "Choose an owner, or null to release the ticket.";
+      }
+      if (Object.keys(fields).length > 0) {
+        res.status(400).json({ error: "Validation failed", fields });
         return;
       }
 
-      const updated = await prisma.ticket.update({
-        where: { id },
-        data: { ownerId },
-        select: { id: true, owner: { select: { id: true, name: true } } },
+      const outcome = await prisma.$transaction(async (tx) => {
+        const written = await tx.ticket.updateMany({
+          where: { id, version: expectedVersion as number },
+          data: { ownerId, version: { increment: 1 } },
+        });
+        if (written.count === 0) return { ok: false as const, current: await ticketCurrent(tx, id) };
+        return {
+          ok: true as const,
+          ticket: await tx.ticket.findUniqueOrThrow({
+            where: { id },
+            select: { id: true, owner: { select: { id: true, name: true } }, version: true },
+          }),
+        };
       });
-      res.status(200).json(updated);
+      if (!outcome.ok) {
+        res.status(409).json({ error: STALE_TICKET, conflict: "stale", current: outcome.current });
+        return;
+      }
+      res.status(200).json(outcome.ticket);
     } catch {
       res.status(500).json({ error: "Unable to update the owner" });
     }
@@ -972,7 +1027,7 @@ app.patch(
 
 // PATCH /api/tickets/:id/it-priority — sets only IT Priority; Requested Priority is
 // immutable after creation, and both are returned so the caller can see they are
-// now independent (BR-30, AC-36).
+// now independent (BR-30, AC-36). Lab 4: version-checked (BR-61).
 app.patch(
   "/api/tickets/:id/it-priority",
   requireAuth,
@@ -991,28 +1046,45 @@ app.patch(
         res.status(404).json({ error: "Ticket not found" });
         return;
       }
+      const fields: Record<string, string> = {};
+      const expectedVersion = req.body?.expectedVersion;
+      if (!isVersion(expectedVersion)) fields.expectedVersion = VERSION_MESSAGE;
       const priorityError = validatePriority(req.body?.itPriority);
-      if (priorityError) {
-        res.status(400).json({ error: "Validation failed", fields: { itPriority: priorityError } });
+      if (priorityError) fields.itPriority = priorityError;
+      if (Object.keys(fields).length > 0) {
+        res.status(400).json({ error: "Validation failed", fields });
         return;
       }
-      const updated = await prisma.ticket.update({
-        where: { id },
-        data: { itPriority: req.body.itPriority },
-        select: { id: true, itPriority: true, requestedPriority: true },
+
+      const outcome = await prisma.$transaction(async (tx) => {
+        const written = await tx.ticket.updateMany({
+          where: { id, version: expectedVersion as number },
+          data: { itPriority: req.body.itPriority, version: { increment: 1 } },
+        });
+        if (written.count === 0) return { ok: false as const, current: await ticketCurrent(tx, id) };
+        return {
+          ok: true as const,
+          ticket: await tx.ticket.findUniqueOrThrow({
+            where: { id },
+            select: { id: true, itPriority: true, requestedPriority: true, version: true },
+          }),
+        };
       });
-      res.status(200).json(updated);
+      if (!outcome.ok) {
+        res.status(409).json({ error: STALE_TICKET, conflict: "stale", current: outcome.current });
+        return;
+      }
+      res.status(200).json(outcome.ticket);
     } catch {
       res.status(500).json({ error: "Unable to update the IT Priority" });
     }
   }
 );
 
-// PATCH /api/tickets/:id/status — the target must be reachable under the §5.7
-// matrix (BR-35); nothing leaves CLOSED or CANCELLED (BR-36). The write is a
-// compare-and-set on the status that was checked, so two staff members moving the
-// same ticket at once cannot both pass a stale check: the loser updates zero rows
-// and gets a 409 against the status that actually won (api-spec §6.3).
+// PATCH /api/tickets/:id/status — one transaction under a lock on the Ticket row
+// (api-spec §3.2): version, matrix, resolution gate (BR-25, BR-27), the write with
+// version + 1, resolvedAt (BR-31), the cancel cascade (BR-20), and one history
+// entry (BR-32). No refusal appends history (BR-36).
 app.patch(
   "/api/tickets/:id/status",
   requireAuth,
@@ -1025,6 +1097,7 @@ app.patch(
       return;
     }
     const target: unknown = req.body?.status;
+    const expectedVersion: unknown = req.body?.expectedVersion;
     try {
       const prisma = getPrisma();
       const ticket = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
@@ -1032,40 +1105,138 @@ app.patch(
         res.status(404).json({ error: "Ticket not found" });
         return;
       }
-      if (!isStatus(target)) {
-        res.status(400).json({ error: "Validation failed", fields: { status: "Choose a valid status." } });
+      const fields: Record<string, string> = {};
+      if (!isStatus(target)) fields.status = "Choose a valid status.";
+      if (!isVersion(expectedVersion)) fields.expectedVersion = VERSION_MESSAGE;
+      if (Object.keys(fields).length > 0) {
+        res.status(400).json({ error: "Validation failed", fields });
         return;
       }
+      const to = target as Status;
+      const version = expectedVersion as number;
 
-      const result = await prisma.$transaction(async (tx) => {
-        const read = async () =>
-          (await tx.ticket.findUniqueOrThrow({ where: { id }, select: { currentStatus: true } }))
-            .currentStatus as Status;
-        const current = await read();
-        if (isTerminal(current) || !isTransitionPermitted(current, target)) {
-          return { ok: false as const, from: current };
+      const outcome = await prisma.$transaction(async (tx) => {
+        await lockTicket(tx, id);
+        const current = await ticketCurrent(tx, id);
+        const from = current.currentStatus as Status;
+        if (current.version !== version) return { kind: "stale" as const, current };
+        if (isTerminal(from)) {
+          return { kind: "transition" as const, current, error: "This ticket is closed and can no longer be updated." };
         }
+        if (!isTransitionPermitted(from, to)) {
+          return {
+            kind: "transition" as const,
+            current,
+            error: `Cannot move a ${STATUS_LABEL[from]} ticket to ${STATUS_LABEL[to]}.`,
+          };
+        }
+        if (to === "RESOLVED") {
+          const gate = await gateFor(tx, id);
+          if (!gate.satisfied) return { kind: "gate" as const, unmet: gate.unmet };
+        }
+
+        // One instant for the status, resolvedAt, and the history entry (WF-07).
+        const now = new Date();
         const written = await tx.ticket.updateMany({
-          where: { id, currentStatus: current },
-          data: { currentStatus: target },
+          where: { id, version },
+          data: {
+            currentStatus: to,
+            version: { increment: 1 },
+            ...(to === "RESOLVED" ? { resolvedAt: now } : to === "REOPENED" ? { resolvedAt: null } : {}),
+          },
         });
-        if (written.count === 0) return { ok: false as const, from: await read() };
-        return { ok: true as const };
+        if (written.count === 0) return { kind: "stale" as const, current: await ticketCurrent(tx, id) };
+
+        // BR-20: no open work survives on a cancelled Ticket.
+        const cancelled =
+          to === "CANCELLED"
+            ? await tx.actionTaken.updateMany({
+                where: { ticketId: id, status: { in: ["PLANNED", "IN_PROGRESS"] } },
+                data: { status: "CANCELLED", version: { increment: 1 } },
+              })
+            : { count: 0 };
+
+        await tx.ticketStatusChange.create({
+          data: { ticketId: id, fromStatus: from, toStatus: to, changedById: req.user!.id, changedAt: now },
+        });
+
+        const after = await tx.ticket.findUniqueOrThrow({ where: { id }, select: { version: true, resolvedAt: true } });
+        const gate = await gateFor(tx, id);
+        return {
+          kind: "ok" as const,
+          body: {
+            id,
+            currentStatus: to,
+            version: after.version,
+            resolvedAt: after.resolvedAt,
+            permittedTransitions: gatedTransitions(to, gate.satisfied),
+            cancelledActions: cancelled.count,
+          },
+        };
       });
 
-      if (!result.ok) {
-        const error = isTerminal(result.from)
-          ? "This ticket is closed and can no longer be updated."
-          : `Cannot move a ${STATUS_LABEL[result.from]} ticket to ${STATUS_LABEL[target]}.`;
-        res.status(409).json({ error });
-        return;
+      switch (outcome.kind) {
+        case "stale":
+          res.status(409).json({ error: STALE_TICKET, conflict: "stale", current: outcome.current });
+          return;
+        case "transition":
+          res.status(409).json({ error: outcome.error, conflict: "transition", current: outcome.current });
+          return;
+        case "gate":
+          res.status(409).json({ error: "This ticket cannot be resolved yet.", conflict: "resolutionGate", unmet: outcome.unmet });
+          return;
+        case "ok":
+          res.status(200).json(outcome.body);
       }
-      res.status(200).json({ id, currentStatus: target, permittedTransitions: permittedTransitions(target) });
     } catch {
       res.status(500).json({ error: "Unable to change the status" });
     }
   }
 );
+
+// GET /api/tickets/:id/status-history — oldest first, by change time then id
+// (BR-34). Staff see who made each change; the owning Requester sees staff changes
+// as "staff" with no identity (BR-35). There is no write route: history is
+// append-only (BR-33), and any other method falls through to 404.
+app.get("/api/tickets/:id/status-history", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  try {
+    const user = req.user!;
+    const ticket = await findAccessibleTicket(id, user);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    const rows = await getPrisma().ticketStatusChange.findMany({
+      where: { ticketId: id },
+      orderBy: [{ changedAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        fromStatus: true,
+        toStatus: true,
+        changedAt: true,
+        changedBy: { select: { id: true, name: true, role: true } },
+      },
+    });
+    const items = rows.map(({ changedBy, ...entry }) => {
+      if (!changedBy) return { ...entry, actor: { kind: "system" } };
+      if (changedBy.role === "REQUESTER") {
+        return { ...entry, actor: { kind: "requester", id: changedBy.id, name: changedBy.name } };
+      }
+      return {
+        ...entry,
+        actor: user.role === "REQUESTER" ? { kind: "staff" } : { kind: "staff", id: changedBy.id, name: changedBy.name },
+      };
+    });
+    res.status(200).json({ items });
+  } catch {
+    res.status(500).json({ error: "Unable to load the status history" });
+  }
+});
 
 // --- Internal Notes: IT Staff and Administrator only (api-spec §5) -------------
 

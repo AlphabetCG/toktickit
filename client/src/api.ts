@@ -241,6 +241,20 @@ export interface TicketDetail {
   // keys entirely (api-spec §3.2, AC-40).
   internalNotes?: Comment[];
   permittedTransitions?: TicketStatusValue[];
+  /**
+   * Lab 4: the version the next Ticket write must send (api-spec §3.1). The API
+   * always sends both keys; they are optional in this type only so Requester-side
+   * fixtures written before Lab 4 still type-check without being edited (BR-57).
+   */
+  version?: number;
+  resolvedAt?: string | null;
+  /** Lab 4, staff only: why Resolved is or is not offered (BR-28). */
+  resolutionGate?: ResolutionGate;
+}
+
+export interface ResolutionGate {
+  satisfied: boolean;
+  unmet: { code: string; message: string }[];
 }
 
 export async function getTicket(id: number): Promise<TicketDetail> {
@@ -466,31 +480,43 @@ export async function postNote(ticketId: number, body: string): Promise<Note> {
 
 export async function setTicketOwner(
   ticketId: number,
-  ownerId: number | null
-): Promise<{ id: number; owner: { id: number; name: string } | null }> {
-  const res = await request(`/api/tickets/${ticketId}/owner`, jsonInit("PATCH", { ownerId }));
+  ownerId: number | null,
+  expectedVersion: number
+): Promise<{ id: number; owner: { id: number; name: string } | null; version: number }> {
+  const res = await request(`/api/tickets/${ticketId}/owner`, jsonInit("PATCH", { ownerId, expectedVersion }));
   await guard(res);
-  if (!res.ok) return operationFailure(res, "Unable to change the owner.");
+  if (!res.ok) return actionFailure(res, "Unable to change the owner.");
   return res.json();
 }
 
 export async function setItPriority(
   ticketId: number,
-  itPriority: RequestedPriority
-): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority }> {
-  const res = await request(`/api/tickets/${ticketId}/it-priority`, jsonInit("PATCH", { itPriority }));
+  itPriority: RequestedPriority,
+  expectedVersion: number
+): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority; version: number }> {
+  const res = await request(`/api/tickets/${ticketId}/it-priority`, jsonInit("PATCH", { itPriority, expectedVersion }));
   await guard(res);
-  if (!res.ok) return operationFailure(res, "Unable to change the IT Priority.");
+  if (!res.ok) return actionFailure(res, "Unable to change the IT Priority.");
   return res.json();
+}
+
+export interface StatusChangeResult {
+  id: number;
+  currentStatus: TicketStatusValue;
+  version: number;
+  resolvedAt: string | null;
+  permittedTransitions: TicketStatusValue[];
+  cancelledActions: number;
 }
 
 export async function setTicketStatus(
   ticketId: number,
-  status: TicketStatusValue
-): Promise<{ id: number; currentStatus: TicketStatusValue; permittedTransitions: TicketStatusValue[] }> {
-  const res = await request(`/api/tickets/${ticketId}/status`, jsonInit("PATCH", { status }));
+  status: TicketStatusValue,
+  expectedVersion: number
+): Promise<StatusChangeResult> {
+  const res = await request(`/api/tickets/${ticketId}/status`, jsonInit("PATCH", { status, expectedVersion }));
   await guard(res);
-  if (!res.ok) return operationFailure(res, "Unable to change the status.");
+  if (!res.ok) return actionFailure(res, "Unable to change the status.");
   return res.json();
 }
 
@@ -585,11 +611,14 @@ export interface ActionInput {
 export class ConflictError extends Error {
   conflict: string;
   current?: unknown;
-  constructor(message: string, conflict: string, current?: unknown) {
+  /** For `resolutionGate`: every unmet condition (BR-27). */
+  unmet?: { code: string; message: string }[];
+  constructor(message: string, conflict: string, current?: unknown, unmet?: { code: string; message: string }[]) {
     super(message);
     this.name = "ConflictError";
     this.conflict = conflict;
     this.current = current;
+    this.unmet = unmet;
   }
 }
 
@@ -597,7 +626,8 @@ async function actionFailure(res: Response, generic: string): Promise<never> {
   const body = await res.json().catch(() => ({}));
   if (res.status === 400) throw new ValidationError(body.fields ?? {}, generic);
   if (res.status === 409) {
-    throw new ConflictError(typeof body.error === "string" ? body.error : generic, body.conflict ?? "", body.current);
+    const message = typeof body.error === "string" ? body.error : generic;
+    throw new ConflictError(message, body.conflict ?? "", body.current, body.unmet);
   }
   throw new Error(generic);
 }
@@ -627,4 +657,22 @@ export async function updateAction(
   await guard(res);
   if (!res.ok) return actionFailure(res, "We couldn't update the action. Please try again.");
   return res.json();
+}
+
+// --- Status history (Lab 4, api-spec §3.5) ---------------------------------------
+
+export interface StatusHistoryEntry {
+  id: number;
+  fromStatus: TicketStatusValue | null;
+  toStatus: TicketStatusValue;
+  changedAt: string;
+  /** `staff` carries no id or name for a Requester (BR-35); `system` is a backfill. */
+  actor: { kind: "requester" | "staff" | "system"; id?: number; name?: string };
+}
+
+export async function getStatusHistory(ticketId: number): Promise<StatusHistoryEntry[]> {
+  const res = await request(`/api/tickets/${ticketId}/status-history`);
+  await guard(res);
+  if (!res.ok) throw new Error(`Status history request failed: HTTP ${res.status}`);
+  return (await res.json()).items;
 }

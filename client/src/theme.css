@@ -1454,3 +1454,74 @@ td .zg-signal-chip {
     border-top: var(--zg-border-w) solid var(--zg-border);
   }
 }
+
+/* ===================================================== Lab 4: ticket workflow */
+
+/* "To resolve this ticket:" under the status select (ui-spec §7.4). */
+.zg-gate {
+  margin-top: var(--zg-space-2);
+  padding: var(--zg-space-3);
+  border-left: 3px solid var(--zg-info);
+  background: var(--zg-info-surface);
+  border-radius: var(--zg-radius-sm);
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+.zg-gate__title {
+  margin: 0 0 var(--zg-space-1);
+  font-weight: var(--zg-fw-semibold);
+  color: var(--zg-text);
+}
+
+.zg-gate__list {
+  margin: 0;
+  padding-left: var(--zg-space-5);
+}
+
+/* Status history (§2.8, §7.5): read-only, oldest first. */
+.zg-history-panel {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+  background: var(--zg-field-readonly);
+}
+
+.zg-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.zg-history__entry {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) 12rem;
+  gap: var(--zg-space-3);
+  align-items: center;
+  padding: var(--zg-space-2) 0;
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+}
+
+.zg-history__when {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-history__change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-1);
+}
+
+.zg-history__system {
+  font-style: italic;
+  color: var(--zg-text-muted);
+}
+
+/* Mobile: the date sits on its own line above the change and the actor (§12). */
+@media (max-width: 767px) {
+  .zg-history__entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--zg-space-1);
+  }
+}
