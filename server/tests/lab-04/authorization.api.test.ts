@@ -3,11 +3,12 @@ import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import { app } from "../../src/app.js";
 import { ensureUser, loginCookie } from "../helpers/auth.js";
+import { removeTickets } from "../helpers/cleanup.js";
 
-// AUTHZ-01…AUTHZ-04, AUTHZ-06, AUTHZ-07 (docs/lab-04/tests.md §2.5) for the
-// Actions Taken routes of Issue #49. Every request goes straight to the API, so
-// the UI is bypassed entirely. The status-history half of AUTHZ-04, the resolve
-// step of AUTHZ-06, and the remaining AUTHZ-07 routes arrive with #51–#53.
+// AUTHZ-01…AUTHZ-04, AUTHZ-06…AUTHZ-08 (docs/lab-04/tests.md §2.5) for the
+// Actions Taken routes (#49) and the ticket workflow (#51). Every request goes
+// straight to the API, so the UI is bypassed entirely. AUTHZ-05 and the two
+// dashboard routes of AUTHZ-07 arrive with #52 and #53.
 const prisma = new PrismaClient();
 const TOKEN = `AZ4${Date.now()}`;
 
@@ -69,11 +70,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const ids = (
-    await prisma.ticket.findMany({ where: { ticketNumber: { startsWith: TOKEN } }, select: { id: true } })
-  ).map((t) => t.id);
-  await prisma.actionTaken.deleteMany({ where: { ticketId: { in: ids } } });
-  await prisma.ticket.deleteMany({ where: { id: { in: ids } } });
+  await removeTickets(prisma, { ticketNumber: { startsWith: TOKEN } });
   await prisma.$disconnect();
 });
 
@@ -135,20 +132,23 @@ it("AUTHZ-03: a Requester reads every action on their own Ticket without creator
   expect(staffView.text).not.toMatch(/@/);
 });
 
-// AUTHZ-04 — AC-22 (actions half; status history arrives with #51)
-it("AUTHZ-04: another Requester's actions are 404, identical to a missing Ticket", async () => {
-  const missing = await request(app).get(`/api/tickets/999999999/actions`).set("Cookie", owner.cookie);
-  const malformed = await request(app).get(`/api/tickets/abc/actions`).set("Cookie", owner.cookie);
-  const theirs = await request(app).get(`/api/tickets/${othersTicket}/actions`).set("Cookie", owner.cookie);
-  expect(theirs.status).toBe(404);
-  expect(theirs.text).toBe(missing.text);
-  expect(malformed.text).toBe(missing.text);
+// AUTHZ-04 — AC-22
+describe("AUTHZ-04: another Requester's actions and status history are 404, identical to a missing Ticket", () => {
+  it.each(["actions", "status-history"])("%s", async (resource) => {
+    const missing = await request(app).get(`/api/tickets/999999999/${resource}`).set("Cookie", owner.cookie);
+    const malformed = await request(app).get(`/api/tickets/abc/${resource}`).set("Cookie", owner.cookie);
+    const theirs = await request(app).get(`/api/tickets/${othersTicket}/${resource}`).set("Cookie", owner.cookie);
+    expect(theirs.status).toBe(404);
+    expect(theirs.text).toBe(missing.text);
+    expect(malformed.text).toBe(missing.text);
+  });
 });
 
-// AUTHZ-06 — AC-24 (action half; the resolve step arrives with #51)
-it("AUTHZ-06: an Administrator creates, edits, and completes an action as IT Staff does", async () => {
+// AUTHZ-06 — AC-24
+it("AUTHZ-06: an Administrator creates, edits, and completes an action and resolves the Ticket", async () => {
+  const ticketId = await fixtureTicket(owner.id, 3);
   const created = await request(app)
-    .post(`/api/tickets/${ownTicket}/actions`)
+    .post(`/api/tickets/${ticketId}/actions`)
     .set("Cookie", admin.cookie)
     .send({ ...actionBody, performedById: admin.id });
   expect(created.status).toBe(201);
@@ -166,15 +166,23 @@ it("AUTHZ-06: an Administrator creates, edits, and completes an action as IT Sta
     .send({ expectedVersion: 2, status: "COMPLETED", result: "Working again." });
   expect(done.status).toBe(200);
   expect(done.body).toMatchObject({ status: "COMPLETED", version: 3 });
+
+  const resolved = await request(app)
+    .patch(`/api/tickets/${ticketId}/status`)
+    .set("Cookie", admin.cookie)
+    .send({ status: "RESOLVED", expectedVersion: 1 });
+  expect(resolved.status).toBe(200);
+  expect(resolved.body.currentStatus).toBe("RESOLVED");
 });
 
-// AUTHZ-07 — §6.1 (the three Actions Taken routes; the other three new routes
-// are covered by their own Issues)
-describe("AUTHZ-07: gates on the Actions Taken routes", () => {
+// AUTHZ-07 — §6.1 (the four routes delivered so far; the two dashboards arrive
+// with #52 and #53)
+describe("AUTHZ-07: gates on the new routes", () => {
   const routes: [string, (r: ReturnType<typeof request>) => request.Test][] = [
     ["GET /api/tickets/:id/actions", (r) => r.get(`/api/tickets/${ownTicket}/actions`)],
     ["POST /api/tickets/:id/actions", (r) => r.post(`/api/tickets/${ownTicket}/actions`).send(actionBody)],
     ["PATCH /api/actions/:id", (r) => r.patch(`/api/actions/${ownAction}`).send({ expectedVersion: 1 })],
+    ["GET /api/tickets/:id/status-history", (r) => r.get(`/api/tickets/${ownTicket}/status-history`)],
   ];
 
   it.each(routes)("%s: no session → 401", async (_name, call) => {
@@ -187,4 +195,16 @@ describe("AUTHZ-07: gates on the Actions Taken routes", () => {
     expect(res.status).toBe(403);
     expect(res.body.passwordChangeRequired).toBe(true);
   });
+});
+
+// AUTHZ-08 — BR-23
+it("AUTHZ-08: a Requester never changes status, even on their own Ticket with a valid version", async () => {
+  const version = (await prisma.ticket.findUniqueOrThrow({ where: { id: ownTicket } })).version;
+  const res = await request(app)
+    .patch(`/api/tickets/${ownTicket}/status`)
+    .set("Cookie", owner.cookie)
+    .send({ status: "CANCELLED", expectedVersion: version });
+  expect(res.status).toBe(403);
+  const stored = await prisma.ticket.findUniqueOrThrow({ where: { id: ownTicket } });
+  expect(stored).toMatchObject({ currentStatus: "IN_PROGRESS", version });
 });

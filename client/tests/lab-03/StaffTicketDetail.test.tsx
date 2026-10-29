@@ -47,6 +47,10 @@ const ticket = (over: Partial<api.TicketDetail> = {}): api.TicketDetail => ({
   publicComments: [],
   internalNotes: [],
   permittedTransitions: ["WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
+  // Lab 4 §5.10 (BR-61): every Ticket write sends this version back.
+  version: 3,
+  resolvedAt: null,
+  resolutionGate: { satisfied: true, unmet: [] },
   ...over,
 });
 
@@ -74,11 +78,11 @@ describe("IT Staff Ticket Detail", () => {
     it("offers Claim when unassigned, and claiming sends the caller's own id", async () => {
       const user = userEvent.setup();
       getTicket.mockResolvedValue(ticket({ owner: null }));
-      setTicketOwner.mockResolvedValue({ id: 12, owner: { id: 4, name: "Anong Srisai" } });
+      setTicketOwner.mockResolvedValue({ id: 12, owner: { id: 4, name: "Anong Srisai" }, version: 4 });
       renderDetail();
 
       await user.click(await within(await screen.findByRole("region", { name: "Ticket Operations" })).findByRole("button", { name: "Claim" }));
-      expect(setTicketOwner).toHaveBeenCalledWith(12, 4);
+      expect(setTicketOwner).toHaveBeenCalledWith(12, 4, 3);
       expect(await within(operations()).findByRole("button", { name: "Release" })).toBeInTheDocument();
       expect(within(operations()).queryByRole("button", { name: "Claim" })).not.toBeInTheDocument();
     });
@@ -102,13 +106,13 @@ describe("IT Staff Ticket Detail", () => {
     it("reassigns through the owner select", async () => {
       const user = userEvent.setup();
       getTicket.mockResolvedValue(ticket({ owner: { id: 4, name: "Anong Srisai" } }));
-      setTicketOwner.mockResolvedValue({ id: 12, owner: { id: 9, name: "Kittipong Sae-Lim" } });
+      setTicketOwner.mockResolvedValue({ id: 12, owner: { id: 9, name: "Kittipong Sae-Lim" }, version: 4 });
       renderDetail();
 
       const select = await within(await screen.findByRole("region", { name: "Ticket Operations" })).findByLabelText("Owner");
       await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
       await user.selectOptions(select, "9");
-      expect(setTicketOwner).toHaveBeenCalledWith(12, 9);
+      expect(setTicketOwner).toHaveBeenCalledWith(12, 9, 3);
     });
   });
 
@@ -116,11 +120,11 @@ describe("IT Staff Ticket Detail", () => {
   it("UI-22: changing IT Priority issues the request; Requested Priority stays read-only", async () => {
     const user = userEvent.setup();
     getTicket.mockResolvedValue(ticket());
-    setItPriority.mockResolvedValue({ id: 12, itPriority: "HIGH", requestedPriority: "MEDIUM" });
+    setItPriority.mockResolvedValue({ id: 12, itPriority: "HIGH", requestedPriority: "MEDIUM", version: 4 });
     renderDetail();
 
     await user.selectOptions(await screen.findByLabelText("IT Priority"), "HIGH");
-    expect(setItPriority).toHaveBeenCalledWith(12, "HIGH");
+    expect(setItPriority).toHaveBeenCalledWith(12, "HIGH", 3);
 
     const info = screen.getByTestId("ticket-information");
     expect(within(info).getByText("Requested Priority")).toBeInTheDocument();
@@ -145,7 +149,7 @@ describe("IT Staff Ticket Detail", () => {
     it("requires confirmation before cancelling, and sends nothing until confirmed", async () => {
       const user = userEvent.setup();
       getTicket.mockResolvedValue(ticket());
-      setTicketStatus.mockResolvedValue({ id: 12, currentStatus: "CANCELLED", permittedTransitions: [] });
+      setTicketStatus.mockResolvedValue({ id: 12, currentStatus: "CANCELLED", permittedTransitions: [], version: 4, resolvedAt: null, cancelledActions: 0 });
       renderDetail();
 
       await user.selectOptions(await screen.findByLabelText("Status"), "CANCELLED");
@@ -156,7 +160,7 @@ describe("IT Staff Ticket Detail", () => {
       expect(setTicketStatus).not.toHaveBeenCalled();
 
       await user.click(within(dialog).getByRole("button", { name: "Cancel ticket" }));
-      expect(setTicketStatus).toHaveBeenCalledWith(12, "CANCELLED");
+      expect(setTicketStatus).toHaveBeenCalledWith(12, "CANCELLED", 3);
     });
 
     it("applies a non-terminal transition directly", async () => {
@@ -166,13 +170,16 @@ describe("IT Staff Ticket Detail", () => {
         id: 12,
         currentStatus: "RESOLVED",
         permittedTransitions: ["CLOSED", "REOPENED"],
+        version: 4,
+        resolvedAt: "2026-09-03T12:00:00.000Z",
+        cancelledActions: 0,
       });
       renderDetail();
 
       await user.selectOptions(await screen.findByLabelText("Status"), "RESOLVED");
       await user.click(within(operations()).getByRole("button", { name: "Apply" }));
 
-      expect(setTicketStatus).toHaveBeenCalledWith(12, "RESOLVED");
+      expect(setTicketStatus).toHaveBeenCalledWith(12, "RESOLVED", 3);
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       await waitFor(() =>
         expect(within(screen.getByLabelText("Status")).getAllByRole("option").map((o) => o.textContent)).toEqual([

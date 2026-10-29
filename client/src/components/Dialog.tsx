@@ -5,6 +5,8 @@ const FOCUSABLE =
 
 interface DialogProps {
   title: string;
+  /** Accessible name, when it must differ from the visible heading. */
+  label?: string;
   onClose: () => void;
   children: ReactNode;
   /** Receives focus when the dialog opens; defaults to the first focusable control. */
@@ -16,7 +18,7 @@ interface DialogProps {
  * Modal dialog (ui-spec §7.3, §11): labelled by its heading, traps Tab and
  * Shift+Tab inside, closes on Escape, and returns focus to whatever opened it.
  */
-export function Dialog({ title, onClose, children, initialFocus, className }: DialogProps) {
+export function Dialog({ title, label, onClose, children, initialFocus, className }: DialogProps) {
   const headingId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -58,7 +60,8 @@ export function Dialog({ title, onClose, children, initialFocus, className }: Di
         className={["zg-dialog", className].filter(Boolean).join(" ")}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={headingId}
+        aria-labelledby={label ? undefined : headingId}
+        aria-label={label}
       >
         <h3 id={headingId} className="zg-panel__heading">
           {title}
