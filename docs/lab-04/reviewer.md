@@ -38,4 +38,17 @@ pre-migration Tickets, `LAB4_USERS` kept apart from `USERS`, and seeded history
 written only when a Ticket has none. None of them received an answer, so this
 entry is again an approval without a substantive comment.
 
+### PR #57 — feat: Actions Taken API and authorization (Issue #49 / Lab 4 Issue 3)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/57
+- **Base:** `lab4-staging` ← **Head:** `feature/3-actions-taken-api`
+- **Review verdict:** `APPROVED` by @copter549365 at 21:12:43 UTC on 2026-10-28,
+  "ok สมบูรณ์ดีครับ" (ok, it's complete). Merged 16 seconds later, at 21:12:59 UTC.
+  Unlike PR #56, the approval came *before* the merge.
+
+No inline comments. The PR asked three review-focus questions: the PATCH error
+order (format, then stale, then merged rules), `ticketInactive` ahead of field
+errors on create, and a `clientRequestId` replay returning the original action
+even after the Ticket has become inactive. None was answered.
+
 ## Direction B — @AlphabetCG reviews @copter549365
