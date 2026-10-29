@@ -29,6 +29,7 @@ import { normalizeQueueQuery } from "./queueQuery.js";
 import { wouldKeepAnActiveAdmin } from "./adminRules.js";
 import {
   isStatus,
+  STATUSES,
   isTerminal,
   isTransitionPermitted,
   permittedTransitions,
@@ -53,6 +54,7 @@ import {
   type ActionStatusValue,
 } from "./actionRules.js";
 import { evaluateResolutionGate, gatedTransitions } from "./resolutionGate.js";
+import { ACTIVE_STATUSES, windowStart, cutText } from "./dashboardRules.js";
 import type { Prisma } from "@prisma/client";
 
 // The Vite dev origin. A wildcard is incompatible with credentialed requests and
@@ -834,6 +836,7 @@ app.get(
     const where: Prisma.TicketWhereInput = {
       ...ownerWhere,
       ...(q.status ? { currentStatus: q.status as Prisma.EnumTicketStatusFilter } : {}),
+      ...(q.statusGroup === "active" ? { currentStatus: { in: [...ACTIVE_STATUSES] } } : {}),
       ...(q.itPriority ? { itPriority: q.itPriority as Prisma.EnumRequestedPriorityFilter } : {}),
       ...(q.categoryId ? { categoryId: q.categoryId } : {}),
       ...(q.search
@@ -1857,5 +1860,174 @@ app.patch("/api/actions/:id", requireAuth, requirePasswordChanged, async (req: R
     }
   } catch {
     res.status(500).json({ error: "Unable to update the action" });
+  }
+});
+
+// --- IT Staff and Administrator dashboard (Lab 4, api-spec §6.1) -------------------
+
+const ACTIVE_IN = { in: [...ACTIVE_STATUSES] };
+const OPEN_ACTION_STATUSES = ["PLANNED", "IN_PROGRESS"] as const;
+const PRIORITY_KEYS = ["LOW", "MEDIUM", "HIGH"] as const;
+const ROLE_KEYS = ["REQUESTER", "IT_STAFF", "ADMINISTRATOR"] as const;
+
+const STAFF_TICKET_SUMMARY = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  currentStatus: true,
+  itPriority: true,
+  owner: { select: { id: true, name: true } },
+  ticketDate: true,
+  updatedAt: true,
+} satisfies Prisma.TicketSelect;
+
+const metric = (value: number, href: string | null) => ({ value, href });
+const staffTicketHref = (id: number) => `/staff/tickets/${id}`;
+
+// GET /api/dashboard/staff — every number is computed at request time with counts
+// and bounded queries, in one read transaction so the figures on one response
+// agree with each other (BR-47). "Me" is always the session user. Lists hold at
+// most five items in a deterministic order ending in id (BR-48); no Ticket
+// description is ever included.
+app.get("/api/dashboard/staff", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const user = req.user!;
+  if (user.role === "REQUESTER") {
+    res.status(403).json({ error: "This dashboard is for IT Staff." });
+    return;
+  }
+  try {
+    const now = new Date();
+    const me = user.id;
+    const myOpenActionsWhere: Prisma.ActionTakenWhereInput = {
+      performedById: me,
+      status: { in: [...OPEN_ACTION_STATUSES] },
+      ticket: { currentStatus: ACTIVE_IN },
+    };
+
+    const data = await getPrisma().$transaction(
+      async (tx) => {
+        const [unassignedOpen, mineOpen, myOpenActions, highPriorityOpen] = await Promise.all([
+          tx.ticket.count({ where: { ownerId: null, currentStatus: ACTIVE_IN } }),
+          tx.ticket.count({ where: { ownerId: me, currentStatus: ACTIVE_IN } }),
+          tx.actionTaken.count({ where: myOpenActionsWhere }),
+          tx.ticket.count({ where: { itPriority: "HIGH", currentStatus: ACTIVE_IN } }),
+        ]);
+        const [byStatusRows, byPriorityRows] = await Promise.all([
+          tx.ticket.groupBy({ by: ["currentStatus"], _count: { _all: true } }),
+          tx.ticket.groupBy({ by: ["itPriority"], where: { currentStatus: ACTIVE_IN }, _count: { _all: true } }),
+        ]);
+        const [myActions, urgent, recentlyUpdated] = await Promise.all([
+          tx.actionTaken.findMany({
+            where: myOpenActionsWhere,
+            orderBy: [{ actionAt: "asc" }, { id: "asc" }],
+            take: 5,
+            select: {
+              id: true,
+              status: true,
+              actionAt: true,
+              description: true,
+              ticket: { select: { id: true, ticketNumber: true, summary: true } },
+            },
+          }),
+          tx.ticket.findMany({
+            where: { itPriority: "HIGH", currentStatus: ACTIVE_IN },
+            orderBy: [{ ticketDate: "asc" }, { id: "asc" }],
+            take: 5,
+            select: STAFF_TICKET_SUMMARY,
+          }),
+          tx.ticket.findMany({
+            where: { updatedAt: { gte: windowStart(now, 7) } },
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            take: 5,
+            select: STAFF_TICKET_SUMMARY,
+          }),
+        ]);
+        const userCounts =
+          user.role === "ADMINISTRATOR"
+            ? await Promise.all([
+                tx.user.groupBy({ by: ["role"], where: { isActive: true }, _count: { _all: true } }),
+                tx.user.count({ where: { isActive: false } }),
+              ])
+            : null;
+        return {
+          unassignedOpen,
+          mineOpen,
+          myOpenActions,
+          highPriorityOpen,
+          byStatusRows,
+          byPriorityRows,
+          myActions,
+          urgent,
+          recentlyUpdated,
+          userCounts,
+        };
+      },
+      { isolationLevel: "RepeatableRead" }
+    );
+
+    // A status or priority with no Tickets is 0, never an omitted key (BR-50).
+    const byStatus = Object.fromEntries(
+      STATUSES.map((s) => [
+        s,
+        metric(data.byStatusRows.find((r) => r.currentStatus === s)?._count._all ?? 0, `/staff/tickets?status=${s}`),
+      ])
+    );
+    const openByItPriority = Object.fromEntries(
+      PRIORITY_KEYS.map((p) => [
+        p,
+        metric(
+          data.byPriorityRows.find((r) => r.itPriority === p)?._count._all ?? 0,
+          `/staff/tickets?itPriority=${p}&statusGroup=active`
+        ),
+      ])
+    );
+    const ticketSummary = (t: (typeof data.urgent)[number]) => ({ ...t, href: staffTicketHref(t.id) });
+
+    res.status(200).json({
+      generatedAt: now.toISOString(),
+      metrics: {
+        unassignedOpen: metric(data.unassignedOpen, "/staff/tickets?ownerId=unassigned&statusGroup=active"),
+        mineOpen: metric(data.mineOpen, "/staff/tickets?ownerId=me&statusGroup=active"),
+        // No list screen can express "my open actions"; the list rows carry links (BR-51).
+        myOpenActions: metric(data.myOpenActions, null),
+        highPriorityOpen: metric(data.highPriorityOpen, "/staff/tickets?itPriority=HIGH&statusGroup=active"),
+      },
+      byStatus,
+      openByItPriority,
+      myActions: {
+        items: data.myActions.map((a) => ({
+          id: a.id,
+          status: a.status,
+          actionAt: a.actionAt,
+          description: cutText(a.description),
+          ticket: a.ticket,
+          href: staffTicketHref(a.ticket.id),
+        })),
+      },
+      urgent: {
+        items: data.urgent.map(ticketSummary),
+        viewAllHref: "/staff/tickets?itPriority=HIGH&statusGroup=active&sort=ticketDate&order=asc",
+      },
+      recentlyUpdated: {
+        items: data.recentlyUpdated.map(ticketSummary),
+        viewAllHref: "/staff/tickets?sort=updatedAt&order=desc",
+      },
+      // Absent, not null, for IT Staff (AC-49).
+      ...(data.userCounts
+        ? {
+            userCounts: {
+              activeByRole: Object.fromEntries(
+                ROLE_KEYS.map((r) => [
+                  r,
+                  metric(data.userCounts![0].find((row) => row.role === r)?._count._all ?? 0, `/admin/users?role=${r}`),
+                ])
+              ),
+              inactive: metric(data.userCounts[1], null),
+            },
+          }
+        : {}),
+    });
+  } catch {
+    res.status(500).json({ error: "Unable to load the dashboard" });
   }
 });

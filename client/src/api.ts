@@ -676,3 +676,51 @@ export async function getStatusHistory(ticketId: number): Promise<StatusHistoryE
   if (!res.ok) throw new Error(`Status history request failed: HTTP ${res.status}`);
   return (await res.json()).items;
 }
+
+// --- Dashboards (Lab 4, api-spec §6) ------------------------------------------------
+
+/** One figure and the list that shows exactly its set; `href` null = no such list (BR-51). */
+export interface Metric {
+  value: number;
+  href: string | null;
+}
+
+export interface StaffTicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatusValue;
+  itPriority: RequestedPriority;
+  owner: { id: number; name: string } | null;
+  ticketDate: string;
+  updatedAt: string;
+  href: string;
+}
+
+export interface ActionSummary {
+  id: number;
+  status: ActionStatus;
+  actionAt: string;
+  description: string;
+  ticket: { id: number; ticketNumber: string; summary: string };
+  href: string;
+}
+
+export interface StaffDashboardData {
+  generatedAt: string;
+  metrics: { unassignedOpen: Metric; mineOpen: Metric; myOpenActions: Metric; highPriorityOpen: Metric };
+  byStatus: Record<TicketStatusValue, Metric>;
+  openByItPriority: Record<RequestedPriority, Metric>;
+  myActions: { items: ActionSummary[] };
+  urgent: { items: StaffTicketSummary[]; viewAllHref: string };
+  recentlyUpdated: { items: StaffTicketSummary[]; viewAllHref: string };
+  /** Administrators only; the key is absent for IT Staff (AC-49). */
+  userCounts?: { activeByRole: Record<Role, Metric>; inactive: Metric };
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  const res = await request("/api/dashboard/staff");
+  await guard(res);
+  if (!res.ok) throw new Error(`Dashboard request failed: HTTP ${res.status}`);
+  return res.json();
+}

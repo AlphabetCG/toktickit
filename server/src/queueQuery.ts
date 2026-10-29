@@ -15,6 +15,8 @@ export type OwnerFilter = { kind: "user"; id: number } | { kind: "unassigned" } 
 export interface NormalizedQueueQuery {
   search?: string;
   status?: string;
+  /** Lab 4 (api-spec §4): `active` = the five active statuses; an explicit status wins. */
+  statusGroup?: "active";
   itPriority?: string;
   categoryId?: number;
   owner?: OwnerFilter;
@@ -38,10 +40,13 @@ function toOwner(raw: unknown): OwnerFilter | undefined {
 export function normalizeQueueQuery(q: Record<string, unknown>): NormalizedQueueQuery {
   const search = typeof q.search === "string" ? q.search.trim() : "";
   const pageSize = toPositiveInt(q.pageSize);
+  const status =
+    typeof q.status === "string" && (TICKET_STATUSES as readonly string[]).includes(q.status) ? q.status : undefined;
 
   return {
     search: search.length > 0 ? search : undefined,
-    status: typeof q.status === "string" && (TICKET_STATUSES as readonly string[]).includes(q.status) ? q.status : undefined,
+    status,
+    statusGroup: !status && q.statusGroup === "active" ? "active" : undefined,
     itPriority: typeof q.itPriority === "string" && PRIORITIES.includes(q.itPriority) ? q.itPriority : undefined,
     categoryId: toPositiveInt(q.categoryId),
     owner: toOwner(q.ownerId),
