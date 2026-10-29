@@ -1174,3 +1174,283 @@ td .zg-signal-chip {
   margin-bottom: var(--zg-space-4);
   border-top: var(--zg-border-w) solid var(--zg-border);
 }
+
+/* ===================================================== Lab 4: Actions Taken */
+
+/* Action-status badge (ui-spec §2.5). The text carries the meaning; Cancelled is
+   struck through as well as saying so. */
+[class*="zg-badge--action-"] {
+  border-radius: var(--zg-radius-sm);
+}
+
+/* Ticket status badges are pills, so a square action badge beside one can never
+   be read as a Ticket status (ui-spec §2.5; decided 2026-10-29, Issue #50). */
+[class*="zg-badge--status-"] {
+  border-radius: 999px;
+}
+
+.zg-badge--action-planned {
+  background: transparent;
+  color: var(--zg-text-muted);
+  box-shadow: inset 0 0 0 var(--zg-border-w) var(--zg-border-strong);
+}
+
+.zg-badge--action-in-progress {
+  background: var(--zg-info-surface);
+  color: var(--zg-info);
+}
+
+.zg-badge--action-completed {
+  background: var(--zg-pale);
+  color: var(--zg-success);
+}
+
+.zg-badge--action-cancelled {
+  background: var(--zg-disabled-bg);
+  color: var(--zg-text-muted);
+  text-decoration: line-through;
+}
+
+/* Follow-up chip (§2.6): the only warning-coloured element in an action row. */
+.zg-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--zg-space-1) var(--zg-space-3);
+  border-radius: var(--zg-radius-sm);
+  font-size: var(--zg-fs-small);
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-chip--follow-up {
+  background: var(--zg-warning-surface);
+  color: var(--zg-warning);
+}
+
+/* Conflict banner (§2.7): at the top of the panel whose write failed. */
+.zg-callout--conflict {
+  justify-content: space-between;
+  background: var(--zg-warning-surface);
+  border-color: var(--zg-warning);
+  color: var(--zg-text);
+  margin-bottom: var(--zg-space-3);
+}
+
+/* The section (§7.1, §7.2). */
+.zg-actions {
+  text-align: left;
+  margin-top: var(--zg-space-6);
+}
+
+.zg-actions__title {
+  margin: 0;
+  border: none;
+}
+
+.zg-actions__inactive {
+  margin: var(--zg-space-2) 0 0;
+}
+
+.zg-actions__empty p {
+  margin: var(--zg-space-2) 0 0;
+}
+
+.zg-actions__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Desktop: a four-column table with the details beneath each row. */
+.zg-actions__head,
+.zg-action-row {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) 11rem 8rem;
+  column-gap: var(--zg-space-3);
+}
+
+.zg-actions__head {
+  margin-top: var(--zg-space-4);
+  padding: var(--zg-space-2) var(--zg-space-3);
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+  font-size: var(--zg-fs-label);
+  font-weight: var(--zg-fw-medium);
+  color: var(--zg-text-muted);
+}
+
+.zg-action-row {
+  padding: var(--zg-space-3);
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+  align-items: start;
+}
+
+/* Completed, Cancelled, and every Requester row are a record (STYLE-04). */
+.zg-action-row--readonly {
+  background: var(--zg-field-readonly);
+}
+
+.zg-action-row__main {
+  min-width: 0;
+}
+
+.zg-action-row__main p,
+.zg-action-row__follow-up p {
+  margin: 0 0 var(--zg-space-1);
+  overflow-wrap: anywhere;
+}
+
+.zg-action-row__description {
+  font-weight: var(--zg-fw-medium);
+}
+
+.zg-action-row__when,
+.zg-action-row__files,
+.zg-action-row__recorded {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-action-row__follow-up {
+  margin: var(--zg-space-2) 0;
+}
+
+/* The column header names Performed by on desktop; the cards name it inline. */
+.zg-action-row__performer .zg-action-row__label {
+  display: none;
+}
+
+.zg-action-row__label {
+  color: var(--zg-text-muted);
+}
+
+.zg-action-row__controls {
+  position: relative;
+  grid-column: 2 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--zg-space-2);
+  margin-top: var(--zg-space-2);
+}
+
+/* The "⋯" menu (§7.2, §11): a popup on tablet and desktop. */
+.zg-action-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  flex-direction: column;
+  gap: var(--zg-space-1);
+  min-width: 11rem;
+  padding: var(--zg-space-2);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-md);
+  box-shadow: var(--zg-shadow);
+}
+
+.zg-action-menu--open {
+  display: flex;
+}
+
+/* Tablet: Performed by folds under the date (§12). */
+@media (min-width: 768px) and (max-width: 991px) {
+  .zg-actions__head,
+  .zg-action-row {
+    grid-template-columns: 9rem minmax(0, 1fr) 8rem;
+  }
+
+  .zg-actions__head span:nth-child(3) {
+    display: none;
+  }
+
+  .zg-action-row__performer {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: var(--zg-fs-small);
+  }
+}
+
+/* Mobile: one card per action, controls full width (§12). */
+@media (max-width: 767px) {
+  .zg-actions__head {
+    display: none;
+  }
+
+  .zg-action-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--zg-space-2);
+    margin-top: var(--zg-space-3);
+    border: var(--zg-border-w) solid var(--zg-border);
+    border-radius: var(--zg-radius-md);
+  }
+
+  .zg-action-row__status {
+    order: -1;
+  }
+
+  .zg-action-row__performer .zg-action-row__label {
+    display: inline;
+  }
+
+  .zg-action-row__controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .zg-action-menu__toggle {
+    display: none;
+  }
+
+  .zg-action-menu {
+    display: flex;
+    position: static;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+}
+
+/* The action form dialog (§7.3): 40 rem, a full-screen sheet on mobile. */
+.zg-dialog.zg-action-form {
+  max-width: 40rem;
+  max-height: calc(100vh - 2 * var(--zg-space-4));
+  overflow-y: auto;
+}
+
+.zg-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zg-space-2);
+  min-height: var(--zg-control-h);
+  font-size: var(--zg-fs-label);
+  font-weight: var(--zg-fw-medium);
+}
+
+@media (max-width: 767px) {
+  .zg-dialog-backdrop:has(.zg-action-form) {
+    padding: 0;
+  }
+
+  .zg-dialog.zg-action-form {
+    max-width: none;
+    height: 100vh;
+    max-height: none;
+    padding-bottom: 0;
+    border-radius: 0;
+  }
+
+  /* Edge to edge over the sheet's side padding, so nothing scrolls into view
+     beneath or beside the bar. */
+  .zg-action-form__actions {
+    position: sticky;
+    bottom: 0;
+    margin: 0 calc(-1 * var(--zg-space-5));
+    padding: var(--zg-space-3) var(--zg-space-5);
+    background: var(--zg-surface);
+    border-top: var(--zg-border-w) solid var(--zg-border);
+  }
+}

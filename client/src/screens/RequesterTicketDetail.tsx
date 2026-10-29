@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTicket, signalResolution, NotFoundError, SIGNAL_FAILED_MESSAGE, type TicketDetail } from "../api.js";
+import {
+  getTicket,
+  signalResolution,
+  NotFoundError,
+  SIGNAL_FAILED_MESSAGE,
+  type TicketDetail,
+  type TicketStatusValue,
+} from "../api.js";
 import { useAuth } from "../auth.js";
 import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
 import { AttachmentSection } from "../components/AttachmentSection.js";
 import { PublicComments } from "../components/PublicComments.js";
+import { ActionsTaken } from "../components/ActionsTaken.js";
 import { Button } from "../components/Button.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
 
@@ -165,6 +173,9 @@ export function RequesterTicketDetail() {
           <dd className="zg-info__value zg-detail-text">{ticket.description}</dd>
         </div>
       </div>
+
+      {/* Lab 4 §8: the work recorded on this ticket, read-only. */}
+      <ActionsTaken ticketId={ticket.id} ticketStatus={ticket.currentStatus as TicketStatusValue} mode="requester" />
 
       <AttachmentSection ticketId={ticket.id} initial={ticket.attachments} />
 

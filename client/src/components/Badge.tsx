@@ -86,3 +86,29 @@ const ROLE_CLASS: Record<UserRole, string> = {
 export function RoleBadge({ value }: { value: UserRole }) {
   return <span className={`zg-badge zg-badge--role-${ROLE_CLASS[value]}`}>{ROLE_LABEL[value]}</span>;
 }
+
+// Action-status badge (Lab 4 ui-spec §2.5): square corners so an action status is
+// never mistaken for a Ticket status in the same panel; the text carries meaning.
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+const ACTION_LABEL: Record<ActionStatus, string> = {
+  PLANNED: "Planned",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const ACTION_CLASS: Record<ActionStatus, string> = {
+  PLANNED: "planned",
+  IN_PROGRESS: "in-progress",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+};
+
+export function actionStatusLabel(value: ActionStatus): string {
+  return ACTION_LABEL[value];
+}
+
+export function ActionStatusBadge({ value }: { value: ActionStatus }) {
+  return <span className={`zg-badge zg-badge--action-${ACTION_CLASS[value]}`}>{ACTION_LABEL[value]}</span>;
+}

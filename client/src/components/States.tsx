@@ -38,16 +38,18 @@ export function EmptyState({ heading, body, action }: EmptyStateProps) {
 interface ErrorCalloutProps {
   message: string;
   onRetry?: () => void;
+  /** Lab 4 regions say "Try again" (ui-spec §4); Lab 3 screens keep "Retry". */
+  retryLabel?: string;
 }
 
 /** Safe message only — never a status code or stack trace (BR-47). */
-export function ErrorCallout({ message, onRetry }: ErrorCalloutProps) {
+export function ErrorCallout({ message, onRetry, retryLabel = "Retry" }: ErrorCalloutProps) {
   return (
     <div className="zg-callout" role="alert">
       <span>{message}</span>
       {onRetry && (
         <Button variant="secondary" onClick={onRetry}>
-          Retry
+          {retryLabel}
         </Button>
       )}
     </div>

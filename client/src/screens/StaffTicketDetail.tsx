@@ -18,6 +18,7 @@ import { PriorityBadge, StatusBadge, statusLabel } from "../components/Badge.js"
 import { AttachmentSection } from "../components/AttachmentSection.js";
 import { PublicComments } from "../components/PublicComments.js";
 import { InternalNotes } from "../components/InternalNotes.js";
+import { ActionsTaken } from "../components/ActionsTaken.js";
 import { Button } from "../components/Button.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
 
@@ -272,6 +273,16 @@ export function StaffTicketDetail() {
           </div>
         </div>
       )}
+
+      {/* Lab 4 §7.1: recording work comes right after taking the Ticket. */}
+      <ActionsTaken
+        ticketId={ticket.id}
+        ticketStatus={status}
+        mode="staff"
+        assignees={assignees}
+        currentUserId={user?.id ?? 0}
+        onTicketReload={() => void getTicket(ticketId).then(setTicket).catch(() => undefined)}
+      />
 
       <AttachmentSection ticketId={ticket.id} initial={ticket.attachments} />
       <PublicComments ticketId={ticket.id} disabledReason={terminal ? CLOSED_REASON : undefined} />
