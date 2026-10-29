@@ -350,6 +350,9 @@ are still cut one at a time from `lab4-staging` after the previous Issue merges
 script is `server/prisma/rollback/lab4_down.sql`. #49 merged (PR #57);
 its pure rules are `server/src/actionRules.ts`. #50 merged (PR #58);
 its reusable focus-trapping dialog is `client/src/components/Dialog.tsx`. #51
-ticket workflow in review; its gate is `server/src/resolutionGate.ts`, and test
-Tickets with status history are cleaned up via `server/tests/helpers/cleanup.ts`.
-**Next:** #52 starts after #51 merges.
+merged (PR #59); its gate is `server/src/resolutionGate.ts`, and test Tickets with
+status history are cleaned up via `server/tests/helpers/cleanup.ts`. #52 staff
+dashboard in review: IT Staff and Administrators land on `/dashboard`; the Queue
+and User Management read their filters from the URL. The Requester's dashboard,
+landing, and `statusGroup` on `GET /api/tickets` come with #53.
+**Next:** #53 starts after #52 merges.
