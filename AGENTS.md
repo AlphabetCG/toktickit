@@ -348,6 +348,8 @@ are still cut one at a time from `lab4-staging` after the previous Issue merges
 
 **Lab 4 progress:** #47 merged (PR #55). #48 merged (PR #56); its rollback
 script is `server/prisma/rollback/lab4_down.sql`. #49 merged (PR #57);
-its pure rules are `server/src/actionRules.ts`. #50 Actions Taken UI in review;
-its reusable focus-trapping dialog is `client/src/components/Dialog.tsx`.
-**Next:** #51 starts after #50 merges.
+its pure rules are `server/src/actionRules.ts`. #50 merged (PR #58);
+its reusable focus-trapping dialog is `client/src/components/Dialog.tsx`. #51
+ticket workflow in review; its gate is `server/src/resolutionGate.ts`, and test
+Tickets with status history are cleaned up via `server/tests/helpers/cleanup.ts`.
+**Next:** #52 starts after #51 merges.

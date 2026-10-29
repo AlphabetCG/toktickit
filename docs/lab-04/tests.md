@@ -76,8 +76,8 @@ row counts of a shared database, and authenticates through
 | UNIT-01 | Unit | AC-11, AC-13, BR-14 | Action status transitions | All 16 cells of the action matrix: the five permitted transitions accepted, every other cell and every move out of Completed or Cancelled rejected | `server/tests/lab-04/action-rules.unit.test.ts` | Pass |
 | UNIT-02 | Unit | AC-06, AC-07, AC-08, AC-10, BR-06…BR-09 | Action field validation | Description `"   "`/0 rejected, 1 and 2000 accepted, 2001 rejected; Result required only for Completed; Follow-up Note required when follow-up is yes and discarded when no; Attachment Notes 500 accepted, 501 rejected | `server/tests/lab-04/action-rules.unit.test.ts` | Pass |
 | UNIT-03 | Unit | AC-09, BR-10 | Action Date/Time rules | Earlier than Ticket Date rejected; future accepted only while Planned; `now + 5 min` accepted and `now + 5 min + 1 s` rejected for a started or completed action | `server/tests/lab-04/action-rules.unit.test.ts` | Pass |
-| UNIT-04 | Unit | AC-26, AC-27, AC-28, BR-25, BR-26 | Resolution gate function | No Completed → unmet `noCompletedAction`; an open action → unmet `openAction`; latest Completed requests follow-up → unmet `followUpOutstanding`; a newer Completed without follow-up satisfies it; equal `actionAt` resolved by id | `server/tests/lab-04/resolution-gate.unit.test.ts` | Planned |
-| UNIT-05 | Unit | AC-25, AC-29, BR-28 | Gate-aware permitted transitions | With the gate met, results equal Lab 3's matrix for every status; with it unmet, `RESOLVED` is removed and nothing else changes | `server/tests/lab-04/resolution-gate.unit.test.ts` | Planned |
+| UNIT-04 | Unit | AC-26, AC-27, AC-28, BR-25, BR-26 | Resolution gate function | No Completed → unmet `noCompletedAction`; an open action → unmet `openAction`; latest Completed requests follow-up → unmet `followUpOutstanding`; a newer Completed without follow-up satisfies it; equal `actionAt` resolved by id | `server/tests/lab-04/resolution-gate.unit.test.ts` | Pass |
+| UNIT-05 | Unit | AC-25, AC-29, BR-28 | Gate-aware permitted transitions | With the gate met, results equal Lab 3's matrix for every status; with it unmet, `RESOLVED` is removed and nothing else changes | `server/tests/lab-04/resolution-gate.unit.test.ts` | Pass |
 | UNIT-06 | Unit | AC-47, BR-49 | Rolling window | A timestamp exactly `now − 168 h` is inside *last 7 days*; `now − 168 h − 1 min` is outside; same for 30 days | `server/tests/lab-04/dashboard-rules.unit.test.ts` | Planned |
 | UNIT-07 | Unit | BR-46, FR-16 | Active set and `statusGroup` | The active set is exactly the five statuses; `statusGroup=active` normalises, an invalid value falls back to none, and an explicit `status` wins over the group | `server/tests/lab-04/dashboard-rules.unit.test.ts` | Planned |
 
@@ -127,22 +127,22 @@ row counts of a shared database, and authenticates through
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| WF-01 | Workflow | AC-25, BR-22 | Every matrix cell | With the gate satisfied, all 64 from/to pairs: ✅ cells 200, every other cell 409 and the status unchanged | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-02 | Workflow | AC-26, FR-07 | Gate — no completed work | `→ RESOLVED` on a Ticket with no Completed action: 409, `conflict: "resolutionGate"`, `unmet` contains `noCompletedAction`; status unchanged | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-03 | Workflow | AC-27 | Gate — open action | A Completed plus a Planned action: 409 naming `openAction` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-04 | Workflow | AC-28, BR-26 | Gate — follow-up | Latest Completed requests follow-up: 409 naming `followUpOutstanding`; after a newer Completed action without follow-up, the same request is 200 | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-05 | Workflow | AC-29, BR-28 | Detail exposes the gate | `GET /api/tickets/:id` returns `resolutionGate.satisfied` and `unmet`, and omits `RESOLVED` from `permittedTransitions` until satisfied | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-06 | Workflow | AC-31, BR-30 | Signal is advisory | A Requester's resolution signal on a Ticket with no actions leaves the status unchanged and the gate unmet | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-07 | Workflow | AC-32, BR-31 | `resolvedAt` | Set on `→ RESOLVED`, cleared on `→ REOPENED`, kept on `RESOLVED → CLOSED`, and equal to the matching history entry's time | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-08 | Workflow | AC-16, BR-20 | Cancel cascades | Cancelling a Ticket with Planned, In Progress, and Completed actions cancels the first two and leaves the Completed one untouched, in one transaction | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-09 | Workflow | AC-33, BR-32 | History entries | Create, then NEW → OPEN → IN_PROGRESS: three entries in order, first by the Requester with empty *from*, then by the acting staff member | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-10 | Workflow | AC-34, BR-36 | Refusals append nothing | A 409 (matrix or gate), a 403 (Requester), and a 404 leave the history count unchanged | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-11 | Workflow | AC-36, BR-35 | Role-shaped history | Staff see actor names; the Requester sees "IT Support" for staff changes and the response contains no staff name or email | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-12 | Workflow | BR-29 | Legacy and reopened Tickets | A Resolved Ticket with no actions keeps its status; once Reopened it must satisfy the gate again before `→ RESOLVED` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WF-13 | Concurrency | AC-37, BR-40, BR-41 | Stale ticket writes | For status, owner, and IT Priority: two parallel PATCHes with the same `expectedVersion` → exactly one 200; the other 409 `conflict: "stale"` with `current.version` and current values | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
+| WF-01 | Workflow | AC-25, BR-22 | Every matrix cell | With the gate satisfied, all 64 from/to pairs: ✅ cells 200, every other cell 409 and the status unchanged | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-02 | Workflow | AC-26, FR-07 | Gate — no completed work | `→ RESOLVED` on a Ticket with no Completed action: 409, `conflict: "resolutionGate"`, `unmet` contains `noCompletedAction`; status unchanged | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-03 | Workflow | AC-27 | Gate — open action | A Completed plus a Planned action: 409 naming `openAction` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-04 | Workflow | AC-28, BR-26 | Gate — follow-up | Latest Completed requests follow-up: 409 naming `followUpOutstanding`; after a newer Completed action without follow-up, the same request is 200 | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-05 | Workflow | AC-29, BR-28 | Detail exposes the gate | `GET /api/tickets/:id` returns `resolutionGate.satisfied` and `unmet`, and omits `RESOLVED` from `permittedTransitions` until satisfied | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-06 | Workflow | AC-31, BR-30 | Signal is advisory | A Requester's resolution signal on a Ticket with no actions leaves the status unchanged and the gate unmet | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-07 | Workflow | AC-32, BR-31 | `resolvedAt` | Set on `→ RESOLVED`, cleared on `→ REOPENED`, kept on `RESOLVED → CLOSED`, and equal to the matching history entry's time | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-08 | Workflow | AC-16, BR-20 | Cancel cascades | Cancelling a Ticket with Planned, In Progress, and Completed actions cancels the first two and leaves the Completed one untouched, in one transaction | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-09 | Workflow | AC-33, BR-32 | History entries | Create, then NEW → OPEN → IN_PROGRESS: three entries in order, first by the Requester with empty *from*, then by the acting staff member | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-10 | Workflow | AC-34, BR-36 | Refusals append nothing | A 409 (matrix or gate), a 403 (Requester), and a 404 leave the history count unchanged | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-11 | Workflow | AC-36, BR-35 | Role-shaped history | Staff see actor names; the Requester sees "IT Support" for staff changes and the response contains no staff name or email | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-12 | Workflow | BR-29 | Legacy and reopened Tickets | A Resolved Ticket with no actions keeps its status; once Reopened it must satisfy the gate again before `→ RESOLVED` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WF-13 | Concurrency | AC-37, BR-40, BR-41 | Stale ticket writes | For status, owner, and IT Priority: two parallel PATCHes with the same `expectedVersion` → exactly one 200; the other 409 `conflict: "stale"` with `current.version` and current values | `server/tests/lab-04/concurrency.api.test.ts` | Pass |
 | WF-14 | Concurrency | AC-38 | Stale action edits | Two parallel edits of one action at the same version → one 200, one 409; the row holds only the winner's values | `server/tests/lab-04/concurrency.api.test.ts` | Pass |
-| WF-15 | Concurrency | AC-39, BR-39 | Version is required | Status, owner, and IT Priority PATCH without `expectedVersion`, or with `"1"`, → 400 naming `expectedVersion` | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
-| WF-16 | Concurrency | AC-41, BR-27 | Gate under a race | 20 rounds of a Planned-action create in parallel with `→ RESOLVED` on a gate-satisfied Ticket: never a Resolved Ticket holding an open action | `server/tests/lab-04/concurrency.api.test.ts` | Planned |
+| WF-15 | Concurrency | AC-39, BR-39 | Version is required | Status, owner, and IT Priority PATCH without `expectedVersion`, or with `"1"`, → 400 naming `expectedVersion` | `server/tests/lab-04/concurrency.api.test.ts` | Pass |
+| WF-16 | Concurrency | AC-41, BR-27 | Gate under a race | 20 rounds of a Planned-action create in parallel with `→ RESOLVED` on a gate-satisfied Ticket: never a Resolved Ticket holding an open action | `server/tests/lab-04/concurrency.api.test.ts` | Pass |
 
 ### 2.5 Authorization
 
@@ -151,11 +151,11 @@ row counts of a shared database, and authenticates through
 | AUTHZ-01 | Authorization | AC-20, BR-17 | Requester writes on own Ticket | Create, edit, and status change of an action on the Requester's own Ticket → 403; nothing written | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-02 | Authorization | AC-20 | Requester writes on another's Ticket | The same requests on another Requester's Ticket → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-03 | Authorization | AC-21, BR-18 | Requester read shape | Own Ticket's actions: every action returned with performer name; no `createdBy`, no email anywhere in the body | `server/tests/lab-04/authorization.api.test.ts` | Pass |
-| AUTHZ-04 | Authorization | AC-22 | Requester reads another's | Another Requester's actions and status history → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Partial: actions pass (#49); status history in #51 |
+| AUTHZ-04 | Authorization | AC-22 | Requester reads another's | Another Requester's actions and status history → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-05 | Authorization | AC-23 | Dashboard roles | Requester → staff dashboard 403; IT Staff and Administrator → Requester dashboard 403 | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTHZ-06 | Authorization | AC-24 | Administrator acts as IT Staff | An Administrator creates, edits, and completes an action and resolves the Ticket | `server/tests/lab-04/authorization.api.test.ts` | Partial: create / edit / complete pass (#49); resolve step in #51 |
-| AUTHZ-07 | Authorization | §6.1 | Gates on every new route | All six new endpoints: no session → 401; password change outstanding → 403 `passwordChangeRequired` | `server/tests/lab-04/authorization.api.test.ts` | Partial: 3 Actions Taken routes pass (#49); history and dashboards in #51–#53 |
-| AUTHZ-08 | Authorization | BR-23 | Requester never changes status | A Requester's `PATCH /status` on their own Ticket, with a valid version → 403 | `server/tests/lab-04/authorization.api.test.ts` | Planned |
+| AUTHZ-06 | Authorization | AC-24 | Administrator acts as IT Staff | An Administrator creates, edits, and completes an action and resolves the Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
+| AUTHZ-07 | Authorization | §6.1 | Gates on every new route | All six new endpoints: no session → 401; password change outstanding → 403 `passwordChangeRequired` | `server/tests/lab-04/authorization.api.test.ts` | Partial: 4 routes pass (#49, #51); the two dashboards in #52–#53 |
+| AUTHZ-08 | Authorization | BR-23 | Requester never changes status | A Requester's `PATCH /status` on their own Ticket, with a valid version → 403 | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-09 | Authorization | AC-54, D-04 | Administrator ticket access | An Administrator reads the queue and a Ticket's detail, actions, and history (200 each) | `server/tests/lab-04/authorization.api.test.ts` | Planned |
 
 ### 2.6 Migration and regression
@@ -190,14 +190,14 @@ recorded command output in §4.3 and §6, not by a single test row.
 | UI-12 | UI | AC-59 | Double submit | A double click on *Save action* sends one request, and the button shows its busy label | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-13 | UI | AC-40 | Stale edit | A 409 `stale` shows the conflict banner with *Reload*; the entered values stay in the form until the user reloads | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-14 | UI | FR-21 | Section states | Loading, empty ("No actions recorded yet"), and safe-failure with *Try again* | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
-| UI-15 | UI | AC-29 | Gate unmet | The status control has no *Resolved* option and lists the unmet conditions in plain language | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-16 | UI | AC-29 | Gate met | *Resolved* is offered | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-17 | UI | AC-30, FR-08 | Refresh after a change | After a successful change the summary badge, the available transitions, and the history update without a reload; the request carried `expectedVersion` | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-18 | UI | AC-40 | Stale status change | 409 `stale` shows the banner with *Reload*, and the selected target stays selected | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-19 | UI | FR-09, BR-34 | History display | Entries oldest first; a backfilled entry reads "Recorded at upgrade" | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-20 | UI | AC-36 | Requester history | The Requester view shows "IT Support" as the actor of staff changes | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-21 | UI | BR-24, BR-20 | Cancel Ticket confirmation | The confirmation states how many open actions will also be cancelled | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| UI-22 | UI | BR-27 | Gate refused by the server | A 409 `resolutionGate` received despite the option being shown (a race) lists the unmet conditions and refreshes the Ticket | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
+| UI-15 | UI | AC-29 | Gate unmet | The status control has no *Resolved* option and lists the unmet conditions in plain language | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-16 | UI | AC-29 | Gate met | *Resolved* is offered | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-17 | UI | AC-30, FR-08 | Refresh after a change | After a successful change the summary badge, the available transitions, and the history update without a reload; the request carried `expectedVersion` | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-18 | UI | AC-40 | Stale status change | 409 `stale` shows the banner with *Reload*, and the selected target stays selected | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-19 | UI | FR-09, BR-34 | History display | Entries oldest first; a backfilled entry reads "Recorded at upgrade" | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-20 | UI | AC-36 | Requester history | The Requester view shows "IT Support" as the actor of staff changes | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-21 | UI | BR-24, BR-20 | Cancel Ticket confirmation | The confirmation states how many open actions will also be cancelled | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
+| UI-22 | UI | BR-27 | Gate refused by the server | A 409 `resolutionGate` received despite the option being shown (a race) lists the unmet conditions and refreshes the Ticket | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
 | UI-23 | UI | FR-13, FR-15 | Staff metric cards | Each card shows label and value and is a link to its drill-down URL with an accessible name such as "Open and unassigned: 4 — view list" | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
 | UI-24 | UI | FR-13 | Staff lists | *My open actions*, *Urgent*, and *Recently updated* rows link to the Ticket; each list has its own empty message | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
 | UI-25 | UI | AC-45 | Staff zero state | All-zero metrics show `0`, not blanks, and every list shows its empty message | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
@@ -282,13 +282,14 @@ suites re-run as regression.
 These are the only edits to the Lab 3 suites. Each is a deliberate contract
 change, not a regression; the list is re-confirmed when Issue 5 lands.
 
-| Lab 3 file | Change | Rule |
-|------------|--------|------|
-| `server/tests/lab-03/staff-ticket-detail.api.test.ts` | The `patch` helper reads the Ticket's `version` and sends `expectedVersion`; Tickets moved to `RESOLVED` first receive a Completed action | BR-60, BR-61 |
-| `server/tests/lab-03/authorization.api.test.ts` | The ticket `patch` helper sends `expectedVersion` | BR-61 |
-| `client/tests/lab-03/RoleNavigation.test.tsx` | Expected landing route and navigation items | BR-62, BR-63 |
-| `e2e/lab-03/staff-ticket-flow.spec.ts` | Records a Completed action before resolving | BR-60 |
-| `e2e/lab-03/helpers.ts` | Expected post-login landing | BR-62 |
+| Lab 3 file | Change | Rule | Status |
+|------------|--------|------|--------|
+| `server/tests/lab-03/staff-ticket-detail.api.test.ts` | The `patch` helper reads the Ticket's `version` and sends `expectedVersion`; Tickets whose expected transitions include `RESOLVED` first receive a Completed action; expected bodies gain `version`, `resolvedAt`, `cancelledActions`, and the 409 `conflict` / `current` keys; cleanup uses the shared `removeTickets` helper, because a Ticket moved through the workflow has append-only history | BR-60, BR-61 | **Done (#51)** |
+| `server/tests/lab-03/authorization.api.test.ts` | ~~The ticket `patch` helper sends `expectedVersion`~~ | BR-61 | **Not needed:** a Requester's request is refused by role before the version is read, so the file passes unchanged |
+| `client/tests/lab-03/StaffTicketDetail.test.tsx` | *Added in #51.* The fixture carries `version`, the mocked responses carry the Lab 4 fields, and the owner / IT Priority / status calls are expected with the version. Missing from the original list; it falls under the §5.10 rule ("sending `expectedVersion`") | BR-61 | **Done (#51)** |
+| `client/tests/lab-03/RoleNavigation.test.tsx` | Expected landing route and navigation items | BR-62, BR-63 | With #52 / #53 |
+| `e2e/lab-03/staff-ticket-flow.spec.ts` | ~~Records a Completed action before resolving~~ | BR-60 | **Not needed:** its journey never resolves a Ticket, and the full Lab 3 E2E suite passes unchanged on #51 |
+| `e2e/lab-03/helpers.ts` | Expected post-login landing | BR-62 | With #52 / #53 |
 
 ---
 
@@ -533,6 +534,7 @@ release (submission Part 3).
 | Performance smoke | Development machine only | A regression tripwire, not a production benchmark (specification open assumptions) |
 | Idempotency of Ticket, comment, note, and upload creation | UI single-flight only | D-16; covered by UI-40, not by a server key |
 | E2E development-database residue | Known | Carried from Lab 2 and Lab 3 — E2E runs write to the development database; reset before capturing evidence |
+| Test Tickets with status history | Left in place | Status history is append-only in the database (BR-33), so a Ticket that has history cannot be deleted. The shared `server/tests/helpers/cleanup.ts` removes a test Ticket's actions, comments, notes, and attachments, and deletes the Ticket only when it has no history. Tickets that a test moved through the workflow stay in the development database, adding to the residue noted above. Lab 2/3 cleanups are unaffected: they create their Tickets directly, without history |
 | Rollback drill | Manual | Needs a second database restored from a dump, which the automated suite does not provision |
 | REG-02 history and `resolvedAt` invariants | Scoped to pre-migration Tickets | REG-02 asserts the backfilled history and `resolvedAt` only for Tickets that existed when the migration was applied (read from `_prisma_migrations.finished_at`), which is what the migration is responsible for. Tickets created afterwards get their creation entry and `resolvedAt` from the workflow (BR-31, BR-32, Issue #51), which is covered by that Issue's own tests. An unscoped check failed depending on test order: Lab 2/3 suites create Closed Tickets through Lab 3 code, which does not maintain `resolvedAt` yet |
 | Seeded history on an already-migrated database | By design (BR-58) | The seed writes a seeded Ticket's history only when it has none. On a database that was migrated rather than reset, the seeded Tickets keep their single "Recorded at upgrade" entry. `npx prisma migrate reset --force` gives them the full seeded path |
