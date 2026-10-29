@@ -543,3 +543,88 @@ export async function setInitialPassword(id: number, initialPassword: string): P
   if (!res.ok) return operationFailure(res, "Unable to set the initial password.");
   return res.json();
 }
+
+// --- Actions Taken (Lab 4, api-spec §2) -----------------------------------------
+
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string;
+  status: ActionStatus;
+  performedBy: { id: number; name: string };
+  /** Absent for a Requester (BR-18). */
+  createdBy?: { id: number; name: string };
+  followUpRequired: boolean;
+  followUpNote: string;
+  attachmentNotes: string;
+  version: number;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActionInput {
+  actionAt: string;
+  description: string;
+  result: string;
+  performedById: number;
+  followUpRequired: boolean;
+  followUpNote: string;
+  attachmentNotes: string;
+}
+
+/**
+ * A Lab 4 409 (api-spec §1.2). `conflict` tells the cases apart without parsing
+ * the message; `current` is the server's current state for a stale or refused
+ * transition.
+ */
+export class ConflictError extends Error {
+  conflict: string;
+  current?: unknown;
+  constructor(message: string, conflict: string, current?: unknown) {
+    super(message);
+    this.name = "ConflictError";
+    this.conflict = conflict;
+    this.current = current;
+  }
+}
+
+async function actionFailure(res: Response, generic: string): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 400) throw new ValidationError(body.fields ?? {}, generic);
+  if (res.status === 409) {
+    throw new ConflictError(typeof body.error === "string" ? body.error : generic, body.conflict ?? "", body.current);
+  }
+  throw new Error(generic);
+}
+
+export async function getActions(ticketId: number): Promise<ActionTaken[]> {
+  const res = await request(`/api/tickets/${ticketId}/actions`);
+  await guard(res);
+  if (!res.ok) throw new Error(`Actions request failed: HTTP ${res.status}`);
+  return (await res.json()).items;
+}
+
+export async function createAction(
+  ticketId: number,
+  input: ActionInput & { status: ActionStatus; clientRequestId: string }
+): Promise<ActionTaken> {
+  const res = await request(`/api/tickets/${ticketId}/actions`, jsonInit("POST", input));
+  await guard(res);
+  if (!res.ok) return actionFailure(res, "We couldn't save the action. Please try again.");
+  return res.json();
+}
+
+export async function updateAction(
+  actionId: number,
+  patch: Partial<ActionInput> & { status?: ActionStatus; expectedVersion: number }
+): Promise<ActionTaken> {
+  const res = await request(`/api/actions/${actionId}`, jsonInit("PATCH", patch));
+  await guard(res);
+  if (!res.ok) return actionFailure(res, "We couldn't update the action. Please try again.");
+  return res.json();
+}
