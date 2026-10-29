@@ -64,4 +64,34 @@ mobile ⋯ menu as always-visible buttons inside `role="menu"`, and decision D-1
 (pill-shaped Ticket status badges). None was answered, so D-18 stands as my
 own decision with no peer comment.
 
+### PR #59 — feat: ticket workflow - resolution gate, stale updates, status history (Issue #51 / Lab 4 Issue 5)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/59
+- **Base:** `lab4-staging` ← **Head:** `feature/5-ticket-workflow`
+- **Review verdict:** `COMMENTED` by @copter549365, 2026-10-29 19:17 UTC — a
+  **substantive review**, the first of Lab 4. There was no formal `APPROVED`; after
+  my reply, copter answered "โอเคครับ" (OK) at 19:23:37 UTC and the PR merged at
+  19:23:41 UTC.
+
+**Reviewer's comment (summary).** Asked for confirmation before merge: they read
+the `finally` block of `applyStatus` in `StaffTicketDetail.tsx` as still calling
+`setNextStatus("")` unconditionally. That would override the `catch` branch's
+decision to keep the chosen target after a stale conflict, and contradict UI-18's
+assertion `expect(statusSelect()).toHaveValue("WAITING_FOR_REQUESTER")`. They asked
+(1) whether UI-18 passes when run on its own, and (2) if so, where the real code
+differs from the diff. Proposed fix if it was a bug: remove the line from
+`finally` and let `catch` decide alone.
+
+**Author's reply** ([comment](https://github.com/AlphabetCG/toktickit/pull/59#issuecomment-6506226957)):
+the reasoning was correct, but the line is not in the PR's code. In the diff,
+`setNextStatus("")` inside `finally` is a **removed** line, Lab 3's original. On
+the branch (`b22eb31`), `finally` holds only `setBusy(false)`, which is exactly the
+fix the reviewer proposed. Evidence: UI-18 run on its own passes. Putting the line
+back into `finally` makes UI-18 fail (expected `WAITING_FOR_REQUESTER`, received
+empty), so the test guards against exactly this regression; the file was restored
+byte-identical afterwards.
+
+**Outcome:** no change needed. The reviewer read a removed diff line as current
+code; the check confirmed both the behaviour and the test that protects it.
+
 ## Direction B — @AlphabetCG reviews @copter549365

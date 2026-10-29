@@ -24,8 +24,16 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { to: "/tickets", label: "My Tickets", end: true },
     { to: "/tickets/new", label: "Create Ticket" },
   ],
-  IT_STAFF: [{ to: "/staff/tickets", label: "Ticket Queue" }],
-  ADMINISTRATOR: [{ to: "/admin/users", label: "User Management" }],
+  // Lab 4 (ui-spec §3): Dashboard first; Administrators also reach the queue (BR-63).
+  IT_STAFF: [
+    { to: "/dashboard", label: "Dashboard", end: true },
+    { to: "/staff/tickets", label: "Ticket Queue" },
+  ],
+  ADMINISTRATOR: [
+    { to: "/dashboard", label: "Dashboard", end: true },
+    { to: "/staff/tickets", label: "Ticket Queue" },
+    { to: "/admin/users", label: "User Management" },
+  ],
 };
 
 

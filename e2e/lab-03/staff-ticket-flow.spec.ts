@@ -30,6 +30,9 @@ test("E2E-05: IT Staff claim, prioritise, transition, comment, and note — and 
   const { id, ticketNumber } = await createTicketViaApi(requester, `Staff journey ${token}`);
   const staffPage = await pageAs(browser, staff);
 
+  // Lab 4 §5.10 (BR-62): IT Staff land on their Dashboard, then open the queue.
+  await expect(staffPage).toHaveURL(/\/dashboard$/);
+  await staffPage.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Ticket Queue" }).click();
   // Queue → open the ticket.
   await expect(staffPage).toHaveURL(/\/staff\/tickets$/);
   await staffPage.getByLabel("Search tickets").fill(token);

@@ -20,6 +20,11 @@ async function pageAs(browser: Browser, user: TestUser): Promise<Page> {
   return page;
 }
 
+async function openUserManagement(page: Page): Promise<void> {
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "User Management" }).click();
+  await expect(page.getByRole("button", { name: "+ Create user" })).toBeVisible();
+}
+
 async function openEdit(page: Page, name: string): Promise<void> {
   await page.getByLabel("Search users").fill(name);
   await page.getByRole("button", { name: `Edit ${name}` }).click();
@@ -47,6 +52,9 @@ test("E2E-07: an Administrator creates a user who is forced through the password
   const initial = "Welcome-Initial-1";
 
   const adminPage = await pageAs(browser, admin);
+  // Lab 4 §5.10 (BR-62, BR-63): Administrators land on their Dashboard.
+  await expect(adminPage).toHaveURL(/\/dashboard$/);
+  await openUserManagement(adminPage);
   await expect(adminPage).toHaveURL(/\/admin\/users$/);
 
   // AC-46 — create with exactly one role.
@@ -67,7 +75,7 @@ test("E2E-07: an Administrator creates a user who is forced through the password
   // The new user signs in and is held on the change screen until they choose.
   const userPage = await (await browser.newContext()).newPage();
   await completeFirstLogin(userPage, email, initial);
-  await expect(userPage).toHaveURL(/\/staff\/tickets$/);
+  await expect(userPage).toHaveURL(/\/dashboard$/); // Lab 4 BR-62
 
   // AC-51 — a new initial password ends their session and forces another change.
   await openEdit(adminPage, name);
@@ -88,6 +96,7 @@ test("E2E-08: self-deactivation and last-Administrator removal are both refused 
   browser,
 }) => {
   const adminPage = await pageAs(browser, admin);
+  await openUserManagement(adminPage); // Lab 4 BR-62: Administrators land on the Dashboard
 
   // AC-49 — on their own row the Administrator's status and role are locked, and
   // the refusal is stated beside the control before they try.
