@@ -395,29 +395,34 @@ memory**.
 
 ### 4.1 Per screen, per viewport
 
+Completed 2026-11-01 (Issue #54) against the 31 screenshots, with the
+observations recorded in ui-spec §13. §4.1 and §4.2 rest on RESP-01…05,
+E2E-07…10, and E2E-12 as well as on inspection.
+
 Repeat for the Requester, IT Staff, and Administrator dashboards and for both
 Ticket Details with Actions Taken, at desktop, tablet, and mobile:
 
-- [ ] No horizontal page scrolling
-- [ ] No clipped or truncated labels or values
-- [ ] No overlapping controls or validation messages
-- [ ] Editable and read-only fields visually distinct
-- [ ] Validation messages beneath their own field
-- [ ] One primary action per region; button hierarchy consistent
-- [ ] Zen Green tokens only
-- [ ] Ticket status, action status, and priority badges carry text
-- [ ] Keyboard focus visible on every interactive element
+- [x] No horizontal page scrolling
+- [x] No clipped or truncated labels or values
+- [x] No overlapping controls or validation messages
+- [x] Editable and read-only fields visually distinct
+- [x] Validation messages beneath their own field
+- [x] One primary action per region; button hierarchy consistent
+- [x] Zen Green tokens only
+- [x] Ticket status, action status, and priority badges carry text
+- [x] Keyboard focus visible on every interactive element
 
 ### 4.2 Role and data spot checks
 
-- [ ] Each role lands on its own dashboard and sees only its destinations
-- [ ] Every dashboard card's value equals the total on the screen it opens
-- [ ] A Requester's Ticket Detail shows actions and history, and no Internal Note
-- [ ] Private (Internal Note) and shared (comment, action) content are distinct at a glance
+- [x] Each role lands on its own dashboard and sees only its destinations
+- [x] Every dashboard card's value equals the total on the screen it opens
+- [x] A Requester's Ticket Detail shows actions and history, and no Internal Note
+- [x] Private (Internal Note) and shared (comment, action) content are distinct at a glance
 
 ### 4.3 Data, migration, and recovery
 
-- [ ] `npx prisma migrate reset --force` rebuilds and reseeds without error
+- [x] `npx prisma migrate reset --force` rebuilds and reseeds without error (2026-11-01, run against a scratch database `toktickit_resetcheck`,
+      then dropped, so the release-order development database was kept for REG-02)
 - [x] The seed runs twice with identical row counts (REG-04, every table, Issue #48)
 - [x] **Rollback drill (AC-56):** restore a Lab 3 `pg_dump` into
       `toktickit_rollback`, apply the Lab 4 migration, run

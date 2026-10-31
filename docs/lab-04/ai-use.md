@@ -3,8 +3,8 @@
 **Author:** Naphat Utabuawong (67070501015, @AlphabetCG)
 
 > **Living document.** Started at sprint planning and extended as each Issue
-> lands. The labsheet asks for 6–10 selected key prompts; the selection is made
-> when the sprint closes.
+> landed. The labsheet asks for 6–10 selected key prompts; they are chosen in
+> *Selected key prompts* below.
 
 ## LLM / agent used
 
@@ -12,7 +12,7 @@
 
 | Model | Used for |
 |-------|----------|
-| Claude Opus 5.5 | Reading the labsheet, sprint planning, Issue decomposition |
+| Claude Opus 5.5 | Reading the labsheet, sprint planning, Issue decomposition; then every implementation Issue (#48…#54), and the replies to copter's reviews |
 
 ---
 
@@ -48,4 +48,84 @@
 | 10 | #53 Requester dashboard | *"implement issue ถัดไปได้เลย ก่อนที่จะเริ่มให้ update reviewer.md และ ai-use.md ให้ด้วย และหลังจาก implement เสร็จให้ทำการเทสให้เรียบร้อย แล้วเปิด pr โดยเอา copter549365 เป็น reviewer ด้วย"* (implement the next issue; first update reviewer.md and ai-use.md; test thoroughly afterwards; open a PR with copter549365 as reviewer), then a decision via a question: *"ถาม /api/tickets เพิ่ม (Recommended)"* | **Review record first:** `reviewer.md` records PR #60 as the second substantive Lab 4 review: copter's `CHANGES_REQUESTED`, the stale-closure bug it led to, my reply, and copter's "แก้มาได้ตรงจุดครับ" 4 s before the merge, with the review never changed to `APPROVED`. **Environment found broken, and said so:** the dev database had been reset to Lab 1 (only `Category` existed). The agent applied the migrations and seed with the documented `migrate deploy`, rather than `migrate dev`, which might reset. Because no Lab 3 data predates the Lab 4 migration now, REG-02 has no legacy Tickets to check and fails. That is an environment fact, not a #53 regression, and it is reported rather than hidden. **Test-first:** API-20…25, PERF-01, the Requester halves of AUTHZ-05/07, UNIT-07 for My Tickets, UI-29…32, UI-36, and the Requester rows of UI-33/35 were written and seen failing (16 server, 12 client) for the expected reasons: route 404, screen absent. **A test bug caught before it could mislead:** API-24's window fixtures first used `now() - interval '7 days 1 minute'`. The columns are UTC `timestamp without time zone`, but the session is Asia/Bangkok, so both `now()` and a bound `Date` landed 7 h late, and the "outside" Ticket was really inside. A probe showed a sent `17:49Z` stored as `00:49Z`. Fixtures are now computed in JS and written with `AT TIME ZONE 'UTC'`. The staff dashboard's API-30 boundary case (#52) has the same latent flaw and passes only because five newer Tickets push its fixture out of the list; this is noted for #54, not silently changed. **A contract gap asked, not guessed:** a Requester with only old, closed Tickets also gets all-zero figures, so zeros cannot mean "no Tickets yet". I chose to ask My Tickets' existing total, only in the all-zero case (D-19), with no API change. **Built:** `GET /api/dashboard/requester` (role 403, no query read, one RepeatableRead transaction, three counts and three lists of ≤5 ending in id, no description); `statusGroup` on `GET /api/tickets`; the dashboard screen (three cards, the warning badge on *Waiting for you*, *Needs your attention* first and full width, the D-19 empty state); Dashboard-first Requester navigation; every role landing on `/dashboard`, including after login and the password change, which also retired the Lab 3 staff/admin landing still left in `Login.tsx`; and My Tickets made URL-driven with a status filter and "All open", written with the honest-dependency pattern from the PR #60 fix. **Lab 3 tests edited under BR-62 only:** Login UI-01, ChangePassword UI-09, and E2E-01/02 now expect `/dashboard`; each is listed in `tests.md` §2.12. **Mutation checks, 6/6 caught:** dropping the requester scope from a count, ignoring `statusGroup` on My Tickets, removing the role check, widening the 7-day window to 8, deciding the empty state from zeros alone, and not reading `statusGroup` from the URL. Files were restored byte-identical. **Visual check in a real browser:** zero horizontal overflow at desktop, tablet, and mobile, for both a busy and an empty Requester. The *Open tickets* card opened My Tickets with *All open* selected, the "Filtered from Dashboard" note, and "Showing 1–3 of 3" matching the card's 3. The E2E run regenerated Lab 3's committed screenshots; those were restored, not committed. Verified: server **544/545** (the one failure is REG-02, above), PERF-01 **7.9 ms** median, client **223/223** (Lab 2 UI-15 failed once under a cold full run, then passed 3/3), Lab 3 E2E **16/16**, both `tsc` clean, client build OK. **Review (PR #61):** copter requested changes over a suspected cascade bug: in the pasted diff both `.zg-metrics--three` overrides looked as if they were in one `@media (max-width: 991px)` block, which would make the mobile one-column rule win on tablet too. Checked against the real `theme.css`, not argued from memory: the mobile rule is in its own sibling `@media (max-width: 767px)` block, and Chromium measured three columns at 768–991 px and one at ≤ 767 px. Replied with the line numbers and a tablet screenshot, and copter merged. No code change. |
 | 11 | #54 Hardening, regression, E2E, responsive evidence | *"implement issue ถัดไปได้เลย ก่อนที่จะเริ่มให้ update reviewer.md และ ai-use.md ให้ด้วย และหลังจาก implement เสร็จให้ทำการเทสให้เรียบร้อย แล้วเปิด pr โดยเอา copter549365 เป็น reviewer ด้วย ขยับ kanban board ให้ด้วย"* (implement the next issue; first update reviewer.md and ai-use.md; test thoroughly; open a PR with copter549365 as reviewer; move the Kanban board), then a decision via a question: *"Rebuild DB in Lab 3 → Lab 4 order (Recommended)"* | **Records first:** `reviewer.md` gained PR #61 (a suspected cascade bug, answered from the real file and a measurement), and row 10 here its review outcome. **Environment, asked not guessed:** REG-02 fails on any database built by `migrate reset`, because the Lab 4 migration then runs on empty tables; the Lab 3 dump from the rollback drill no longer existed. I chose a rebuild in release order: Lab 3 migrations and seed from a worktree of `main`, then Lab 4. REG-02 passed, and the README now documents the procedure. **Tests first where the behaviour was new:** UI-42's P-01 and P-02 cases failed for the expected reasons (no `format.ts`; Queue counts without "(all statuses)"). UI-40/41 cover single-flight and data retention that already existed, so they were proven by mutation instead: removing the comment form's in-flight guard and clearing Summary on a Create Ticket failure were both caught. **Polish (ui-spec §10):** ten private date formatters replaced by one `format.ts` (P-01, plus `formatTime` for the dashboard's "Updated 16:05", which §5.1 specifies); the Queue counts relabelled (P-02). P-03…P-06 were already done in #52/#53 or clean, and UI-42 now guards them. For P-07, empty-state *headings* stay short titles, because Lab 2/3 tests name them exactly and §2.12 does not list them; every message a user reads is a sentence, and UI-42 checks that. **E2E written against the real app, and it found two real defects:** (1) E2E-01's first save was refused, because the action date field holds minutes only, so the default "now" (02:34) fell before a Ticket Date of 02:34:20. The fix sends the moment of saving when the field is untouched, mirroring what edit already did; a UI-02 case failed first. (2) RESP-04 showed the cancel-action dialog returning focus to nowhere, because the ⋯ item that opened it is hidden on close. Focus now goes back to ⋯. **My test bugs, not the app's:** the containment check first flagged a modal's controls overlapping the page behind it, and the mobile sticky Save over scrolling fields, both by design, so it was scoped to the open dialog and skips sticky bars. The first screenshot caught Status history mid-load, so detail shots now wait for it. **A flaky Lab 2 test, diagnosed honestly:** UI-15 failed 1 in 3 full client runs. I ruled out a stale-result flash with a MutationObserver test (it never failed, so I deleted it rather than keep an unproven test). The cause is timing: under load a keystroke outlasts the 300 ms debounce. UI-15 now waits for the final request and retries the query; 6 consecutive full runs were green. The edit is listed in §2.12. **#52's API-30 fixture fixed:** it now writes UTC instants with `AT TIME ZONE 'UTC'`, and its comment says plainly that the five-item cap, not the window, is what drops "outside" on a shared database; the boundary is pinned by the `windowStart` unit tests. **Mutation checks, 6/6 caught:** in-flight guard removed (UI-40), Summary cleared on failure (UI-41), a `console.error` on the Requester dashboard and a link to an undefined route (E2E-12), the tablet three-column rule copter asked about on PR #61 (RESP), and, by the failing run before its fix, the focus return (RESP-04). Every file was restored. **Kanban:** the `gh` token lacks the `project` scope, so the board could not be moved from the terminal; recorded rather than worked around. Verified: server **545/545** (REG-02 included), client **246/246** in six consecutive full runs, E2E **40/40** (Lab 3 16 + Lab 4 24), both `tsc` clean, client build OK. |
 
+## Selected key prompts
+
+The labsheet asks for 6–10 key prompts. These eight, taken from the tables above,
+are the ones that changed the outcome. The rest repeat the per-Issue workflow.
+
+| # | Prompt (row above) | Why it mattered |
+|---|--------------------|-----------------|
+| 1 | Row 1: *"อ่านไฟล์แลป จากนั้นวิเคราะห์ว่าผมต้องทำอะไรบ้าง … เตรียมออกแบบ Sprint, issue และเตรียมวางโครงได้เลย"* | Asked for analysis and decomposition before any code. It surfaced the handout's internal conflict (Actions Taken has no assignee or status, yet Part 6 grades assigning and completing them), which became D-01 instead of a late surprise |
+| 2 | Row 2: *"เอาตามที่แนะนำ เขียน specification.md ให้เลย"* | Approved the recommendations one by one, then had the contract written before any code: AC-01…63, D-01…17, and §5.10, the list of deliberate changes that break Lab 3 tests, so they were never mistaken for regressions |
+| 3 | Row 3: *"ทำตามขั้นตอนได้เลย"* | Produced `tests.md` with 135 planned tests traced to ACs before implementation. Every later Issue was measured against this plan, not against whatever tests the agent happened to write |
+| 4 | Row 4: *"start implementing next issue on lab4 / before implementing, update reviewer.md … / after implementing please update ai-use.md … / open pr …"* | The workflow paste that made evidence part of every Issue: review record first, contract-driven tests, and PR plus Kanban last. Because of it, the pre-migration `pg_dump` for the AC-56 rollback drill was taken before the schema changed |
+| 5 | Row 8: *"ตอบที่เพื่อน comment มาล่าสุด"* | Answering a review with evidence instead of agreement: the agent showed copter's line was a removed diff line, then put it back to prove UI-18 catches that bug |
+| 6 | Row 9: *"แก้ตาม request changes ใน pr"* | Taking a review further than it went: copter flagged three lint disables but found no bug; tracing them found a real stale-closure bug that two new UI-39 cases now guard |
+| 7 | Row 10, the decision *"ถาม /api/tickets เพิ่ม (Recommended)"* | A contract gap asked, not guessed: all-zero figures cannot tell "no Tickets yet" from "only old closed Tickets". Recorded as D-19 |
+| 8 | Row 11, the decision *"Rebuild DB in Lab 3 → Lab 4 order (Recommended)"* | A destructive environment step taken only with consent. It made REG-02 meaningful again and put the release-order build in the README |
+
+## Sub-agent decomposition
+
+No sub-agent was spawned in Lab 4. `AGENTS.md` §3 defaults to a single agent
+and delegates only when asked, and I never asked. The four roles §3 defines were
+carried out inline by the one agent, each with the inputs §3 gives it:
+
+| §3 role | Where it happened in Lab 4 | Input it worked from |
+|---------|----------------------------|----------------------|
+| Spec Auditor | Before each PR: the diff checked against `specification.md`, which found the §2.12 list wrong in both directions (#51) and the Partial rows that belong to later Issues (#49, #52) | `specification.md`, the diff |
+| Style Auditor | Screenshots opened and inspected, not just asserted. This found the mobile controls that were not full width and the content showing through the sticky Save bar (#50), and the Status history captured mid-load (#54) | `ui-spec.md`, the changed UI files, screenshots |
+| Test Authoring | Tests written from `tests.md` before the code and seen failing, in every Issue | `specification.md`, `tests.md` |
+| Reviewer Agent | Not used for Direction B. My two substantive reviews of copter's PRs (#66, #69, `reviewer.md`) were checked on a fresh database with real API calls before posting; this file records only the prompts of this repository's sessions | the partner's PR, their contract |
+
+Prompt quality is therefore shown in the single-agent prompts above. If I had
+delegated, the Spec and Style Auditor split is the one I would use, because it
+keeps each auditor's context to one contract file.
+
 ## My Reflection
+
+### สิ่งที่ทำให้ prompt ดีขึ้นตลอด sprint นี้
+
+**ใช้ workflow prompt เดียวกันทุก Issue.** ตั้งแต่ #48 ผมใช้ prompt ชุดเดียวทุกรอบ: อัปเดต
+`reviewer.md` ก่อน, implement, test, อัปเดต `ai-use.md`, เปิด PR แล้วขยับ Kanban หลักฐานจึง
+ถูกเก็บตอนที่มันยังมีอยู่ ไม่ต้องย้อนมาสร้างใหม่ตอนท้าย sprint เช่น `pg_dump` ก่อน
+migration ซึ่งถ้าไม่ได้ทำตอนนั้นก็สร้างคืนไม่ได้อีกแล้ว
+
+**ให้ AI ถามเมื่อ spec ไม่ได้เขียนไว้ และเลือกเอง.** ช่องว่างของ contract อย่าง D-19 (ตัวเลข 0
+ทุกช่องไม่ได้แปลว่าไม่เคยเปิดตั๋ว) กับการ rebuild ฐานข้อมูล กลายเป็นคำถามที่มีตัวเลือกและ
+คำแนะนำ แทนที่จะเป็นการตัดสินใจที่ซ่อนอยู่ในโค้ด
+
+**สั่งให้ "ตรวจจากของจริงก่อนตอบ review".** ทั้งสาม review ที่มีเนื้อหาจาก copter (#59, #60, #61)
+แต่ละครั้งได้คำตอบที่ต่างกัน #59 คือบรรทัดที่ถูกลบไปแล้วใน diff, #60 เป็น bug จริงที่ลึกกว่าที่
+เพื่อนชี้, #61 คือ diff ที่ copy มาไม่ครบ ถ้าให้ AI ตอบจากข้อความ review อย่างเดียว ทั้งสามข้อ
+จะถูก "แก้" หรือถูกแก้ตัวไปแบบเดียวกันหมด
+
+### สิ่งที่ AI ช่วยได้จริง
+
+- **mutation check ทุก Issue** จับ test ที่ผ่านแต่ไม่ได้พิสูจน์อะไรได้หลายครั้ง เช่น REG-03 ที่
+  ถ้าไม่มี trigger จะเขียนทับประวัติจริง และ race test WF-16 ที่จับได้ว่า lock ของ status route
+  หายไป
+- **E2E กับ responsive ของ #54 เจอ bug จริงสองตัว** ที่ test ระดับ component มองไม่เห็น:
+  action แรกของตั๋วที่เพิ่งสร้างถูกปฏิเสธในนาทีแรก (ช่องเวลาเก็บแค่นาที) และ focus หายไปหลัง
+  ปิด dialog ยกเลิก action
+- **ตามหาสาเหตุ test flaky แทนการ retry** UI-15 ของ Lab 2 ล้มหนึ่งในสามรอบ สาเหตุคือ
+  keystroke ที่ช้ากว่า debounce ตอนเครื่องทำงานหนัก แก้แล้วรันครบหกรอบติด ส่วน test ที่เขียน
+  ไว้ตรวจสมมติฐานผิด (ซึ่งไม่เคยล้ม) ก็ลบทิ้งไป ไม่เก็บไว้ให้ดูเหมือนพิสูจน์อะไรได้
+
+### จุดที่ต้องเข้าไปคุม AI (process error)
+
+- **เขียนโค้ดบน `lab4-staging` ตรง ๆ** (#49) ยังดีที่ตัด feature branch ทันก่อน commit แรก
+  และ #50 เป็นต้นมาก็ตัด branch ก่อนเริ่มงานทุกครั้ง
+- **API test ของ #52 ถูก skip ไม่ใช่ fail** ก่อนเขียน endpoint (อีเมลมีตัวพิมพ์ใหญ่) เลยไม่มี
+  failing run ให้ดูจริง ต้องใช้ mutation หกจุดแทน และบันทึกตามจริงว่า test-first รอบนั้นไม่สมบูรณ์
+- **fixture ที่ผิดเรื่อง timezone** — `now()` ในฐานข้อมูลที่ session เป็นเวลาไทย ทำให้ตั๋วที่
+  ตั้งใจให้อยู่นอกช่วง 7 วันจริง ๆ อยู่ข้างใน API-24 จับได้ใน #53 ส่วน API-30 ของ #52 ผ่านมา
+  ได้เพราะโชค แก้ใน #54
+- **E2E เขียนทับ screenshot ของ Lab 3** ทุกครั้งที่รัน ต้อง `git checkout -- artifacts/`
+  ก่อน commit ทุกรอบ ตอนนี้เขียนไว้ใน README แล้ว
+
+### ถ้าเริ่ม sprint ใหม่จะทำต่างไป
+
+เขียน E2E ของแต่ละ Issue **ใน Issue นั้นเลย** — บทเรียนเดียวกับ Lab 3 ที่ผมยังทำไม่ได้ bug
+ทั้งสองตัวใน #54 อยู่ในโค้ดตั้งแต่ #50 และผ่าน review มาแล้วสองรอบ และจะ**ขอ review แบบมี
+คำถามเจาะจงตั้งแต่ PR แรก** ครึ่งแรกของ sprint ได้แต่ approve สั้น ๆ จนกระทั่ง #59 ที่มีจุดให้
+ตอบได้ ทั้งสองทิศเห็นผลเหมือนกัน คือ review ที่มีเนื้อหาจะเกิดขึ้นก็ต่อเมื่อคนรีวิวรันโค้ดจริง

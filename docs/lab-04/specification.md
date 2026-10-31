@@ -707,46 +707,52 @@ endpoint remains; the conventions, three-gate lifecycle, and error shape
 
 ### 10.1 Product completion
 
-- [ ] Everything in §3.1 is implemented; nothing from §3.2 has been added.
-- [ ] AC-01…AC-63 are each satisfied and linked to passing test evidence in `tests.md`.
+> Status on 2026-11-01, at Issue #54 (PR #62). The unticked items need the
+> release: a README walkthrough on a clean checkout, the suites re-run on the final `main`, #62 merged through review, the
+> release PR, every Kanban card in Done, and the submission PDF.
+
+- [x] Everything in §3.1 is implemented; nothing from §3.2 has been added. *(#48…#54)*
+- [x] AC-01…AC-63 are each satisfied and linked to passing test evidence in `tests.md`. *(tests.md §3; every planned test Pass)*
 - [ ] Unit, API, authorization, workflow/concurrency, migration/regression, UI
       component, UI style, responsive/accessibility, performance-smoke, and E2E
       suites pass from the documented commands **on the final `main`**.
-- [ ] No test is skipped, disabled, `.todo`, flaky, or commented out.
-- [ ] Every row of §6.1 is enforced server-side and proven by a test that calls
-      the API directly.
-- [ ] The resolution gate is proven by direct API calls that bypass the UI.
-- [ ] Every Lab 1–3 acceptance criterion still passes; the only edited Lab 3
-      tests are those §5.10 names.
-- [ ] `npx prisma migrate reset --force` rebuilds the database; the seed is
-      idempotent; the rollback drill has been run and recorded.
-- [ ] Every dashboard metric matches its §5.8 query in a test that runs the
-      query independently.
-- [ ] Every screen implements loading, validation, success, empty / no-results,
-      forbidden, not-found, conflict, and safe-failure feedback where meaningful.
-- [ ] No console errors, broken links, placeholder text, or unfinished controls
-      remain; obsolete Lab 2/3 UI leftovers are removed.
-- [ ] Desktop, tablet, and mobile screenshots exist for every Lab 4 screen under
+- [x] No test is skipped, disabled, `.todo`, flaky, or commented out. *(grep, and six consecutive full client runs, 2026-11-01)*
+- [x] Every row of §6.1 is enforced server-side and proven by a test that calls
+      the API directly. *(AUTHZ-01…09)*
+- [x] The resolution gate is proven by direct API calls that bypass the UI. *(WF-01…16)*
+- [x] Every Lab 1–3 acceptance criterion still passes; the only edited Lab 3
+      tests are those §5.10 names. *(plus one stability-only edit to Lab 2 UI-15, recorded in tests.md §2.12)*
+- [x] `npx prisma migrate reset --force` rebuilds the database; the seed is
+      idempotent; the rollback drill has been run and recorded. *(tests.md §4.3)*
+- [x] Every dashboard metric matches its §5.8 query in a test that runs the
+      query independently. *(API-20…25, API-26…31)*
+- [x] Every screen implements loading, validation, success, empty / no-results,
+      forbidden, not-found, conflict, and safe-failure feedback where meaningful. *(UI tests per screen; ui-spec §13)*
+- [x] No console errors, broken links, placeholder text, or unfinished controls
+      remain; obsolete Lab 2/3 UI leftovers are removed. *(E2E-12, UI-42)*
+- [x] Desktop, tablet, and mobile screenshots exist for every Lab 4 screen under
       `artifacts/lab-04/screenshots/` (`staff-dashboard/`,
       `requester-dashboard/`, `actions-taken/`).
-- [ ] The visual and accessibility checklist in `ui-spec.md` is completed.
-- [ ] No password, secret, or `.env` is committed; responses and logs carry no
-      password material.
+- [x] The visual and accessibility checklist in `ui-spec.md` is completed. *(2026-11-01)*
+- [x] No password, secret, or `.env` is committed; responses and logs carry no
+      password material. *(`git ls-files` shows no `.env`)*
 - [ ] README setup, migration, rollback, seed, seeded accounts, test, and
       demonstration instructions are current and were followed on a clean checkout.
+      *(Current as of #54; the release-order rebuild and `migrate reset` were run,
+      but not yet a full clean-checkout walkthrough.)*
 
 ### 10.2 Course delivery
 
-- [ ] Every unit of work has a GitHub Issue and its own feature branch.
+- [x] Every unit of work has a GitHub Issue and its own feature branch. *(#47…#54)*
 - [ ] Every feature branch entered `lab4-staging` through a peer-reviewed PR.
 - [ ] One release PR merged `lab4-staging` into `main`.
-- [ ] Substantive review comments and replies exist in **both** directions,
-      recorded in [`reviewer.md`](./reviewer.md).
+- [x] Substantive review comments and replies exist in **both** directions,
+      recorded in [`reviewer.md`](./reviewer.md). *(A: #59, #60, #61; B: #66, #69)*
 - [ ] All Issues sit in **Done** on the Kanban board.
-- [ ] `specification.md`, `tests.md`, `ui-spec.md`, `api-spec.md`, `reviewer.md`,
+- [x] `specification.md`, `tests.md`, `ui-spec.md`, `api-spec.md`, `reviewer.md`,
       and `ai-use.md` are present and current.
-- [ ] This specification was committed **before** the implementation PRs, with
-      evidence of the commit date.
+- [x] This specification was committed **before** the implementation PRs, with
+      evidence of the commit date. *(`8c55907`, 2026-10-12 22:13 +0700; first implementation commit `29f9629`, 2026-10-14 02:46 +0700)*
 - [ ] The submission PDF uses the headings "Answer Part 1" through "Answer Part 9".
 
 ---
