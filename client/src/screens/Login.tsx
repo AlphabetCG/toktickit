@@ -6,12 +6,10 @@ import { TextField } from "../components/Field.js";
 import { Button } from "../components/Button.js";
 import { ErrorCallout } from "../components/States.js";
 
-// The role's landing page after a successful sign-in (ui-spec §6.1).
+// The landing page after a successful sign-in: the password gate first, then
+// every role's own Dashboard (Lab 4 BR-62).
 export function landingFor(user: AuthUser): string {
-  if (user.mustChangePassword) return "/change-password";
-  if (user.role === "IT_STAFF") return "/staff/tickets";
-  if (user.role === "ADMINISTRATOR") return "/admin/users";
-  return "/tickets";
+  return user.mustChangePassword ? "/change-password" : "/dashboard";
 }
 
 /**

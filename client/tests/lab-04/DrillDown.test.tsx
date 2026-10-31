@@ -4,13 +4,21 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { StaffTicketQueue } from "../../src/screens/StaffTicketQueue.js";
 import { UserManagement } from "../../src/screens/UserManagement.js";
+import { MyTickets } from "../../src/screens/MyTickets.js";
 import * as api from "../../src/api.js";
 
-// UI-37…UI-39 (docs/lab-04/tests.md §2.7): the query string is the filter state
-// (ui-spec §9). UI-36, My Tickets, arrives with the Requester dashboard (#53).
+// UI-36…UI-39 (docs/lab-04/tests.md §2.7): the query string is the filter state
+// (ui-spec §9).
 vi.mock("../../src/api.js", async (importOriginal) => {
   const real = await importOriginal<typeof api>();
-  return { ...real, getStaffQueue: vi.fn(), getCategories: vi.fn(), listUsers: vi.fn() };
+  return {
+    ...real,
+    getStaffQueue: vi.fn(),
+    getCategories: vi.fn(),
+    listUsers: vi.fn(),
+    getTickets: vi.fn(),
+    getRelatedSystems: vi.fn(),
+  };
 });
 vi.mock("../../src/auth.js", () => {
   const user = { id: 1, name: "Admin", email: "a@t.test", role: "ADMINISTRATOR" as const, mustChangePassword: false };
@@ -22,6 +30,7 @@ vi.mock("../../src/auth.js", () => {
 
 const getStaffQueue = vi.mocked(api.getStaffQueue);
 const listUsers = vi.mocked(api.listUsers);
+const getTickets = vi.mocked(api.getTickets);
 
 const EMPTY: api.QueueResponse = { items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0, counts: { unassigned: 0, mine: 0 } };
 
@@ -53,6 +62,49 @@ beforeEach(() => {
   getStaffQueue.mockResolvedValue(EMPTY);
   vi.mocked(api.getCategories).mockResolvedValue([]);
   listUsers.mockResolvedValue([]);
+  getTickets.mockResolvedValue({ items: [], page: 1, pageSize: 10, totalItems: 0, totalPages: 0 });
+  vi.mocked(api.getRelatedSystems).mockResolvedValue([]);
+});
+
+// UI-36 — FR-16, AC-48
+describe("UI-36: My Tickets reads its filters from the URL on first load", () => {
+  it("statusGroup=active selects All open and requests it", async () => {
+    renderAt("/tickets?statusGroup=active", <MyTickets />);
+    await waitFor(() =>
+      expect(getTickets).toHaveBeenCalledWith(expect.objectContaining({ statusGroup: "active", status: "" }), expect.anything())
+    );
+    expect(getTickets).toHaveBeenCalledTimes(1); // no unfiltered request first
+    expect(screen.getByLabelText("Filter by status")).toHaveValue("group:active");
+    expect(screen.getByRole("option", { name: "All open" })).toBeInTheDocument();
+  });
+
+  it("status=WAITING_FOR_REQUESTER selects that status and requests it", async () => {
+    renderAt("/tickets?status=WAITING_FOR_REQUESTER", <MyTickets />);
+    await waitFor(() =>
+      expect(getTickets).toHaveBeenCalledWith(expect.objectContaining({ status: "WAITING_FOR_REQUESTER" }), expect.anything())
+    );
+    expect(getTickets).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Filter by status")).toHaveValue("WAITING_FOR_REQUESTER");
+  });
+
+  it("sort=updatedAt&order=desc (the Recently updated View all) applies the sort", async () => {
+    renderAt("/tickets?sort=updatedAt&order=desc", <MyTickets />);
+    await waitFor(() =>
+      expect(getTickets).toHaveBeenCalledWith(expect.objectContaining({ sort: "updatedAt", order: "desc" }), expect.anything())
+    );
+    expect(screen.getByLabelText("Sort by")).toHaveValue("updatedAt");
+  });
+
+  it("ignores values it does not recognise", async () => {
+    renderAt("/tickets?status=DONE&statusGroup=closed&priority=URGENT", <MyTickets />);
+    await waitFor(() => expect(getTickets).toHaveBeenCalled());
+    expect(getTickets.mock.calls[0][0]).toMatchObject({ status: "", statusGroup: "", priority: "" });
+  });
+
+  it("says when the list was filtered from the Dashboard", async () => {
+    renderAt("/tickets?status=RESOLVED", <MyTickets />, { fromDashboard: true });
+    expect(await screen.findByText(/Filtered from Dashboard/)).toBeInTheDocument();
+  });
 });
 
 // UI-37 — FR-16, AC-48
@@ -117,6 +169,33 @@ describe("UI-39: changing a filter writes the URL, so Back restores the previous
     await waitFor(() =>
       expect(getStaffQueue).toHaveBeenLastCalledWith(expect.objectContaining({ itPriority: "HIGH" }), expect.anything())
     );
+  });
+
+  it("in My Tickets", async () => {
+    const user = userEvent.setup();
+    renderAt("/tickets?status=RESOLVED", <MyTickets />);
+    await waitFor(() => expect(getTickets).toHaveBeenCalled());
+
+    await user.selectOptions(screen.getByLabelText("Filter by status"), "group:active");
+    await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("statusGroup=active"));
+    expect(screen.getByTestId("search")).not.toHaveTextContent("status=RESOLVED");
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() => expect(screen.getByLabelText("Filter by status")).toHaveValue("RESOLVED"));
+    await waitFor(() =>
+      expect(getTickets).toHaveBeenLastCalledWith(expect.objectContaining({ status: "RESOLVED" }), expect.anything())
+    );
+  });
+
+  it("in My Tickets, a filter chosen while a search is pending is kept", async () => {
+    const user = userEvent.setup();
+    renderAt("/tickets", <MyTickets />);
+    await waitFor(() => expect(getTickets).toHaveBeenCalled());
+
+    await user.type(screen.getByLabelText("Search tickets"), "vpn");
+    await user.selectOptions(screen.getByLabelText("Filter by priority"), "HIGH");
+    await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("search=vpn"));
+    expect(screen.getByTestId("search")).toHaveTextContent("priority=HIGH");
   });
 
   it("in User Management", async () => {

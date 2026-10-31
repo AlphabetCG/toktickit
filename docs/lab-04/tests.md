@@ -79,7 +79,7 @@ row counts of a shared database, and authenticates through
 | UNIT-04 | Unit | AC-26, AC-27, AC-28, BR-25, BR-26 | Resolution gate function | No Completed → unmet `noCompletedAction`; an open action → unmet `openAction`; latest Completed requests follow-up → unmet `followUpOutstanding`; a newer Completed without follow-up satisfies it; equal `actionAt` resolved by id | `server/tests/lab-04/resolution-gate.unit.test.ts` | Pass |
 | UNIT-05 | Unit | AC-25, AC-29, BR-28 | Gate-aware permitted transitions | With the gate met, results equal Lab 3's matrix for every status; with it unmet, `RESOLVED` is removed and nothing else changes | `server/tests/lab-04/resolution-gate.unit.test.ts` | Pass |
 | UNIT-06 | Unit | AC-47, BR-49 | Rolling window | A timestamp exactly `now − 168 h` is inside *last 7 days*; `now − 168 h − 1 min` is outside; same for 30 days | `server/tests/lab-04/dashboard-rules.unit.test.ts` | Pass |
-| UNIT-07 | Unit | BR-46, FR-16 | Active set and `statusGroup` | The active set is exactly the five statuses; `statusGroup=active` normalises, an invalid value falls back to none, and an explicit `status` wins over the group | `server/tests/lab-04/dashboard-rules.unit.test.ts` | Pass |
+| UNIT-07 | Unit | BR-46, FR-16 | Active set and `statusGroup` | The active set is exactly the five statuses; `statusGroup=active` normalises, an invalid value falls back to none, and an explicit `status` wins over the group — for the Queue and, from #53, My Tickets | `server/tests/lab-04/dashboard-rules.unit.test.ts` | Pass |
 
 ### 2.2 API / integration — Actions Taken
 
@@ -109,12 +109,12 @@ row counts of a shared database, and authenticates through
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| API-20 | API | AC-42, BR-53 | Requester sees only their own | With Tickets for Requesters A and B, A's dashboard counts and lists contain only A's Tickets; a `requesterId` query parameter is ignored | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
-| API-21 | API | AC-43 | Requester metrics match the database | `openTickets`, `waitingForMe`, `awaitingClosure` each equal an independent Prisma count of the §5.8 calculation | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
-| API-22 | API | AC-45, BR-50 | Requester with no Tickets | Every metric is `0` and every list `[]`; no key missing or null | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
-| API-23 | API | AC-46, AC-51, BR-48 | Requester lists | Six matching Tickets → five returned in the documented order; no item carries `description` | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
-| API-24 | API | AC-47, BR-49 | 7- and 30-day boundaries | A Ticket updated exactly 7 days ago is in *Recently updated* and one 7 days + 1 minute ago is not; the same at 30 days for *Recently resolved* | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
-| API-25 | API | AC-48, BR-51 | Requester drill-down parity | For each metric, `GET /api/tickets` with its drill-down query returns `totalItems` equal to the metric | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
+| API-20 | API | AC-42, BR-53 | Requester sees only their own | With Tickets for Requesters A and B, A's dashboard counts and lists contain only A's Tickets; a `requesterId` query parameter is ignored | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
+| API-21 | API | AC-43 | Requester metrics match the database | `openTickets`, `waitingForMe`, `awaitingClosure` each equal an independent Prisma count of the §5.8 calculation | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
+| API-22 | API | AC-45, BR-50 | Requester with no Tickets | Every metric is `0` and every list `[]`; no key missing or null | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
+| API-23 | API | AC-46, AC-51, BR-48 | Requester lists | Six matching Tickets → five returned in the documented order; no item carries `description` | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
+| API-24 | API | AC-47, BR-49 | 7- and 30-day boundaries | A Ticket updated exactly 7 days ago is in *Recently updated* and one 7 days + 1 minute ago is not; the same at 30 days for *Recently resolved* | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
+| API-25 | API | AC-48, BR-51 | Requester drill-down parity | For each metric, `GET /api/tickets` with its drill-down query returns `totalItems` equal to the metric | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
 | API-26 | API | AC-44 | Staff metrics match the database | Every count, `byStatus`, and `openByItPriority` equals an independent Prisma query | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | API-27 | API | AC-44 | "Me" is the caller | Two IT Staff with different owned Tickets and actions each see their own `mineOpen`, `myOpenActions`, and `myActions[]` | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | API-28 | API | AC-45 | Staff member with nothing | `mineOpen` and `myOpenActions` are `0` and `myActions` is `[]` | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
@@ -152,9 +152,9 @@ row counts of a shared database, and authenticates through
 | AUTHZ-02 | Authorization | AC-20 | Requester writes on another's Ticket | The same requests on another Requester's Ticket → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-03 | Authorization | AC-21, BR-18 | Requester read shape | Own Ticket's actions: every action returned with performer name; no `createdBy`, no email anywhere in the body | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-04 | Authorization | AC-22 | Requester reads another's | Another Requester's actions and status history → 404 byte-identical to a nonexistent Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
-| AUTHZ-05 | Authorization | AC-23 | Dashboard roles | Requester → staff dashboard 403; IT Staff and Administrator → Requester dashboard 403 | `server/tests/lab-04/authorization.api.test.ts` | Partial: Requester → staff dashboard 403 passes (#52); staff and Administrator → Requester dashboard in #53 |
+| AUTHZ-05 | Authorization | AC-23 | Dashboard roles | Requester → staff dashboard 403; IT Staff and Administrator → Requester dashboard 403 | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-06 | Authorization | AC-24 | Administrator acts as IT Staff | An Administrator creates, edits, and completes an action and resolves the Ticket | `server/tests/lab-04/authorization.api.test.ts` | Pass |
-| AUTHZ-07 | Authorization | §6.1 | Gates on every new route | All six new endpoints: no session → 401; password change outstanding → 403 `passwordChangeRequired` | `server/tests/lab-04/authorization.api.test.ts` | Partial: 5 routes pass (#49, #51, #52); the Requester dashboard in #53 |
+| AUTHZ-07 | Authorization | §6.1 | Gates on every new route | All six new endpoints: no session → 401; password change outstanding → 403 `passwordChangeRequired` | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-08 | Authorization | BR-23 | Requester never changes status | A Requester's `PATCH /status` on their own Ticket, with a valid version → 403 | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTHZ-09 | Authorization | AC-54, D-04 | Administrator ticket access | An Administrator reads the queue and a Ticket's detail, actions, and history (200 each) | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 
@@ -204,14 +204,14 @@ recorded command output in §4.3 and §6, not by a single test row.
 | UI-26 | UI | AC-49 | Administrator card | The user-counts card renders only when `userCounts` is present | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
 | UI-27 | UI | AC-50 | Staff safe failure | A failed load shows a plain message and *Try again*, which refetches | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
 | UI-28 | UI | FR-21 | Staff loading and forbidden | A loading placeholder that announces itself; a 403 shows the forbidden state | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
-| UI-29 | UI | FR-12, FR-15 | Requester metric cards | Three cards with label, value, and drill-down link | `client/tests/lab-04/RequesterDashboard.test.tsx` | Planned |
-| UI-30 | UI | FR-12 | Requester lists | *Needs your attention*, *Recently updated*, *Recently resolved* rows link to `/tickets/:id`; *View all* links present | `client/tests/lab-04/RequesterDashboard.test.tsx` | Planned |
-| UI-31 | UI | AC-45 | Requester with no Tickets | Zeros, list empty messages, and a *Create ticket* call to action | `client/tests/lab-04/RequesterDashboard.test.tsx` | Planned |
-| UI-32 | UI | AC-50, FR-21 | Requester loading and failure | Loading placeholder; safe failure with *Try again* | `client/tests/lab-04/RequesterDashboard.test.tsx` | Planned |
-| UI-33 | UI | AC-53, FR-17 | Role navigation | For each role, *Dashboard* is the first item; at `/dashboard` it is the active item; other roles' items are absent from the DOM | `client/tests/lab-04/Navigation.test.tsx` | Partial: IT Staff and Administrator pass (#52); Requester in #53 |
+| UI-29 | UI | FR-12, FR-15 | Requester metric cards | Three cards with label, value, and drill-down link | `client/tests/lab-04/RequesterDashboard.test.tsx` | Pass |
+| UI-30 | UI | FR-12 | Requester lists | *Needs your attention*, *Recently updated*, *Recently resolved* rows link to `/tickets/:id`; *View all* links present | `client/tests/lab-04/RequesterDashboard.test.tsx` | Pass |
+| UI-31 | UI | AC-45, D-19 | Requester with no Tickets | Zeros, list empty messages, and a *Create ticket* call to action; the empty state appears only when My Tickets' total is 0, not merely because every figure is 0 | `client/tests/lab-04/RequesterDashboard.test.tsx` | Pass |
+| UI-32 | UI | AC-50, FR-21 | Requester loading and failure | Loading placeholder; safe failure with *Try again* | `client/tests/lab-04/RequesterDashboard.test.tsx` | Pass |
+| UI-33 | UI | AC-53, FR-17 | Role navigation | For each role, *Dashboard* is the first item; at `/dashboard` it is the active item; other roles' items are absent from the DOM | `client/tests/lab-04/Navigation.test.tsx` | Pass |
 | UI-34 | UI | AC-54, D-04 | Administrator navigation | Exactly Dashboard, Ticket Queue, User Management | `client/tests/lab-04/Navigation.test.tsx` | Pass |
-| UI-35 | UI | AC-53, BR-62 | Landing route | An unknown or root path after login redirects every role to `/dashboard` | `client/tests/lab-04/Navigation.test.tsx` | Partial: IT Staff and Administrator pass (#52); Requester in #53 |
-| UI-36 | UI | FR-16, AC-48 | My Tickets reads the URL | `/tickets?statusGroup=active` and `?status=WAITING_FOR_REQUESTER` render with those filters selected and request them | `client/tests/lab-04/DrillDown.test.tsx` | Planned |
+| UI-35 | UI | AC-53, BR-62 | Landing route | An unknown or root path after login redirects every role to `/dashboard` | `client/tests/lab-04/Navigation.test.tsx` | Pass |
+| UI-36 | UI | FR-16, AC-48 | My Tickets reads the URL | `/tickets?statusGroup=active` and `?status=WAITING_FOR_REQUESTER` render with those filters selected and request them | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
 | UI-37 | UI | FR-16, AC-48 | Queue reads the URL | `/staff/tickets?ownerId=me&statusGroup=active` and `?itPriority=HIGH&sort=ticketDate&order=asc` apply on first load | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
 | UI-38 | UI | FR-16 | User Management reads the URL | `/admin/users?role=IT_STAFF` applies the role filter on first load | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
 | UI-39 | UI | FR-16 | Filters write the URL | Changing a filter updates the query string, so *Back* restores the previous filter; a filter chosen while a search is still debouncing is kept when the search lands (Queue and User Management) | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
@@ -247,7 +247,7 @@ as `<state>-<viewport>.png`.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| PERF-01 | Performance | AC-52, BR-47 | Requester dashboard under volume | With at least 1,000 Tickets and 2,000 actions present, the median of 5 calls is under 500 ms | `server/tests/lab-04/performance.smoke.test.ts` | Planned |
+| PERF-01 | Performance | AC-52, BR-47 | Requester dashboard under volume | With at least 1,000 Tickets and 2,000 actions present, the median of 5 calls is under 500 ms | `server/tests/lab-04/performance.smoke.test.ts` | Pass |
 | PERF-02 | Performance | AC-52, BR-47 | Staff dashboard under volume | Same volume and threshold for `GET /api/dashboard/staff` as an Administrator | `server/tests/lab-04/performance.smoke.test.ts` | Pass |
 
 The volume fixture is created idempotently (topped up to the target, never
@@ -291,6 +291,9 @@ change, not a regression; the list is re-confirmed when Issue 5 lands.
 | `e2e/lab-03/staff-ticket-flow.spec.ts` | ~~Records a Completed action before resolving~~ (not needed: the journey never resolves). **#52:** E2E-05 now expects the IT Staff member to land on `/dashboard`, then opens the queue through the navigation | BR-60, BR-62 | **Done (#52)** |
 | `e2e/lab-03/user-administration.spec.ts` | *Added in #52.* E2E-07 expects the Administrator, and the user they create, to land on `/dashboard`; E2E-07 and E2E-08 open User Management through the navigation | BR-62, BR-63 | **Done (#52)** |
 | `e2e/lab-03/responsive.spec.ts` | *Added in #52.* `pageAs` takes the path of the screen each test photographs, since staff and Administrators no longer land on it. RESP-04 waits for the reloaded list after changing rows per page, because a filter change is now a URL navigation (ui-spec §9) | BR-62 | **Done (#52)** |
+| `client/tests/lab-03/Login.test.tsx` | *Added in #53.* UI-01 expects the signed-in Requester on `/dashboard` instead of My Tickets | BR-62 | **Done (#53)** |
+| `client/tests/lab-03/ChangePassword.test.tsx` | *Added in #53.* UI-09 expects a Requester who completes the mandatory change on `/dashboard` instead of My Tickets | BR-62 | **Done (#53)** |
+| `e2e/lab-03/authentication.spec.ts` | *Added in #53.* E2E-01 expects the Requester to land on `/dashboard`, then opens My Tickets through the navigation; E2E-02 expects `/dashboard` after the password change | BR-62 | **Done (#53)** |
 | `e2e/lab-03/helpers.ts` | ~~Expected post-login landing~~ | BR-62 | **Not needed:** `signIn` waits for the Logout button, not for a particular page; the specs that assumed a landing page were edited instead (above) |
 
 ---

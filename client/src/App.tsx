@@ -10,14 +10,13 @@ import { StaffTicketQueue } from "./screens/StaffTicketQueue.js";
 import { StaffTicketDetail } from "./screens/StaffTicketDetail.js";
 import { UserManagement } from "./screens/UserManagement.js";
 import { StaffDashboard } from "./screens/StaffDashboard.js";
+import { RequesterDashboard } from "./screens/RequesterDashboard.js";
 import { LoadingSkeleton } from "./components/States.js";
 
-// The role's default landing path once past the password gate. Lab 4: IT Staff
-// and Administrators land on their Dashboard (BR-62); the Requester follows with
-// the Requester dashboard (#53).
-export function roleLanding(role: string): string {
-  if (role === "IT_STAFF" || role === "ADMINISTRATOR") return "/dashboard";
-  return "/tickets";
+// The landing path once past the password gate: Lab 4 lands every role on its
+// own Dashboard (BR-62), which `/dashboard` renders per role.
+export function roleLanding(): string {
+  return "/dashboard";
 }
 
 export function RoleRoutes({ role }: { role: string }) {
@@ -26,6 +25,7 @@ export function RoleRoutes({ role }: { role: string }) {
       <Route path="/change-password" element={<ChangePassword />} />
       {role === "REQUESTER" && (
         <>
+          <Route path="/dashboard" element={<RequesterDashboard />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/tickets/new" element={<CreateTicket />} />
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
@@ -41,7 +41,7 @@ export function RoleRoutes({ role }: { role: string }) {
         </>
       )}
       {role === "ADMINISTRATOR" && <Route path="/admin/users" element={<UserManagement />} />}
-      <Route path="*" element={<Navigate to={roleLanding(role)} replace />} />
+      <Route path="*" element={<Navigate to={roleLanding()} replace />} />
     </Routes>
   );
 }

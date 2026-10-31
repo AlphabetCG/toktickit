@@ -8,7 +8,7 @@ import { removeTickets } from "../helpers/cleanup.js";
 // AUTHZ-01…AUTHZ-04, AUTHZ-06…AUTHZ-08 (docs/lab-04/tests.md §2.5) for the
 // Actions Taken routes (#49) and the ticket workflow (#51). Every request goes
 // straight to the API, so the UI is bypassed entirely. AUTHZ-05 and the two
-// dashboard routes of AUTHZ-07 arrive with #52 and #53.
+// dashboard routes of AUTHZ-07 arrived with #52 and #53.
 const prisma = new PrismaClient();
 const TOKEN = `AZ4${Date.now()}`;
 
@@ -175,8 +175,7 @@ it("AUTHZ-06: an Administrator creates, edits, and completes an action and resol
   expect(resolved.body.currentStatus).toBe("RESOLVED");
 });
 
-// AUTHZ-07 — §6.1 (five routes delivered so far; the Requester dashboard arrives
-// with #53)
+// AUTHZ-07 — §6.1, all six new routes
 describe("AUTHZ-07: gates on the new routes", () => {
   const routes: [string, (r: ReturnType<typeof request>) => request.Test][] = [
     ["GET /api/tickets/:id/actions", (r) => r.get(`/api/tickets/${ownTicket}/actions`)],
@@ -184,6 +183,7 @@ describe("AUTHZ-07: gates on the new routes", () => {
     ["PATCH /api/actions/:id", (r) => r.patch(`/api/actions/${ownAction}`).send({ expectedVersion: 1 })],
     ["GET /api/tickets/:id/status-history", (r) => r.get(`/api/tickets/${ownTicket}/status-history`)],
     ["GET /api/dashboard/staff", (r) => r.get("/api/dashboard/staff")],
+    ["GET /api/dashboard/requester", (r) => r.get("/api/dashboard/requester")],
   ];
 
   it.each(routes)("%s: no session → 401", async (_name, call) => {
@@ -210,11 +210,22 @@ it("AUTHZ-08: a Requester never changes status, even on their own Ticket with a 
   expect(stored).toMatchObject({ currentStatus: "IN_PROGRESS", version });
 });
 
-// AUTHZ-05 — AC-23 (the staff-dashboard half; the Requester dashboard arrives with #53)
-it("AUTHZ-05: a Requester cannot read the staff dashboard", async () => {
-  const res = await request(app).get("/api/dashboard/staff").set("Cookie", owner.cookie);
-  expect(res.status).toBe(403);
-  expect(res.body).toEqual({ error: "This dashboard is for IT Staff." });
+// AUTHZ-05 — AC-23
+describe("AUTHZ-05: each dashboard refuses the other roles", () => {
+  it("a Requester cannot read the staff dashboard", async () => {
+    const res = await request(app).get("/api/dashboard/staff").set("Cookie", owner.cookie);
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "This dashboard is for IT Staff." });
+  });
+
+  it.each([
+    ["IT Staff", () => staff.cookie],
+    ["an Administrator", () => admin.cookie],
+  ])("%s cannot read the Requester dashboard", async (_who, cookie) => {
+    const res = await request(app).get("/api/dashboard/requester").set("Cookie", cookie());
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "This dashboard is for requesters." });
+  });
 });
 
 // AUTHZ-09 — AC-54, D-04

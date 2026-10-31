@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   getTickets,
   getCategories,
@@ -10,7 +10,7 @@ import {
 } from "../api.js";
 import { useAuth } from "../auth.js";
 import { Button } from "../components/Button.js";
-import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
+import { PriorityBadge, StatusBadge, statusLabel, type TicketStatus } from "../components/Badge.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
 
 const PAGE_SIZES = [10, 20, 50];
@@ -19,6 +19,20 @@ const SORTS = [
   { value: "ticketNumber", label: "Ticket Number" },
   { value: "updatedAt", label: "Last Updated" },
 ];
+// The Queue's order (Lab 3 ui-spec §6.3), so both lists read the same way.
+const STATUSES: TicketStatus[] = [
+  "NEW",
+  "OPEN",
+  "IN_PROGRESS",
+  "WAITING_FOR_REQUESTER",
+  "RESOLVED",
+  "REOPENED",
+  "CLOSED",
+  "CANCELLED",
+];
+const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
+// The status select carries the group as its own option value (ui-spec §9).
+const ALL_OPEN = "group:active";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -33,6 +47,9 @@ interface Query {
   categoryId: string;
   relatedSystemId: string;
   priority: string;
+  status: string;
+  /** Lab 4: "active" = the five open statuses (api-spec §4); an explicit status wins. */
+  statusGroup: string;
   sort: string;
   order: "asc" | "desc";
   page: number;
@@ -44,6 +61,8 @@ const INITIAL: Query = {
   categoryId: "",
   relatedSystemId: "",
   priority: "",
+  status: "",
+  statusGroup: "",
   sort: "ticketDate",
   order: "desc",
   page: 1,
@@ -52,15 +71,56 @@ const INITIAL: Query = {
 
 type Load = "loading" | "ready" | "error";
 
+/**
+ * Lab 4 (ui-spec §9): the query string is the filter state. Each recognised
+ * parameter is read; anything unrecognised falls back to its default, as the API
+ * does (Lab 2 BR-36).
+ */
+function readQuery(params: URLSearchParams): Query {
+  const get = (k: string) => params.get(k) ?? "";
+  const id = (k: string) => (/^\d+$/.test(get(k)) ? get(k) : "");
+  const status = (STATUSES as string[]).includes(get("status")) ? get("status") : "";
+  const page = Number(get("page"));
+  const pageSize = Number(get("pageSize"));
+  return {
+    search: get("search"),
+    categoryId: id("categoryId"),
+    relatedSystemId: id("relatedSystemId"),
+    priority: PRIORITIES.includes(get("priority")) ? get("priority") : "",
+    status,
+    statusGroup: !status && get("statusGroup") === "active" ? "active" : "",
+    sort: SORTS.some((o) => o.value === get("sort")) ? get("sort") : INITIAL.sort,
+    order: get("order") === "asc" ? "asc" : get("order") === "desc" ? "desc" : INITIAL.order,
+    page: Number.isInteger(page) && page >= 1 ? page : 1,
+    pageSize: PAGE_SIZES.includes(pageSize) ? pageSize : INITIAL.pageSize,
+  };
+}
+
+/** Only values that differ from the defaults go into the URL. */
+function writeQuery(q: Query): URLSearchParams {
+  const out = new URLSearchParams();
+  for (const [key, value] of Object.entries(q)) {
+    if (value !== "" && value !== INITIAL[key as keyof Query]) out.set(key, String(value));
+  }
+  return out;
+}
+
 export function MyTickets() {
   const { user } = useAuth();
   const requesterId = user!.id; // re-scopes the fetch effects when the user changes
   const navigate = useNavigate();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  // Keyed on the string, so a re-render with the same URL keeps the same object
+  // and the fetch below does not re-run.
+  const paramKey = params.toString();
+  const query = useMemo(() => readQuery(new URLSearchParams(paramKey)), [paramKey]);
+  const fromDashboard = Boolean((location.state as { fromDashboard?: boolean } | null)?.fromDashboard);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [systems, setSystems] = useState<RelatedSystem[]>([]);
-  const [searchText, setSearchText] = useState("");
-  const [query, setQuery] = useState<Query>(INITIAL);
+  const [searchText, setSearchText] = useState(query.search);
+  const [retryKey, setRetryKey] = useState(0);
   const [data, setData] = useState<TicketListResponse | null>(null);
   const [load, setLoad] = useState<Load>("loading");
 
@@ -75,13 +135,25 @@ export function MyTickets() {
       .catch(() => undefined);
   }, [requesterId]);
 
-  // Debounce the search box into the query (BR-31), resetting to page 1.
+  // A change writes the URL as a new history entry, so Back restores the previous
+  // filter (UI-39). Any change other than an explicit page move returns to page 1.
+  // Rebuilt whenever the URL changes, so it never writes onto a stale query.
+  const update = useCallback(
+    (patch: Partial<Query>) => setParams(writeQuery({ ...query, ...patch, page: patch.page ?? 1 })),
+    [query, setParams]
+  );
+
+  // Back/Forward changes the URL; the search box follows it.
+  useEffect(() => setSearchText(query.search), [query.search]);
+
+  // Debounce the search box into the query (BR-31). A filter change in the
+  // meantime restarts the timer with the fresh `update`, so that filter is kept.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setQuery((q) => (q.search === searchText ? q : { ...q, search: searchText, page: 1 }));
+      if (searchText !== query.search) update({ search: searchText });
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, query.search, update]);
 
   // Fetch on any query change. AbortController discards a slow earlier response so
   // it cannot overwrite a newer one (the stale-response race).
@@ -97,20 +169,15 @@ export function MyTickets() {
         if ((err as Error).name !== "AbortError") setLoad("error");
       });
     return () => controller.abort();
-  }, [requesterId, query]);
+  }, [requesterId, query, retryKey]);
 
   const filtersActive = Boolean(
-    query.search || query.categoryId || query.relatedSystemId || query.priority
+    query.search || query.categoryId || query.relatedSystemId || query.priority || query.status || query.statusGroup
   );
-
-  function update(patch: Partial<Query>) {
-    // Any change other than an explicit page move returns to page 1.
-    setQuery((q) => ({ ...q, ...patch, page: patch.page ?? 1 }));
-  }
 
   function clearFilters() {
     setSearchText("");
-    setQuery({ ...INITIAL });
+    setParams(new URLSearchParams());
   }
 
   return (
@@ -131,6 +198,20 @@ export function MyTickets() {
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
+        <select
+          className="zg-field"
+          aria-label="Filter by status"
+          value={query.status || (query.statusGroup ? ALL_OPEN : "")}
+          onChange={(e) =>
+            update(e.target.value === ALL_OPEN ? { status: "", statusGroup: "active" } : { status: e.target.value, statusGroup: "" })
+          }
+        >
+          <option value="">All statuses</option>
+          <option value={ALL_OPEN}>All open</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>{statusLabel(s)}</option>
+          ))}
+        </select>
         <select className="zg-field" aria-label="Filter by category" value={query.categoryId} onChange={(e) => update({ categoryId: e.target.value })}>
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -169,12 +250,22 @@ export function MyTickets() {
         )}
       </div>
 
+      {/* Why the list is shorter than usual, when a dashboard sent the user here (ui-spec §9). */}
+      {fromDashboard && filtersActive && (
+        <p className="zg-filtered-note">
+          Filtered from Dashboard ·{" "}
+          <button type="button" className="zg-link-button" onClick={clearFilters}>
+            Show all tickets
+          </button>
+        </p>
+      )}
+
       {load === "loading" && <LoadingSkeleton rows={5} label="Loading tickets…" />}
 
       {load === "error" && (
         <ErrorCallout
           message="We couldn't load your tickets. Please try again."
-          onRetry={() => setQuery((q) => ({ ...q }))}
+          onRetry={() => setRetryKey((k) => k + 1)}
         />
       )}
 

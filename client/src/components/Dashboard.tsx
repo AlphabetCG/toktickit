@@ -11,12 +11,16 @@ export const FROM_DASHBOARD = { fromDashboard: true };
  * Metric card (§2.2). With an `href` the whole card is one link whose accessible
  * name is the full sentence, so a screen reader never announces a bare number.
  * With `href` null it is a static card — it never pretends to be a link.
- * Zero is shown as 0, in the same weight.
+ * Zero is shown as 0, in the same weight. An optional `badge` sits beside the
+ * label for the card that asks the user to act (§6.1).
  */
-export function MetricCard({ label, metric }: { label: string; metric: Metric }) {
+export function MetricCard({ label, metric, badge }: { label: string; metric: Metric; badge?: ReactNode }) {
   const body = (
     <>
-      <span className="zg-metric__label">{label}</span>
+      <span className="zg-metric__label">
+        {label}
+        {badge}
+      </span>
       <span className="zg-metric__value">{metric.value}</span>
     </>
   );
