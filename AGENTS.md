@@ -353,6 +353,9 @@ its reusable focus-trapping dialog is `client/src/components/Dialog.tsx`. #51
 merged (PR #59); its gate is `server/src/resolutionGate.ts`, and test Tickets with
 status history are cleaned up via `server/tests/helpers/cleanup.ts`. #52 merged
 (PR #60): the Queue and User Management read their filters from the URL. #53
-Requester dashboard in review: every role now lands on `/dashboard` (BR-62), and
-My Tickets reads its filters, including `statusGroup`, from the URL.
-**Next:** #54 starts after #53 merges.
+merged (PR #61): every role lands on `/dashboard` (BR-62), and My Tickets reads
+its filters from the URL. #54 hardening in review: dates are formatted only in
+`client/src/format.ts`, `playwright.config.ts` runs `e2e/lab-03` and `e2e/lab-04`
+together, and REG-02 needs a database built in release order (README).
+**Next:** after #54 merges, re-run every suite on `lab4-staging`, then open the
+release PR `lab4-staging` → `main` and re-run on `main` (tests.md §6).

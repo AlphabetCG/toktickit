@@ -132,4 +132,36 @@ honest. Client 200/200, `tsc` clean.
 **Outcome:** fixed. The review caught a real defect that the tests had not
 covered, and the two new UI-39 cases now guard it.
 
+### PR #61 — feat: Requester dashboard, My Tickets drill-down, Dashboard landing for every role (Issue #53 / Lab 4 Issue 7)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/61
+- **Base:** `lab4-staging` ← **Head:** `feature/7-requester-dashboard`
+- **Review verdict:** `CHANGES_REQUESTED` by @copter549365, 2026-10-31 18:48 UTC,
+  a **substantive review**. After my reply, copter answered "โอเคครับ" (OK) at
+  18:58:14 UTC and the PR merged at 18:58:18 UTC. As with PR #60, the review was
+  never changed to `APPROVED`.
+
+**Reviewer's comment (summary).** A suspected CSS cascade bug. In the diff they
+read, both `.zg-metrics--three` overrides (tablet: three columns; mobile: one
+column) appeared inside the same `@media (max-width: 991px)` block. If that were
+the real structure, the later one-column rule would win across 768–991 px as
+well, because both have the same specificity, and the comment "the Requester's
+three cards still fit across at 768 px" would be false. They suspected that the
+pasted diff had lost a closing `}` and an opening `@media (max-width: 767px) {`,
+as earlier diffs in the series had been truncated. They asked me to confirm in
+the real file, and, if it was a bug, to fix it and re-shoot the tablet screenshot.
+
+**Author's reply** ([comment](https://github.com/AlphabetCG/toktickit/pull/61#issuecomment-6547715701)):
+confirmed from `client/src/theme.css` that the three-column tablet rule is in
+`@media (max-width: 991px)` (lines 1760–1773) and the one-column mobile rule is
+in a separate, sibling `@media (max-width: 767px)` block (line 1776), not nested
+in the first. The copied diff had lost the closing brace and the second media
+query. Measured in Chromium: three columns at 768–991 px, one column at ≤ 767 px.
+A tablet screenshot of the Requester dashboard was attached.
+
+**Outcome:** no change needed. As with PR #59, the reviewer's reasoning was
+correct for the text they saw, and the real file and a measurement showed the
+intended structure. RESP-02 in Issue #54 now checks the tablet layout
+automatically.
+
 ## Direction B — @AlphabetCG reviews @copter549365
