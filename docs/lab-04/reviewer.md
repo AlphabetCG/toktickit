@@ -94,4 +94,42 @@ byte-identical afterwards.
 **Outcome:** no change needed. The reviewer read a removed diff line as current
 code; the check confirmed both the behaviour and the test that protects it.
 
+### PR #60 — feat: IT Staff and Administrator dashboard, drill-down, Dashboard navigation (Issue #52 / Lab 4 Issue 6)
+
+- **PR:** https://github.com/AlphabetCG/toktickit/pull/60
+- **Base:** `lab4-staging` ← **Head:** `feature/6-staff-dashboard`
+- **Review verdict:** `CHANGES_REQUESTED` by @copter549365, 2026-10-29 20:08 UTC,
+  a **substantive review**. After the fix and my reply, copter answered
+  "แก้มาได้ตรงจุดครับ" (fixed right on the spot) at 17:40:32 UTC on 2026-10-31,
+  and the PR merged at 17:40:36 UTC. The review was never changed to `APPROVED`,
+  so GitHub still shows the PR as changes requested.
+
+**Reviewer's comment (summary).** Five points that matched the contract: a
+`href: null` metric renders as a static `<div>` rather than a fake link (§6.2);
+the URL is the filter state for the Queue and User Management, so a drill-down
+link opens filtered with no unfiltered first request, and Back restores the
+previous filter (UI-37…39); the "Filtered from Dashboard" note explains a short
+list; no new colour token (only `--zg-fs-metric`); and the Administrator's new
+Ticket Queue link is tied to BR-63 and D-04. **The requested change:** three
+`eslint-disable-next-line react-hooks/exhaustive-deps` lines in
+`StaffTicketQueue.tsx`. The reviewer found no staleness bug, but warned that
+disabling the rule three times in one file makes dependencies hard to check, and
+suggested a custom hook.
+
+**Author's reply** ([comment](https://github.com/AlphabetCG/toktickit/pull/60#issuecomment-6546869563)):
+the point was right, and tracing it found a **real** staleness bug. The search
+debounce's deps were only `[searchText]`, so its timer called an `update` that
+still held the query from when typing started. A filter chosen within 300 ms of
+typing was overwritten when the search reached the URL. `UserManagement.tsx` had
+the same incomplete dependency list, with no disable comment to flag it. Two new
+UI-39 cases (type, then pick a filter at once) failed for exactly that reason:
+the URL was `?search=vpn` with `itPriority=LOW` gone. Fix in `c95acf2`: `query` is
+memoised from the URL string, `update` and `setParam` are `useCallback`s rebuilt
+when the URL changes, and every effect lists its real dependencies. All three
+disables were removed; the custom hook was not needed once the dependencies were
+honest. Client 200/200, `tsc` clean.
+
+**Outcome:** fixed. The review caught a real defect that the tests had not
+covered, and the two new UI-39 cases now guard it.
+
 ## Direction B — @AlphabetCG reviews @copter549365
