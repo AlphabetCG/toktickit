@@ -1,24 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTicket, signalResolution, NotFoundError, SIGNAL_FAILED_MESSAGE, type TicketDetail } from "../api.js";
+import {
+  getTicket,
+  signalResolution,
+  NotFoundError,
+  SIGNAL_FAILED_MESSAGE,
+  type TicketDetail,
+  type TicketStatusValue,
+} from "../api.js";
 import { useAuth } from "../auth.js";
 import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
 import { AttachmentSection } from "../components/AttachmentSection.js";
 import { PublicComments } from "../components/PublicComments.js";
+import { ActionsTaken } from "../components/ActionsTaken.js";
+import { StatusHistory } from "../components/StatusHistory.js";
 import { Button } from "../components/Button.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDateTime } from "../format.js";
 
 type Load = "loading" | "ready" | "notfound" | "error";
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 /** Read-only label/value pair — never a disabled input (AC-23, ui-spec §8.4). */
 function Info({ label, children }: { label: string; children: React.ReactNode }) {
@@ -165,6 +165,11 @@ export function RequesterTicketDetail() {
           <dd className="zg-info__value zg-detail-text">{ticket.description}</dd>
         </div>
       </div>
+
+      {/* Lab 4 §8: the work recorded on this ticket, read-only. */}
+      <ActionsTaken ticketId={ticket.id} ticketStatus={ticket.currentStatus as TicketStatusValue} mode="requester" />
+      {/* Staff changes read "IT Support"; the Requester's own read "You" (BR-35). */}
+      <StatusHistory ticketId={ticket.id} viewer="requester" currentUserId={user?.id} />
 
       <AttachmentSection ticketId={ticket.id} initial={ticket.attachments} />
 

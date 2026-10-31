@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getComments, postComment, ValidationError, type Comment, type Role } from "../api.js";
 import { Button } from "./Button.js";
 import { LoadingSkeleton, ErrorCallout } from "./States.js";
+import { formatDateTime } from "../format.js";
 
 const BODY_MAX = 2000;
 
@@ -10,16 +11,6 @@ const ROLE_LABEL: Record<Role, string> = {
   IT_STAFF: "IT Staff",
   ADMINISTRATOR: "Administrator",
 };
-
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 /**
  * Public Comments panel (ui-spec §7.1). Visible to the requester and IT team;
@@ -95,7 +86,7 @@ export function PublicComments({ ticketId, disabledReason }: PublicCommentsProps
                   <p className="zg-comment__meta">
                     <span className="zg-comment__author">{c.author.name}</span>{" "}
                     <span className="zg-comment__role">({ROLE_LABEL[c.author.role]})</span>{" "}
-                    · {formatWhen(c.createdAt)}
+                    · {formatDateTime(c.createdAt)}
                   </p>
                   {/* Rendered as a text node, never HTML (BR-45). */}
                   <p className="zg-comment__body">{c.body}</p>

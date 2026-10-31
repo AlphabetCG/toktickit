@@ -29,7 +29,8 @@ function renderScreen() {
     <MemoryRouter initialEntries={["/change-password"]}>
       <Routes>
         <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/tickets" element={<div>My Tickets Screen</div>} />
+        {/* Lab 4 BR-62: every role now lands on its Dashboard (Lab 4 tests.md §2.12). */}
+        <Route path="/dashboard" element={<div>Dashboard Screen</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -81,7 +82,7 @@ describe("Change Password", () => {
     await user.click(screen.getByRole("button", { name: "Save password" }));
 
     expect(changePassword).toHaveBeenCalledWith("ChangeMe123!", "BrandNewPass!2026");
-    expect(await screen.findByText("My Tickets Screen")).toBeInTheDocument();
+    expect(await screen.findByText("Dashboard Screen")).toBeInTheDocument();
   });
 
   // The policy is the server's (BR-10). The screen repeats the minimum only so it

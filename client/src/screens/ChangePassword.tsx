@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { changePassword, ValidationError, type AuthUser } from "../api.js";
+import { changePassword, ValidationError } from "../api.js";
 import { useAuth } from "../auth.js";
 import { TextField } from "../components/Field.js";
 import { Button } from "../components/Button.js";
@@ -8,11 +8,8 @@ import { ErrorCallout } from "../components/States.js";
 
 const PASSWORD_MIN = 12;
 
-function roleLanding(user: AuthUser | null): string {
-  if (user?.role === "IT_STAFF") return "/staff/tickets";
-  if (user?.role === "ADMINISTRATOR") return "/admin/users";
-  return "/tickets";
-}
+// Lab 4 (BR-62): every role lands on its own Dashboard.
+const LANDING = "/dashboard";
 
 /**
  * Change Password (ui-spec §6.2). Mandatory mode (mustChangePassword) shows a
@@ -51,7 +48,7 @@ export function ChangePassword() {
       await changePassword(currentPassword, newPassword);
       await refresh(); // clears the gate flag in context
       if (mandatory) {
-        navigate(roleLanding(user), { replace: true });
+        navigate(LANDING, { replace: true });
       } else {
         setDone(true);
         setCurrent("");
@@ -115,7 +112,7 @@ export function ChangePassword() {
 
         <div className="zg-form-actions">
           {!mandatory && (
-            <Button type="button" variant="secondary" onClick={() => navigate(roleLanding(user))}>
+            <Button type="button" variant="secondary" onClick={() => navigate(LANDING)}>
               Cancel
             </Button>
           )}

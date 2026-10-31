@@ -9,36 +9,39 @@ import { RequesterTicketDetail } from "./screens/RequesterTicketDetail.js";
 import { StaffTicketQueue } from "./screens/StaffTicketQueue.js";
 import { StaffTicketDetail } from "./screens/StaffTicketDetail.js";
 import { UserManagement } from "./screens/UserManagement.js";
+import { StaffDashboard } from "./screens/StaffDashboard.js";
+import { RequesterDashboard } from "./screens/RequesterDashboard.js";
 import { LoadingSkeleton } from "./components/States.js";
 
-// The role's default landing path once past the password gate.
-function roleLanding(role: string): string {
-  if (role === "IT_STAFF") return "/staff/tickets";
-  if (role === "ADMINISTRATOR") return "/admin/users";
-  return "/tickets";
+// The landing path once past the password gate: Lab 4 lands every role on its
+// own Dashboard (BR-62), which `/dashboard` renders per role.
+export function roleLanding(): string {
+  return "/dashboard";
 }
 
-function RoleRoutes({ role }: { role: string }) {
+export function RoleRoutes({ role }: { role: string }) {
   return (
     <Routes>
       <Route path="/change-password" element={<ChangePassword />} />
       {role === "REQUESTER" && (
         <>
+          <Route path="/dashboard" element={<RequesterDashboard />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/tickets/new" element={<CreateTicket />} />
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         </>
       )}
-      {/* The queue serves IT Staff and, per spec §6.1, Administrators too — reachable
-          but not promoted in the Administrator's navigation. */}
+      {/* The queue serves IT Staff and Administrators (spec §6.1); Lab 4 puts it in
+          the Administrator's navigation too (BR-63, D-04). */}
       {(role === "IT_STAFF" || role === "ADMINISTRATOR") && (
         <>
+          <Route path="/dashboard" element={<StaffDashboard />} />
           <Route path="/staff/tickets" element={<StaffTicketQueue />} />
           <Route path="/staff/tickets/:id" element={<StaffTicketDetail />} />
         </>
       )}
       {role === "ADMINISTRATOR" && <Route path="/admin/users" element={<UserManagement />} />}
-      <Route path="*" element={<Navigate to={roleLanding(role)} replace />} />
+      <Route path="*" element={<Navigate to={roleLanding()} replace />} />
     </Routes>
   );
 }

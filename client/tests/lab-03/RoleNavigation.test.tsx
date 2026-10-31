@@ -36,11 +36,13 @@ describe("Role-specific navigation", () => {
     expect(screen.queryByRole("link", { name: "My Tickets" })).not.toBeInTheDocument();
   });
 
-  // UI-12 — AC-53
+  // UI-12 — AC-53. Lab 4 §5.10 (BR-63, D-04): the Administrator's navigation now
+  // also offers the Ticket Queue they were always permitted to use.
   it("UI-12: an Administrator sees User Management", () => {
     renderShell("ADMINISTRATOR");
     expect(screen.getByRole("link", { name: "User Management" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Ticket Queue" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ticket Queue" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "My Tickets" })).not.toBeInTheDocument();
   });
 
   // UI-13 — §7.1

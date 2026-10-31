@@ -188,6 +188,8 @@ export interface TicketListParams {
   relatedSystemId?: string;
   priority?: string;
   status?: string;
+  /** Lab 4 (api-spec §4): "active" = the five open statuses; an explicit status wins. */
+  statusGroup?: string;
   sort?: string;
   order?: string;
   page?: number;
@@ -241,6 +243,20 @@ export interface TicketDetail {
   // keys entirely (api-spec §3.2, AC-40).
   internalNotes?: Comment[];
   permittedTransitions?: TicketStatusValue[];
+  /**
+   * Lab 4: the version the next Ticket write must send (api-spec §3.1). The API
+   * always sends both keys; they are optional in this type only so Requester-side
+   * fixtures written before Lab 4 still type-check without being edited (BR-57).
+   */
+  version?: number;
+  resolvedAt?: string | null;
+  /** Lab 4, staff only: why Resolved is or is not offered (BR-28). */
+  resolutionGate?: ResolutionGate;
+}
+
+export interface ResolutionGate {
+  satisfied: boolean;
+  unmet: { code: string; message: string }[];
 }
 
 export async function getTicket(id: number): Promise<TicketDetail> {
@@ -466,31 +482,43 @@ export async function postNote(ticketId: number, body: string): Promise<Note> {
 
 export async function setTicketOwner(
   ticketId: number,
-  ownerId: number | null
-): Promise<{ id: number; owner: { id: number; name: string } | null }> {
-  const res = await request(`/api/tickets/${ticketId}/owner`, jsonInit("PATCH", { ownerId }));
+  ownerId: number | null,
+  expectedVersion: number
+): Promise<{ id: number; owner: { id: number; name: string } | null; version: number }> {
+  const res = await request(`/api/tickets/${ticketId}/owner`, jsonInit("PATCH", { ownerId, expectedVersion }));
   await guard(res);
-  if (!res.ok) return operationFailure(res, "Unable to change the owner.");
+  if (!res.ok) return actionFailure(res, "Unable to change the owner.");
   return res.json();
 }
 
 export async function setItPriority(
   ticketId: number,
-  itPriority: RequestedPriority
-): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority }> {
-  const res = await request(`/api/tickets/${ticketId}/it-priority`, jsonInit("PATCH", { itPriority }));
+  itPriority: RequestedPriority,
+  expectedVersion: number
+): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority; version: number }> {
+  const res = await request(`/api/tickets/${ticketId}/it-priority`, jsonInit("PATCH", { itPriority, expectedVersion }));
   await guard(res);
-  if (!res.ok) return operationFailure(res, "Unable to change the IT Priority.");
+  if (!res.ok) return actionFailure(res, "Unable to change the IT Priority.");
   return res.json();
+}
+
+export interface StatusChangeResult {
+  id: number;
+  currentStatus: TicketStatusValue;
+  version: number;
+  resolvedAt: string | null;
+  permittedTransitions: TicketStatusValue[];
+  cancelledActions: number;
 }
 
 export async function setTicketStatus(
   ticketId: number,
-  status: TicketStatusValue
-): Promise<{ id: number; currentStatus: TicketStatusValue; permittedTransitions: TicketStatusValue[] }> {
-  const res = await request(`/api/tickets/${ticketId}/status`, jsonInit("PATCH", { status }));
+  status: TicketStatusValue,
+  expectedVersion: number
+): Promise<StatusChangeResult> {
+  const res = await request(`/api/tickets/${ticketId}/status`, jsonInit("PATCH", { status, expectedVersion }));
   await guard(res);
-  if (!res.ok) return operationFailure(res, "Unable to change the status.");
+  if (!res.ok) return actionFailure(res, "Unable to change the status.");
   return res.json();
 }
 
@@ -541,5 +569,186 @@ export async function setInitialPassword(id: number, initialPassword: string): P
   const res = await request(`/api/admin/users/${id}/initial-password`, jsonInit("POST", { initialPassword }));
   await guard(res);
   if (!res.ok) return operationFailure(res, "Unable to set the initial password.");
+  return res.json();
+}
+
+// --- Actions Taken (Lab 4, api-spec §2) -----------------------------------------
+
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string;
+  status: ActionStatus;
+  performedBy: { id: number; name: string };
+  /** Absent for a Requester (BR-18). */
+  createdBy?: { id: number; name: string };
+  followUpRequired: boolean;
+  followUpNote: string;
+  attachmentNotes: string;
+  version: number;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActionInput {
+  actionAt: string;
+  description: string;
+  result: string;
+  performedById: number;
+  followUpRequired: boolean;
+  followUpNote: string;
+  attachmentNotes: string;
+}
+
+/**
+ * A Lab 4 409 (api-spec §1.2). `conflict` tells the cases apart without parsing
+ * the message; `current` is the server's current state for a stale or refused
+ * transition.
+ */
+export class ConflictError extends Error {
+  conflict: string;
+  current?: unknown;
+  /** For `resolutionGate`: every unmet condition (BR-27). */
+  unmet?: { code: string; message: string }[];
+  constructor(message: string, conflict: string, current?: unknown, unmet?: { code: string; message: string }[]) {
+    super(message);
+    this.name = "ConflictError";
+    this.conflict = conflict;
+    this.current = current;
+    this.unmet = unmet;
+  }
+}
+
+async function actionFailure(res: Response, generic: string): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 400) throw new ValidationError(body.fields ?? {}, generic);
+  if (res.status === 409) {
+    const message = typeof body.error === "string" ? body.error : generic;
+    throw new ConflictError(message, body.conflict ?? "", body.current, body.unmet);
+  }
+  throw new Error(generic);
+}
+
+export async function getActions(ticketId: number): Promise<ActionTaken[]> {
+  const res = await request(`/api/tickets/${ticketId}/actions`);
+  await guard(res);
+  if (!res.ok) throw new Error(`Actions request failed: HTTP ${res.status}`);
+  return (await res.json()).items;
+}
+
+export async function createAction(
+  ticketId: number,
+  input: ActionInput & { status: ActionStatus; clientRequestId: string }
+): Promise<ActionTaken> {
+  const res = await request(`/api/tickets/${ticketId}/actions`, jsonInit("POST", input));
+  await guard(res);
+  if (!res.ok) return actionFailure(res, "We couldn't save the action. Please try again.");
+  return res.json();
+}
+
+export async function updateAction(
+  actionId: number,
+  patch: Partial<ActionInput> & { status?: ActionStatus; expectedVersion: number }
+): Promise<ActionTaken> {
+  const res = await request(`/api/actions/${actionId}`, jsonInit("PATCH", patch));
+  await guard(res);
+  if (!res.ok) return actionFailure(res, "We couldn't update the action. Please try again.");
+  return res.json();
+}
+
+// --- Status history (Lab 4, api-spec §3.5) ---------------------------------------
+
+export interface StatusHistoryEntry {
+  id: number;
+  fromStatus: TicketStatusValue | null;
+  toStatus: TicketStatusValue;
+  changedAt: string;
+  /** `staff` carries no id or name for a Requester (BR-35); `system` is a backfill. */
+  actor: { kind: "requester" | "staff" | "system"; id?: number; name?: string };
+}
+
+export async function getStatusHistory(ticketId: number): Promise<StatusHistoryEntry[]> {
+  const res = await request(`/api/tickets/${ticketId}/status-history`);
+  await guard(res);
+  if (!res.ok) throw new Error(`Status history request failed: HTTP ${res.status}`);
+  return (await res.json()).items;
+}
+
+// --- Dashboards (Lab 4, api-spec §6) ------------------------------------------------
+
+/** One figure and the list that shows exactly its set; `href` null = no such list (BR-51). */
+export interface Metric {
+  value: number;
+  href: string | null;
+}
+
+export interface StaffTicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatusValue;
+  itPriority: RequestedPriority;
+  owner: { id: number; name: string } | null;
+  ticketDate: string;
+  updatedAt: string;
+  href: string;
+}
+
+export interface ActionSummary {
+  id: number;
+  status: ActionStatus;
+  actionAt: string;
+  description: string;
+  ticket: { id: number; ticketNumber: string; summary: string };
+  href: string;
+}
+
+export interface StaffDashboardData {
+  generatedAt: string;
+  metrics: { unassignedOpen: Metric; mineOpen: Metric; myOpenActions: Metric; highPriorityOpen: Metric };
+  byStatus: Record<TicketStatusValue, Metric>;
+  openByItPriority: Record<RequestedPriority, Metric>;
+  myActions: { items: ActionSummary[] };
+  urgent: { items: StaffTicketSummary[]; viewAllHref: string };
+  recentlyUpdated: { items: StaffTicketSummary[]; viewAllHref: string };
+  /** Administrators only; the key is absent for IT Staff (AC-49). */
+  userCounts?: { activeByRole: Record<Role, Metric>; inactive: Metric };
+}
+
+/** Requester dashboard list item (api-spec §5.1) — never a description. */
+export interface RequesterTicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatusValue;
+  updatedAt: string;
+  resolvedAt: string | null;
+  href: string;
+}
+
+export interface RequesterDashboardData {
+  generatedAt: string;
+  metrics: { openTickets: Metric; waitingForMe: Metric; awaitingClosure: Metric };
+  needsAttention: { items: RequesterTicketSummary[]; viewAllHref: string };
+  recentlyUpdated: { items: RequesterTicketSummary[]; viewAllHref: string };
+  recentlyResolved: { items: RequesterTicketSummary[] };
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  const res = await request("/api/dashboard/requester");
+  await guard(res);
+  if (!res.ok) throw new Error(`Dashboard request failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  const res = await request("/api/dashboard/staff");
+  await guard(res);
+  if (!res.ok) throw new Error(`Dashboard request failed: HTTP ${res.status}`);
   return res.json();
 }

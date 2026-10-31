@@ -20,6 +20,8 @@ export interface NormalizedTicketQuery {
   relatedSystemId?: number;
   priority?: string;
   status?: string;
+  /** Lab 4 (api-spec §4): the five active statuses; an explicit status wins. */
+  statusGroup?: "active";
   sort: SortField;
   order: "asc" | "desc";
   page: number;
@@ -37,13 +39,15 @@ export function normalizeTicketQuery(q: Record<string, unknown>): NormalizedTick
 
   const page = toPositiveInt(q.page);
   const pageSize = toPositiveInt(q.pageSize);
+  const status = typeof q.status === "string" && STATUSES.includes(q.status) ? q.status : undefined;
 
   return {
     search: search.length > 0 ? search : undefined,
     categoryId: toPositiveInt(q.categoryId),
     relatedSystemId: toPositiveInt(q.relatedSystemId),
     priority: typeof q.priority === "string" && PRIORITIES.includes(q.priority) ? q.priority : undefined,
-    status: typeof q.status === "string" && STATUSES.includes(q.status) ? q.status : undefined,
+    status,
+    statusGroup: !status && q.statusGroup === "active" ? "active" : undefined,
     sort: SORT_FIELDS.includes(q.sort as SortField) ? (q.sort as SortField) : "ticketDate",
     order: q.order === "asc" ? "asc" : "desc",
     page: page && page >= 1 ? page : 1,

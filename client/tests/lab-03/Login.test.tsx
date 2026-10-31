@@ -19,7 +19,8 @@ function renderLogin() {
     <MemoryRouter initialEntries={["/login"]}>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/tickets" element={<div>My Tickets Screen</div>} />
+        {/* Lab 4 BR-62: every role now lands on its Dashboard (Lab 4 tests.md §2.12). */}
+        <Route path="/dashboard" element={<div>Dashboard Screen</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -40,7 +41,7 @@ describe("Login", () => {
 
     expect(signIn).toHaveBeenCalledTimes(1);
     expect(signIn).toHaveBeenCalledWith("somchai@toktickit.test", "ChangeMe123!");
-    expect(await screen.findByText("My Tickets Screen")).toBeInTheDocument();
+    expect(await screen.findByText("Dashboard Screen")).toBeInTheDocument();
   });
 
   // UI-02 — FR-23

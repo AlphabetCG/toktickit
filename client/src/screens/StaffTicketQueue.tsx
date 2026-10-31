@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   getStaffQueue,
   getCategories,
@@ -10,6 +10,7 @@ import {
 import { Button } from "../components/Button.js";
 import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDate } from "../format.js";
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -31,13 +32,11 @@ const SORTS = [
   { value: "ticketNumber", label: "Ticket Number" },
 ];
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
 interface Query {
   search: string;
   status: string;
+  /** Lab 4: "active" = the five open statuses (api-spec §4); an explicit status wins. */
+  statusGroup: string;
   itPriority: string;
   ownerId: string;
   categoryId: string;
@@ -51,6 +50,7 @@ interface Query {
 const INITIAL: Query = {
   search: "",
   status: "",
+  statusGroup: "",
   itPriority: "",
   ownerId: "",
   categoryId: "",
@@ -62,15 +62,62 @@ const INITIAL: Query = {
 
 type Load = "loading" | "ready" | "forbidden" | "error";
 
+const STATUS_VALUES = STATUS_OPTIONS.map((o) => o.value as string);
+const SORT_VALUES = SORTS.map((o) => o.value);
+const PRIORITY_VALUES = ["HIGH", "MEDIUM", "LOW"];
+// The status select carries the group as its own option value (ui-spec §9).
+const ALL_OPEN = "group:active";
+
+/**
+ * Lab 4 (ui-spec §9): the query string is the filter state. Each recognised
+ * parameter is read; anything unrecognised falls back to its default, as the API
+ * does (Lab 2 BR-36).
+ */
+function readQuery(params: URLSearchParams): Query {
+  const get = (k: string) => params.get(k) ?? "";
+  const status = STATUS_VALUES.includes(get("status")) ? get("status") : "";
+  const owner = get("ownerId");
+  const page = Number(get("page"));
+  const pageSize = Number(get("pageSize"));
+  return {
+    search: get("search"),
+    status,
+    statusGroup: !status && get("statusGroup") === "active" ? "active" : "",
+    itPriority: PRIORITY_VALUES.includes(get("itPriority")) ? get("itPriority") : "",
+    ownerId: owner === "unassigned" || owner === "me" || /^\d+$/.test(owner) ? owner : "",
+    categoryId: /^\d+$/.test(get("categoryId")) ? get("categoryId") : "",
+    sort: SORT_VALUES.includes(get("sort")) ? get("sort") : INITIAL.sort,
+    order: get("order") === "asc" ? "asc" : get("order") === "desc" ? "desc" : INITIAL.order,
+    page: Number.isInteger(page) && page >= 1 ? page : 1,
+    pageSize: PAGE_SIZES.includes(pageSize) ? pageSize : INITIAL.pageSize,
+  };
+}
+
+/** Only values that differ from the defaults go into the URL. */
+function writeQuery(q: Query): URLSearchParams {
+  const out = new URLSearchParams();
+  for (const [key, value] of Object.entries(q)) {
+    if (value !== "" && value !== INITIAL[key as keyof Query]) out.set(key, String(value));
+  }
+  return out;
+}
+
 /**
  * IT Staff Ticket Queue (ui-spec §6.3). Seven columns at desktop; the shared
  * `.zg-table` becomes cards below 768px rather than scrolling sideways.
  */
 export function StaffTicketQueue() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  // Keyed on the string, so a re-render with the same URL keeps the same object
+  // and the fetch below does not re-run.
+  const paramKey = params.toString();
+  const query = useMemo(() => readQuery(new URLSearchParams(paramKey)), [paramKey]);
+  const fromDashboard = Boolean((location.state as { fromDashboard?: boolean } | null)?.fromDashboard);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [searchText, setSearchText] = useState("");
-  const [query, setQuery] = useState<Query>(INITIAL);
+  const [searchText, setSearchText] = useState(query.search);
+  const [retryKey, setRetryKey] = useState(0);
   const [data, setData] = useState<QueueResponse | null>(null);
   const [load, setLoad] = useState<Load>("loading");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -81,13 +128,24 @@ export function StaffTicketQueue() {
       .catch(() => undefined); // the queue's own states cover a failed load
   }, []);
 
-  // Debounce search into the query, back to page 1.
+  // A change writes the URL as a new history entry, so Back restores the previous
+  // filter (UI-39). Rebuilt whenever the URL changes, so it never writes onto a stale query.
+  const update = useCallback(
+    (patch: Partial<Query>) => setParams(writeQuery({ ...query, ...patch, page: patch.page ?? 1 })),
+    [query, setParams]
+  );
+
+  // Back/Forward changes the URL; the search box follows it.
+  useEffect(() => setSearchText(query.search), [query.search]);
+
+  // Debounce search into the query, back to page 1. A filter change in the
+  // meantime restarts the timer with the fresh `update`, so that filter is kept.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setQuery((q) => (q.search === searchText ? q : { ...q, search: searchText, page: 1 }));
+      if (searchText !== query.search) update({ search: searchText });
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, query.search, update]);
 
   // AbortController discards a slow earlier response so it cannot overwrite a newer one.
   useEffect(() => {
@@ -103,19 +161,19 @@ export function StaffTicketQueue() {
         setLoad(err instanceof ForbiddenError ? "forbidden" : "error");
       });
     return () => controller.abort();
-  }, [query]);
+  }, [query, retryKey]);
 
-  const filtersActive = Boolean(query.search || query.status || query.itPriority || query.ownerId || query.categoryId);
+  const filtersActive = Boolean(
+    query.search || query.status || query.statusGroup || query.itPriority || query.ownerId || query.categoryId
+  );
   // The disclosure's count covers what it hides; search stays visible beside it.
-  const activeFilterCount = [query.status, query.itPriority, query.ownerId, query.categoryId].filter(Boolean).length;
-
-  function update(patch: Partial<Query>) {
-    setQuery((q) => ({ ...q, ...patch, page: patch.page ?? 1 }));
-  }
+  const activeFilterCount = [query.status || query.statusGroup, query.itPriority, query.ownerId, query.categoryId].filter(
+    Boolean
+  ).length;
 
   function clearFilters() {
     setSearchText("");
-    setQuery({ ...INITIAL });
+    setParams(new URLSearchParams());
   }
 
   if (load === "forbidden") {
@@ -135,7 +193,7 @@ export function StaffTicketQueue() {
         <h1 className="zg-page-title">Ticket Queue</h1>
         {data && (
           <p className="zg-queue-counts" aria-label="Queue counts">
-            {data.counts.unassigned} unassigned · {data.counts.mine} assigned to me
+            {data.counts.unassigned} unassigned · {data.counts.mine} assigned to me (all statuses)
           </p>
         )}
       </div>
@@ -160,8 +218,16 @@ export function StaffTicketQueue() {
           {activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : "Filters"}
         </Button>
         <div id="queue-filters" className={`zg-filters${filtersOpen ? " zg-filters--open" : ""}`}>
-          <select className="zg-field" aria-label="Filter by status" value={query.status} onChange={(e) => update({ status: e.target.value })}>
+          <select
+            className="zg-field"
+            aria-label="Filter by status"
+            value={query.status || (query.statusGroup ? ALL_OPEN : "")}
+            onChange={(e) =>
+              update(e.target.value === ALL_OPEN ? { status: "", statusGroup: "active" } : { status: e.target.value, statusGroup: "" })
+            }
+          >
             <option value="">All statuses</option>
+            <option value={ALL_OPEN}>All open</option>
             {STATUS_OPTIONS.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
@@ -204,12 +270,22 @@ export function StaffTicketQueue() {
         </div>
       </div>
 
+      {/* Why the list is shorter than usual, when a dashboard sent the user here (ui-spec §9). */}
+      {fromDashboard && filtersActive && (
+        <p className="zg-filtered-note">
+          Filtered from Dashboard ·{" "}
+          <button type="button" className="zg-link-button" onClick={clearFilters}>
+            Show all tickets
+          </button>
+        </p>
+      )}
+
       {load === "loading" && <LoadingSkeleton rows={6} label="Loading the ticket queue…" />}
 
       {load === "error" && (
         <ErrorCallout
           message="We couldn't load the ticket queue. Please try again."
-          onRetry={() => setQuery((q) => ({ ...q }))}
+          onRetry={() => setRetryKey((k) => k + 1)}
         />
       )}
 
