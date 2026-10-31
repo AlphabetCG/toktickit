@@ -135,6 +135,30 @@ it("UI-02: Add action defaults the performer to me and the time to now, and send
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 
+// UI-02 — BR-10. Found by E2E-01 (#54): the field holds minutes only, so the
+// default "now" sent as 02:34:00 fell before a Ticket Date of 02:34:20 and a
+// fresh Ticket's first action was refused.
+it("UI-02: an untouched default time sends the moment of saving, seconds included", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-14T02:34:20.500Z"));
+  try {
+    getActions.mockResolvedValue([]);
+    createAction.mockResolvedValue(action({ id: 41 }));
+    const user = userEvent.setup();
+    renderStaff();
+
+    await user.click(await screen.findByRole("button", { name: "+ Add action" }));
+    const form = dialog("Add action");
+    await user.type(within(form).getByLabelText(/Action description/), "Checked cabling");
+    await user.click(within(form).getByRole("button", { name: "Save action" }));
+
+    await waitFor(() => expect(createAction).toHaveBeenCalledTimes(1));
+    expect(createAction.mock.calls[0][1].actionAt).toBe("2026-10-14T02:34:20.500Z");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 // UI-03 — AC-06, AC-07, AC-08
 it("UI-03: shows each client-side error beneath its field and sends nothing", async () => {
   getActions.mockResolvedValue([]);

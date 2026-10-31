@@ -2,12 +2,9 @@ import { useEffect, useState } from "react";
 import { getStatusHistory, type StatusHistoryEntry } from "../api.js";
 import { StatusBadge, type TicketStatus } from "./Badge.js";
 import { LoadingSkeleton, ErrorCallout } from "./States.js";
+import { formatDateTime } from "../format.js";
 
 type Load = "loading" | "ready" | "error";
-
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 interface StatusHistoryProps {
   ticketId: number;
@@ -60,7 +57,7 @@ export function StatusHistory({ ticketId, viewer, currentUserId, refreshKey = 0 
         <ol className="zg-history">
           {items.map((entry) => (
             <li key={entry.id} className="zg-history__entry">
-              <span className="zg-history__when">{formatWhen(entry.changedAt)}</span>
+              <span className="zg-history__when">{formatDateTime(entry.changedAt)}</span>
               <span className="zg-history__change">
                 {entry.fromStatus && (
                   <>

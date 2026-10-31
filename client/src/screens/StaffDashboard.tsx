@@ -5,6 +5,7 @@ import { useAuth } from "../auth.js";
 import { ActionStatusBadge, PriorityBadge, StatusBadge, statusLabel } from "../components/Badge.js";
 import { MetricCard, CountStrip, CountItem, MiniList } from "../components/Dashboard.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDateTime, formatTime } from "../format.js";
 
 type Load = "loading" | "ready" | "forbidden" | "error";
 
@@ -21,14 +22,6 @@ const STATUS_ORDER: TicketStatusValue[] = [
 const PRIORITY_ORDER: RequestedPriority[] = ["LOW", "MEDIUM", "HIGH"];
 const PRIORITY_LABEL: Record<RequestedPriority, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 const DAY_MS = 86_400_000;
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 function greeting(now: Date): string {
   const h = now.getHours();
@@ -116,7 +109,7 @@ export function StaffDashboard() {
                   <Link className="zg-mini-list__row" to={a.href}>
                     <span className="zg-mini-list__line">
                       <ActionStatusBadge value={a.status} />
-                      <span className="zg-mini-list__meta">{formatWhen(a.actionAt)}</span>
+                      <span className="zg-mini-list__meta">{formatDateTime(a.actionAt)}</span>
                     </span>
                     <span className="zg-mini-list__text">{a.description}</span>
                     <span className="zg-mini-list__meta">
@@ -160,7 +153,7 @@ export function StaffDashboard() {
                     <PriorityBadge value={t.itPriority} />
                   </span>
                   <span className="zg-mini-list__text">{t.summary}</span>
-                  <span className="zg-mini-list__meta">Updated {formatWhen(t.updatedAt)}</span>
+                  <span className="zg-mini-list__meta">Updated {formatDateTime(t.updatedAt)}</span>
                 </Link>
               </li>
             ))}

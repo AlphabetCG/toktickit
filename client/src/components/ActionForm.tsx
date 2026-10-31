@@ -170,9 +170,15 @@ export function ActionForm({ ticketId, mode, assignees, currentUserId, onClose, 
     setFailure(undefined);
     setConflict(undefined);
 
-    // An untouched date keeps the stored instant, seconds included.
-    const actionAt =
-      editing && form.actionAt === initialActionAt.current ? editing.actionAt : new Date(form.actionAt).toISOString();
+    // An untouched date keeps its full instant: the stored one when editing, the
+    // moment of saving when creating. The field holds minutes only, so "now"
+    // floored to 02:34 would fall before a Ticket Date of 02:34:20 (BR-10).
+    const untouched = form.actionAt === initialActionAt.current;
+    const actionAt = untouched
+      ? editing
+        ? editing.actionAt
+        : new Date().toISOString()
+      : new Date(form.actionAt).toISOString();
     const values = {
       actionAt,
       description: form.description.trim(),

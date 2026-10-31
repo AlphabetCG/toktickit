@@ -25,6 +25,7 @@ import { StatusHistory } from "../components/StatusHistory.js";
 import { Button } from "../components/Button.js";
 import { Dialog } from "../components/Dialog.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDate } from "../format.js";
 
 type Load = "loading" | "ready" | "notfound" | "error";
 type Unmet = { code: string; message: string }[];
@@ -34,10 +35,6 @@ const CLOSED_REASON = "This ticket is closed and can no longer be updated.";
 // The statuses the §5.3 matrix lets move to Resolved; the gate list explains the
 // rule only where Resolved would otherwise be offered (ui-spec §7.4).
 const RESOLVABLE_FROM: TicketStatusValue[] = ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "REOPENED"];
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
 
 /** Read-only label/value pair — never a disabled input (ui-spec §6.4, Lab 2 §8.4). */
 function Info({ label, children }: { label: string; children: React.ReactNode }) {
