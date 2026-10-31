@@ -161,3 +161,34 @@ it("STYLE-05: every action-form error sits beneath its own field and is linked b
     expect(field.closest(".zg-field-group")).toBe(message.closest(".zg-field-group"));
   }
 });
+
+// STYLE-03 — ui-spec §2.2
+describe("STYLE-03: the metric card", () => {
+  it("is one link carrying the metric-card class, a label, and a value", async () => {
+    const { MemoryRouter } = await import("react-router-dom");
+    const { MetricCard } = await import("../../src/components/Dashboard.js");
+    render(
+      <MemoryRouter>
+        <MetricCard label="Open and unassigned" metric={{ value: 4, href: "/staff/tickets?ownerId=unassigned" }} />
+        <MetricCard label="My open actions" metric={{ value: 0, href: null }} />
+      </MemoryRouter>
+    );
+    const card = screen.getByRole("link", { name: "Open and unassigned: 4 — view list" });
+    expect(card).toHaveClass("zg-metric");
+    expect(card.querySelector(".zg-metric__label")).toHaveTextContent("Open and unassigned");
+    expect(card.querySelector(".zg-metric__value")).toHaveTextContent("4");
+    expect(card.querySelector(".zg-metric__cue")).toHaveTextContent("View list");
+
+    const staticCard = screen.getByText("My open actions").closest(".zg-metric")!;
+    expect(staticCard).toHaveClass("zg-metric--static");
+    expect(staticCard.querySelector(".zg-metric__value")).toHaveTextContent("0"); // zero, never a dash
+    expect(staticCard.querySelector(".zg-metric__cue")).toBeNull();
+  });
+
+  it("styles values with the metric size and tabular numerals", () => {
+    const rule = /\.zg-metric__value\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/font-size:\s*var\(--zg-fs-metric\)/);
+    expect(rule).toMatch(/font-variant-numeric:\s*tabular-nums/);
+    expect(css).toMatch(/--zg-fs-metric:\s*2rem/);
+  });
+});

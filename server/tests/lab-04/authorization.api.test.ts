@@ -175,14 +175,15 @@ it("AUTHZ-06: an Administrator creates, edits, and completes an action and resol
   expect(resolved.body.currentStatus).toBe("RESOLVED");
 });
 
-// AUTHZ-07 — §6.1 (the four routes delivered so far; the two dashboards arrive
-// with #52 and #53)
+// AUTHZ-07 — §6.1 (five routes delivered so far; the Requester dashboard arrives
+// with #53)
 describe("AUTHZ-07: gates on the new routes", () => {
   const routes: [string, (r: ReturnType<typeof request>) => request.Test][] = [
     ["GET /api/tickets/:id/actions", (r) => r.get(`/api/tickets/${ownTicket}/actions`)],
     ["POST /api/tickets/:id/actions", (r) => r.post(`/api/tickets/${ownTicket}/actions`).send(actionBody)],
     ["PATCH /api/actions/:id", (r) => r.patch(`/api/actions/${ownAction}`).send({ expectedVersion: 1 })],
     ["GET /api/tickets/:id/status-history", (r) => r.get(`/api/tickets/${ownTicket}/status-history`)],
+    ["GET /api/dashboard/staff", (r) => r.get("/api/dashboard/staff")],
   ];
 
   it.each(routes)("%s: no session → 401", async (_name, call) => {
@@ -207,4 +208,25 @@ it("AUTHZ-08: a Requester never changes status, even on their own Ticket with a 
   expect(res.status).toBe(403);
   const stored = await prisma.ticket.findUniqueOrThrow({ where: { id: ownTicket } });
   expect(stored).toMatchObject({ currentStatus: "IN_PROGRESS", version });
+});
+
+// AUTHZ-05 — AC-23 (the staff-dashboard half; the Requester dashboard arrives with #53)
+it("AUTHZ-05: a Requester cannot read the staff dashboard", async () => {
+  const res = await request(app).get("/api/dashboard/staff").set("Cookie", owner.cookie);
+  expect(res.status).toBe(403);
+  expect(res.body).toEqual({ error: "This dashboard is for IT Staff." });
+});
+
+// AUTHZ-09 — AC-54, D-04
+it("AUTHZ-09: an Administrator reads the queue and a Ticket's detail, actions, and history", async () => {
+  for (const path of [
+    "/api/staff/tickets",
+    `/api/tickets/${ownTicket}`,
+    `/api/tickets/${ownTicket}/actions`,
+    `/api/tickets/${ownTicket}/status-history`,
+    "/api/dashboard/staff",
+  ]) {
+    const res = await request(app).get(path).set("Cookie", admin.cookie);
+    expect({ path, status: res.status }).toEqual({ path, status: 200 });
+  }
 });

@@ -9,16 +9,18 @@ import { RequesterTicketDetail } from "./screens/RequesterTicketDetail.js";
 import { StaffTicketQueue } from "./screens/StaffTicketQueue.js";
 import { StaffTicketDetail } from "./screens/StaffTicketDetail.js";
 import { UserManagement } from "./screens/UserManagement.js";
+import { StaffDashboard } from "./screens/StaffDashboard.js";
 import { LoadingSkeleton } from "./components/States.js";
 
-// The role's default landing path once past the password gate.
-function roleLanding(role: string): string {
-  if (role === "IT_STAFF") return "/staff/tickets";
-  if (role === "ADMINISTRATOR") return "/admin/users";
+// The role's default landing path once past the password gate. Lab 4: IT Staff
+// and Administrators land on their Dashboard (BR-62); the Requester follows with
+// the Requester dashboard (#53).
+export function roleLanding(role: string): string {
+  if (role === "IT_STAFF" || role === "ADMINISTRATOR") return "/dashboard";
   return "/tickets";
 }
 
-function RoleRoutes({ role }: { role: string }) {
+export function RoleRoutes({ role }: { role: string }) {
   return (
     <Routes>
       <Route path="/change-password" element={<ChangePassword />} />
@@ -29,10 +31,11 @@ function RoleRoutes({ role }: { role: string }) {
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         </>
       )}
-      {/* The queue serves IT Staff and, per spec §6.1, Administrators too — reachable
-          but not promoted in the Administrator's navigation. */}
+      {/* The queue serves IT Staff and Administrators (spec §6.1); Lab 4 puts it in
+          the Administrator's navigation too (BR-63, D-04). */}
       {(role === "IT_STAFF" || role === "ADMINISTRATOR") && (
         <>
+          <Route path="/dashboard" element={<StaffDashboard />} />
           <Route path="/staff/tickets" element={<StaffTicketQueue />} />
           <Route path="/staff/tickets/:id" element={<StaffTicketDetail />} />
         </>

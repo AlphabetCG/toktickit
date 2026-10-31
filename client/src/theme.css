@@ -1525,3 +1525,243 @@ td .zg-signal-chip {
     gap: var(--zg-space-1);
   }
 }
+
+/* ===================================================== Lab 4: dashboards */
+
+/* ui-spec §2.1 — the one token this sprint adds. */
+:root {
+  /* Metric values on dashboard cards — the one number the eye should land on. */
+  --zg-fs-metric: 2rem;
+}
+
+.zg-dashboard {
+  text-align: left;
+}
+
+.zg-dashboard__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+}
+
+.zg-dashboard__head .zg-page-title {
+  margin: 0;
+}
+
+.zg-dashboard__greeting,
+.zg-dashboard__updated {
+  margin: var(--zg-space-1) 0 0;
+  color: var(--zg-text-muted);
+  font-size: var(--zg-fs-small);
+}
+
+/* Metric card (§2.2): the whole card is one link. */
+.zg-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--zg-space-3);
+  margin-bottom: var(--zg-space-4);
+}
+
+.zg-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-1);
+  padding: var(--zg-space-4);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius-lg);
+  box-shadow: var(--zg-shadow);
+  color: var(--zg-text);
+  text-decoration: none;
+}
+
+a.zg-metric:hover {
+  border-color: var(--zg-primary);
+}
+
+a.zg-metric:focus-visible,
+.zg-count-strip__item:focus-visible,
+.zg-mini-list__row:focus-visible,
+.zg-mini-list__all:focus-visible {
+  outline: 2px solid var(--zg-focus-ring);
+  outline-offset: 2px;
+}
+
+.zg-metric__label {
+  font-size: var(--zg-fs-label);
+  color: var(--zg-text-muted);
+}
+
+.zg-metric__value {
+  font-size: var(--zg-fs-metric);
+  font-weight: var(--zg-fw-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--zg-lh-tight);
+}
+
+.zg-metric__cue {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-primary);
+}
+
+/* Count strip (§2.3): wraps onto further lines, never scrolls sideways. */
+.zg-count-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-2) var(--zg-space-4);
+  margin-bottom: var(--zg-space-3);
+}
+
+.zg-count-strip__title {
+  margin: 0;
+  min-width: 10rem;
+  font-size: var(--zg-fs-label);
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-count-strip__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zg-space-2) var(--zg-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zg-count-strip__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zg-space-1);
+  min-height: var(--zg-control-h);
+  color: var(--zg-text);
+  text-decoration: none;
+}
+
+.zg-count-strip__count {
+  font-weight: var(--zg-fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact Ticket list (§2.4). */
+.zg-dashboard__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--zg-space-4);
+}
+
+.zg-mini-list {
+  text-align: left;
+  margin-top: var(--zg-space-4);
+}
+
+.zg-mini-list__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zg-space-3);
+}
+
+.zg-mini-list__title {
+  margin: 0;
+  border: none;
+}
+
+.zg-mini-list__all {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-primary);
+}
+
+.zg-mini-list__rows {
+  margin: var(--zg-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zg-mini-list__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-space-1);
+  padding: var(--zg-space-2) 0;
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+  color: var(--zg-text);
+  text-decoration: none;
+}
+
+.zg-mini-list__row:hover .zg-mini-list__text {
+  color: var(--zg-primary);
+}
+
+.zg-mini-list__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-2);
+}
+
+.zg-mini-list__number {
+  font-weight: var(--zg-fw-semibold);
+}
+
+.zg-mini-list__text {
+  overflow-wrap: anywhere;
+}
+
+.zg-mini-list__meta {
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-dashboard__users {
+  margin-top: var(--zg-space-4);
+  text-align: left; /* .zg-panel centres its content by default */
+}
+
+.zg-metrics--compact {
+  margin-bottom: 0;
+}
+
+/* "Filtered from Dashboard" (§9). */
+.zg-filtered-note {
+  margin: 0 0 var(--zg-space-3);
+  font-size: var(--zg-fs-small);
+  color: var(--zg-text-muted);
+}
+
+.zg-link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--zg-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* §5.3 — tablet: cards 2 × 2, every list full width. */
+@media (max-width: 991px) {
+  .zg-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zg-dashboard__pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* §5.3 — mobile: values scaled down, strips wrap, rows stack. */
+@media (max-width: 767px) {
+  .zg-metric__value {
+    font-size: calc(var(--zg-fs-section) * 1.5);
+  }
+
+  .zg-count-strip__title {
+    min-width: 0;
+    flex: 1 0 100%;
+  }
+}

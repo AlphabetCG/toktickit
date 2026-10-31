@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   listUsers,
   createUser,
@@ -60,9 +61,25 @@ export function UserManagement() {
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [load, setLoad] = useState<Load>("loading");
-  const [searchText, setSearchText] = useState("");
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  // Lab 4 (ui-spec §9): the query string is the filter state, so a dashboard link
+  // such as /admin/users?role=IT_STAFF opens filtered, and Back restores a filter.
+  const [params, setParams] = useSearchParams();
+  const search = params.get("search") ?? "";
+  const roleParam = params.get("role") ?? "";
+  const roleFilter = ROLE_OPTIONS.some((r) => r.value === roleParam) ? roleParam : "";
+  const [searchText, setSearchText] = useState(search);
+
+  // Rebuilt whenever the URL changes, so it never writes onto stale params.
+  const setParam = useCallback(
+    (key: "search" | "role", value: string) => {
+      const next = new URLSearchParams(params);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      setParams(next);
+    },
+    [params, setParams]
+  );
+  const setRoleFilter = (value: string) => setParam("role", value);
   const [reloadKey, setReloadKey] = useState(0);
   const [notice, setNotice] = useState<string>();
 
@@ -76,9 +93,11 @@ export function UserManagement() {
   const [resetError, setResetError] = useState<string>();
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchText.trim()), 300);
+    const timer = setTimeout(() => {
+      if (searchText.trim() !== search) setParam("search", searchText.trim());
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, search, setParam]);
 
   useEffect(() => {
     let ignore = false;
@@ -207,8 +226,7 @@ export function UserManagement() {
             variant="secondary"
             onClick={() => {
               setSearchText("");
-              setSearch("");
-              setRoleFilter("");
+              setParams(new URLSearchParams());
             }}
           >
             Clear

@@ -9,8 +9,8 @@ import { ErrorCallout } from "../components/States.js";
 const PASSWORD_MIN = 12;
 
 function roleLanding(user: AuthUser | null): string {
-  if (user?.role === "IT_STAFF") return "/staff/tickets";
-  if (user?.role === "ADMINISTRATOR") return "/admin/users";
+  // Lab 4 (BR-62): IT Staff and Administrators land on their Dashboard.
+  if (user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR") return "/dashboard";
   return "/tickets";
 }
 

@@ -108,9 +108,12 @@ test.beforeAll(async () => {
 
 test.afterAll(retireProvisionedUsers);
 
-async function pageAs(browser: Browser, user: TestUser, viewport: Viewport): Promise<Page> {
+// Lab 4 §5.10 (BR-62): staff and Administrators now land on the Dashboard, so a
+// test that photographs another screen names it.
+async function pageAs(browser: Browser, user: TestUser, viewport: Viewport, path?: string): Promise<Page> {
   const page = await (await browser.newContext({ viewport: VIEWPORTS[viewport] })).newPage();
   await signIn(page, user);
+  if (path) await page.goto(path);
   return page;
 }
 
@@ -143,7 +146,7 @@ for (const [label, size] of Object.entries(VIEWPORTS) as [Viewport, (typeof VIEW
     if (mobile) await expectFieldsStacked(anon, "Change Password");
 
     // Ticket Queue
-    const staffPage = await pageAs(browser, staff, label);
+    const staffPage = await pageAs(browser, staff, label, "/staff/tickets");
     await expect(staffPage.locator("tr.zg-row").first()).toBeVisible();
     await check(staffPage, "Ticket Queue");
     if (label === "tablet") await shot(staffPage, "staff-queue", "tablet-queue");
@@ -155,7 +158,7 @@ for (const [label, size] of Object.entries(VIEWPORTS) as [Viewport, (typeof VIEW
     if (label !== "desktop") await shot(staffPage, "staff-ticket-detail", `${label}-detail`);
 
     // User Management
-    const adminPage = await pageAs(browser, admin, label);
+    const adminPage = await pageAs(browser, admin, label, "/admin/users");
     await expect(adminPage.getByRole("button", { name: /^Edit / }).first()).toBeVisible();
     await check(adminPage, "User Management");
     if (label !== "desktop") await shot(adminPage, "user-management", `${label}-list`, false);
@@ -165,7 +168,7 @@ for (const [label, size] of Object.entries(VIEWPORTS) as [Viewport, (typeof VIEW
 // --- RESP-04: the queue as cards on mobile, filters and pagination usable ---------
 
 test("RESP-04: on mobile the queue renders as cards with usable filters and pagination", async ({ browser }) => {
-  const page = await pageAs(browser, staff, "mobile");
+  const page = await pageAs(browser, staff, "mobile", "/staff/tickets");
   const firstRow = page.locator("tr.zg-row").first();
   await expect(firstRow).toBeVisible();
 
@@ -201,6 +204,10 @@ test("RESP-04: on mobile the queue renders as cards with usable filters and pagi
   // Pagination stays on screen and touch-sized; Next advances when there is a page 2.
   await page.getByRole("button", { name: "Clear filters" }).first().click();
   await page.getByLabel("Rows per page").selectOption("10");
+  // Lab 4 (ui-spec §9): the change is a URL navigation, so wait for the reloaded
+  // list before touching the pager it replaces.
+  await expect(page).toHaveURL(/pageSize=10/);
+  await expect(page.locator("tr.zg-row").first()).toBeVisible();
   const pager = page.getByRole("navigation", { name: "Pagination" });
   await pager.scrollIntoViewIfNeeded();
   await expect(pager).toBeInViewport();
@@ -272,7 +279,7 @@ test("screenshots: authentication states", async ({ browser }) => {
 });
 
 test("screenshots: Ticket Queue states", async ({ browser }) => {
-  const page = await pageAs(browser, staff, "desktop");
+  const page = await pageAs(browser, staff, "desktop", "/staff/tickets");
   const dir = "staff-queue";
 
   await expect(page.locator("tr.zg-row").first()).toBeVisible();
@@ -356,7 +363,7 @@ test("screenshots: Staff Ticket Detail states", async ({ browser }) => {
 
 test("screenshots: User Management states", async ({ browser }) => {
   const dir = "user-management";
-  const page = await pageAs(browser, admin, "desktop");
+  const page = await pageAs(browser, admin, "desktop", "/admin/users");
   await expect(page.getByRole("button", { name: /^Edit / }).first()).toBeVisible();
   await shot(page, dir, "desktop-list", false);
 
