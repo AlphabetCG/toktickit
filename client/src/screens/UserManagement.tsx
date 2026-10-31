@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   listUsers,
@@ -69,12 +69,16 @@ export function UserManagement() {
   const roleFilter = ROLE_OPTIONS.some((r) => r.value === roleParam) ? roleParam : "";
   const [searchText, setSearchText] = useState(search);
 
-  function setParam(key: "search" | "role", value: string) {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    setParams(next);
-  }
+  // Rebuilt whenever the URL changes, so it never writes onto stale params.
+  const setParam = useCallback(
+    (key: "search" | "role", value: string) => {
+      const next = new URLSearchParams(params);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      setParams(next);
+    },
+    [params, setParams]
+  );
   const setRoleFilter = (value: string) => setParam("role", value);
   const [reloadKey, setReloadKey] = useState(0);
   const [notice, setNotice] = useState<string>();
@@ -93,7 +97,7 @@ export function UserManagement() {
       if (searchText.trim() !== search) setParam("search", searchText.trim());
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, search, setParam]);
 
   useEffect(() => {
     let ignore = false;

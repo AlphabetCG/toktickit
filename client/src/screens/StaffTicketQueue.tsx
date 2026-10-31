@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   getStaffQueue,
@@ -113,9 +113,10 @@ export function StaffTicketQueue() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
+  // Keyed on the string, so a re-render with the same URL keeps the same object
+  // and the fetch below does not re-run.
   const paramKey = params.toString();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const query = useMemo(() => readQuery(params), [paramKey]);
+  const query = useMemo(() => readQuery(new URLSearchParams(paramKey)), [paramKey]);
   const fromDashboard = Boolean((location.state as { fromDashboard?: boolean } | null)?.fromDashboard);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchText, setSearchText] = useState(query.search);
@@ -130,17 +131,24 @@ export function StaffTicketQueue() {
       .catch(() => undefined); // the queue's own states cover a failed load
   }, []);
 
+  // A change writes the URL as a new history entry, so Back restores the previous
+  // filter (UI-39). Rebuilt whenever the URL changes, so it never writes onto a stale query.
+  const update = useCallback(
+    (patch: Partial<Query>) => setParams(writeQuery({ ...query, ...patch, page: patch.page ?? 1 })),
+    [query, setParams]
+  );
+
   // Back/Forward changes the URL; the search box follows it.
   useEffect(() => setSearchText(query.search), [query.search]);
 
-  // Debounce search into the query, back to page 1.
+  // Debounce search into the query, back to page 1. A filter change in the
+  // meantime restarts the timer with the fresh `update`, so that filter is kept.
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchText !== query.search) update({ search: searchText });
     }, 300);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText]);
+  }, [searchText, query.search, update]);
 
   // AbortController discards a slow earlier response so it cannot overwrite a newer one.
   useEffect(() => {
@@ -156,8 +164,7 @@ export function StaffTicketQueue() {
         setLoad(err instanceof ForbiddenError ? "forbidden" : "error");
       });
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paramKey, retryKey]);
+  }, [query, retryKey]);
 
   const filtersActive = Boolean(
     query.search || query.status || query.statusGroup || query.itPriority || query.ownerId || query.categoryId
@@ -166,12 +173,6 @@ export function StaffTicketQueue() {
   const activeFilterCount = [query.status || query.statusGroup, query.itPriority, query.ownerId, query.categoryId].filter(
     Boolean
   ).length;
-
-  // A change writes the URL as a new history entry, so Back restores the previous
-  // filter (UI-39).
-  function update(patch: Partial<Query>) {
-    setParams(writeQuery({ ...query, ...patch, page: patch.page ?? 1 }));
-  }
 
   function clearFilters() {
     setSearchText("");

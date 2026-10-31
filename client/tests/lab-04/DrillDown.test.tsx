@@ -128,4 +128,28 @@ describe("UI-39: changing a filter writes the URL, so Back restores the previous
     await user.click(screen.getByRole("button", { name: "Back" }));
     await waitFor(() => expect(screen.getByLabelText("Filter by role")).toHaveValue(""));
   });
+
+  // PR #60 review: the debounced search must write onto the current URL, not the
+  // one from when typing started, or it undoes a filter chosen in the meantime.
+  it("in the Queue, a filter chosen while a search is pending is kept", async () => {
+    const user = userEvent.setup();
+    renderAt("/staff/tickets", <StaffTicketQueue />);
+    await waitFor(() => expect(getStaffQueue).toHaveBeenCalled());
+
+    await user.type(screen.getByLabelText("Search tickets"), "vpn");
+    await user.selectOptions(screen.getByLabelText("Filter by IT priority"), "LOW");
+    await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("search=vpn"));
+    expect(screen.getByTestId("search")).toHaveTextContent("itPriority=LOW");
+  });
+
+  it("in User Management, a role chosen while a search is pending is kept", async () => {
+    const user = userEvent.setup();
+    renderAt("/admin/users", <UserManagement />);
+    await waitFor(() => expect(listUsers).toHaveBeenCalled());
+
+    await user.type(screen.getByLabelText("Search users"), "ann");
+    await user.selectOptions(screen.getByLabelText("Filter by role"), "ADMINISTRATOR");
+    await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("search=ann"));
+    expect(screen.getByTestId("search")).toHaveTextContent("role=ADMINISTRATOR");
+  });
 });
