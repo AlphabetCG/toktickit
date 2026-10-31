@@ -13,6 +13,7 @@ import { Button } from "./Button.js";
 import { Dialog } from "./Dialog.js";
 import { ActionForm, type ActionFormMode } from "./ActionForm.js";
 import { LoadingSkeleton, ErrorCallout } from "./States.js";
+import { formatDateTime } from "../format.js";
 
 type Load = "loading" | "ready" | "error";
 
@@ -23,10 +24,6 @@ const INACTIVE_REASON: Partial<Record<TicketStatusValue, string>> = {
   CLOSED: "This ticket is closed.",
   CANCELLED: "This ticket is closed.",
 };
-
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 type StaffProps = {
   mode: "staff";
@@ -196,7 +193,7 @@ export function ActionsTaken(props: ActionsTakenProps) {
               const readOnly = !staff || final || Boolean(inactiveReason);
               return (
                 <li key={a.id} className={`zg-action-row${readOnly ? " zg-action-row--readonly" : ""}`}>
-                  <span className="zg-action-row__when">{formatWhen(a.actionAt)}</span>
+                  <span className="zg-action-row__when">{formatDateTime(a.actionAt)}</span>
                   <div className="zg-action-row__main">
                     <p className="zg-action-row__description">{a.description}</p>
                     <p className="zg-action-row__result">
@@ -307,8 +304,12 @@ function RowControls({ action, busy, onEdit, onStart, onComplete, onCancel }: Ro
     }
   }
 
+  // Back to ⋯ before the item disappears, so a dialog the item opens returns
+  // focus there when it closes (RESP-04). On mobile the toggle is hidden and the
+  // items stay on screen, so focus stays on the item.
   const choose = (run: () => void) => () => {
     setOpen(false);
+    if (toggle.current?.offsetParent) toggle.current.focus();
     run();
   };
 
@@ -324,7 +325,7 @@ function RowControls({ action, busy, onEdit, onStart, onComplete, onCancel }: Ro
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        aria-label={`More actions for ${formatWhen(action.actionAt)}`}
+        aria-label={`More actions for ${formatDateTime(action.actionAt)}`}
         disabled={busy}
         onClick={() => (open ? setOpen(false) : openMenu())}
       >

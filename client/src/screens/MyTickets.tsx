@@ -12,6 +12,7 @@ import { useAuth } from "../auth.js";
 import { Button } from "../components/Button.js";
 import { PriorityBadge, StatusBadge, statusLabel, type TicketStatus } from "../components/Badge.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDate } from "../format.js";
 
 const PAGE_SIZES = [10, 20, 50];
 const SORTS = [
@@ -33,14 +34,6 @@ const STATUSES: TicketStatus[] = [
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
 // The status select carries the group as its own option value (ui-spec §9).
 const ALL_OPEN = "group:active";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 interface Query {
   search: string;

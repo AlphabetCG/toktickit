@@ -16,18 +16,9 @@ import { ActionsTaken } from "../components/ActionsTaken.js";
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Button } from "../components/Button.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDateTime } from "../format.js";
 
 type Load = "loading" | "ready" | "notfound" | "error";
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 /** Read-only label/value pair — never a disabled input (AC-23, ui-spec §8.4). */
 function Info({ label, children }: { label: string; children: React.ReactNode }) {

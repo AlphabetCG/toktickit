@@ -531,6 +531,18 @@ clipped, overlapped, or hidden; controls at least 44 px tall on mobile.
 Completed by hand against this document and the captured screenshots — **not from
 memory** — before the release PR. This is the Part 9 evidence.
 
+> **Completed 2026-11-01 (Issue #54)** against the 31 screenshots in
+> `artifacts/lab-04/screenshots/`, each group opened and inspected at all three
+> viewports, together with the automated checks that back each line: RESP-01…05
+> (overflow, containment, overlap, 44 px controls, focus trap and return),
+> STYLE-01…05, UI-42, E2E-08…10 and E2E-12. Observations that are not defects:
+> two shots show a hover border (the mobile Requester's third card, one tablet
+> list row) left by the test's pointer; on tablet the *Waiting for you* badge
+> wraps under its label, so that card is taller than its neighbours; the
+> navigation wraps when the signed-in name is a long test name; and the mobile
+> *Performed by* select truncates a long test name inside the native control,
+> as every native select does. No text, badge, or button is cut off by the layout.
+
 ### 13.1 Per screen × per viewport
 
 Repeat for the IT Staff dashboard, Administrator dashboard, Requester dashboard,
@@ -538,36 +550,36 @@ Staff Ticket Detail with Actions Taken (list, form, cancel confirmation, gate
 list), and Requester Ticket Detail with Actions Taken, at desktop, tablet, and
 mobile:
 
-- [ ] **Design consistency** — Zen Green tokens only; no new colour; one primary button per region; existing badges and states reused
-- [ ] **Horizontal overflow** — no page-level sideways scroll
-- [ ] **Clipping** — no truncated label, value, badge, or button text
-- [ ] **Overlap** — no badge, chip, or validation message colliding with another element
-- [ ] **Editable vs read-only** — the action form uses the editable style; Requester actions, Completed and Cancelled rows, and history use the read-only style
-- [ ] **Validation placement** — every action-form message sits beneath its own field
-- [ ] **Keyboard focus** — every card, list row, row control, menu item, and dialog control shows a visible ring in tab order
+- [x] **Design consistency** — Zen Green tokens only; no new colour; one primary button per region; existing badges and states reused
+- [x] **Horizontal overflow** — no page-level sideways scroll
+- [x] **Clipping** — no truncated label, value, badge, or button text
+- [x] **Overlap** — no badge, chip, or validation message colliding with another element
+- [x] **Editable vs read-only** — the action form uses the editable style; Requester actions, Completed and Cancelled rows, and history use the read-only style
+- [x] **Validation placement** — every action-form message sits beneath its own field
+- [x] **Keyboard focus** — every card, list row, row control, menu item, and dialog control shows a visible ring in tab order
 
 ### 13.2 Dashboards
 
-- [ ] Every metric card shows a number, including `0`, and a *View list* cue only when it links
-- [ ] Each card's number equals the total on the list it opens (spot-check two per dashboard)
-- [ ] Every list shows at most five rows and its own empty sentence when empty
-- [ ] The Administrator sees the Users card; IT Staff do not
-- [ ] A Requester sees only their own Tickets
+- [x] Every metric card shows a number, including `0`, and a *View list* cue only when it links
+- [x] Each card's number equals the total on the list it opens (spot-check two per dashboard)
+- [x] Every list shows at most five rows and its own empty sentence when empty
+- [x] The Administrator sees the Users card; IT Staff do not
+- [x] A Requester sees only their own Tickets
 
 ### 13.3 Actions Taken and workflow
 
-- [ ] Action-status badges are square and distinguishable from the round Ticket status badges
-- [ ] Follow-up is visible as text, not only colour
-- [ ] Resolved is absent from the status select until the gate is met, and the reasons are listed
-- [ ] The conflict banner keeps the user's typed values
-- [ ] Status history reads oldest first; the Requester sees "IT Support"
+- [x] Action-status badges are square and distinguishable from the round Ticket status badges
+- [x] Follow-up is visible as text, not only colour
+- [x] Resolved is absent from the status select until the gate is met, and the reasons are listed
+- [x] The conflict banner keeps the user's typed values
+- [x] Status history reads oldest first; the Requester sees "IT Support"
 
 ### 13.4 Navigation and polish
 
-- [ ] Each role lands on *Dashboard*, which is the active item
-- [ ] The Administrator's navigation shows Dashboard, Ticket Queue, User Management
-- [ ] Every §10 polish item is done
-- [ ] The browser console shows no error on any screen
+- [x] Each role lands on *Dashboard*, which is the active item
+- [x] The Administrator's navigation shows Dashboard, Ticket Queue, User Management
+- [x] Every §10 polish item is done
+- [x] The browser console shows no error on any screen
 
 ---
 

@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Lab 3 end-to-end and responsive suite (docs/lab-03/tests.md §2.7, §2.8). The
-// Lab 2 specs were retired with the Development Requester selector they drove;
+// Lab 4 end-to-end and responsive suite (docs/lab-04/tests.md §2.9, §2.11), run
+// together with the Lab 3 suite as its regression baseline (AC-58). The Lab 2
+// specs were retired with the Development Requester selector they drove; Lab 3
 // tests.md §7 maps each retired flow to its Lab 3 coverage. Playwright starts
 // both the API and the Vite dev server itself, so the whole journey runs against
 // a real Express server and a migrated + seeded PostgreSQL — never a mock.
@@ -14,7 +15,8 @@ const CLIENT_URL = "http://localhost:5173";
 const SERVER_URL = "http://localhost:3000";
 
 export default defineConfig({
-  testDir: "./e2e/lab-03",
+  testDir: "./e2e",
+  testIgnore: ["lab-02/**"],
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,

@@ -111,7 +111,12 @@ describe("My Tickets", () => {
 
     await userEvent.type(screen.getByLabelText("Search tickets"), "zzz");
 
-    expect(await screen.findByText(/No tickets match your filters/i)).toBeInTheDocument();
+    // Lab 4 #54 (stability, no contract change): under a loaded full run a
+    // keystroke could outlast the 300 ms debounce, so "z" was searched first and
+    // its no-results node was replaced while being asserted. Wait for the final
+    // search, and retry the whole query rather than hold one node.
+    await waitFor(() => expect(getTickets).toHaveBeenLastCalledWith(expect.objectContaining({ search: "zzz" }), expect.anything()));
+    await waitFor(() => expect(screen.getByText(/No tickets match your filters/i)).toBeInTheDocument());
     // Clear filters appears in both the toolbar and the no-results panel.
     const clears = screen.getAllByRole("button", { name: "Clear filters" });
     await userEvent.click(clears[0]);

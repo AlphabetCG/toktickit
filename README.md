@@ -1,8 +1,9 @@
 # TokTickIT
 
 Project TokTickIT for Software Engineering, KMUTT. Built across four individual
-sprints (Labs 1–4). Lab 1 (foundation, health check, categories) is complete and
-merged to `main`; Lab 2 (Requester Ticketing MVP + Zen Green UI) is in progress.
+sprints (Labs 1–4): the foundation and health check (Lab 1), Requester ticketing
+with the Zen Green UI (Lab 2), users, roles, and IT Staff ticketing (Lab 3), and
+Actions Taken, the resolution workflow, and role dashboards (Lab 4).
 
 A full-stack IT service desk: React + TypeScript + Vite + Bootstrap on the front,
 Express + TypeScript on the back, Prisma + PostgreSQL underneath, tested with
@@ -14,14 +15,15 @@ sprint's engineering contract lives under `docs/lab-0N/`.
 ## Structure
 
 ```
-client/src           App.tsx, api.ts, main.tsx, components/, theme.css
-client/tests         lab-01/, lab-02/, lab-03/ — Vitest UI + style tests
-server/src           app.ts, index.ts, prisma.ts
-server/prisma        schema.prisma, seed.ts, migrations/
-server/tests         lab-01/, lab-02/, lab-03/ — Vitest + Supertest API tests
-e2e/lab-03           Playwright end-to-end + responsive specs
+client/src           App.tsx, api.ts, format.ts, main.tsx, components/, screens/, theme.css
+client/tests         lab-01/ … lab-04/ — Vitest UI + style tests
+server/src           app.ts, index.ts, prisma.ts, and the pure rule modules
+server/prisma        schema.prisma, seed.ts, migrations/, rollback/lab4_down.sql
+server/tests         lab-01/ … lab-04/, helpers/ — Vitest + Supertest API tests
+e2e/lab-03, lab-04   Playwright end-to-end + responsive specs (lab-02 is retired)
+artifacts/lab-0N     screenshots written by the responsive specs
 docs/lab-01          ai_use.md, reviewer.md, tests.md
-docs/lab-02, lab-03  specification.md, api-spec.md, ui-spec.md, tests.md, reviewer.md, ai-use.md
+docs/lab-02 … lab-04 specification.md, api-spec.md, ui-spec.md, tests.md, reviewer.md, ai-use.md
 docs/skills          agent playbooks
 ```
 
@@ -47,8 +49,9 @@ cd client && npm install && cp .env.example .env && npm run dev   # :5173
 ```
 
 The seed upserts on natural keys (category/related-system `name`, user `email`),
-so it is safe to re-run. It creates 4 categories, 7 related systems, 10 users, and
-8 demo tickets spanning every status.
+so it is safe to re-run. It creates 4 categories, 7 related systems, 13 users
+(6 Requesters, 5 IT Staff, 2 Administrators), 8 demo tickets spanning every
+status, and 9 Actions Taken.
 
 ### Development credentials (Labs 3–4)
 
@@ -141,6 +144,20 @@ PostgreSQL — no mocks. It runs Chromium only and serially:
   login, Administrator guards)
 - `e2e/lab-03/responsive.spec.ts` — RESP-01…04, plus the ui-spec §12 screenshot
   set written to `artifacts/lab-03/screenshots/`
+- `e2e/lab-04/actions-taken-flow.spec.ts` — E2E-01…03 (action lifecycle, performer
+  who is not the Owner, cancel confirmation, inactive performer)
+- `e2e/lab-04/ticket-resolution.spec.ts` — E2E-04…07 (resolution gate, follow-up,
+  two people on one Ticket, the Requester's view)
+- `e2e/lab-04/dashboards.spec.ts` — E2E-08…10 (drill-down parity, landing, the
+  Administrator's Ticket access)
+- `e2e/lab-04/regression.spec.ts` — E2E-11, E2E-12 (Lab 1–3 journeys; every
+  destination per role with no console error or broken link)
+- `e2e/lab-04/responsive.spec.ts` — RESP-01…05, plus the ui-spec §14 screenshot
+  set written to `artifacts/lab-04/screenshots/`
+
+Both responsive specs **overwrite** the committed screenshots on every run.
+Restore them with `git checkout -- artifacts/` unless you mean to update the
+evidence.
 
 The suite signs in as the seeded `arthit.admin` only to create its own accounts
 through the Administrator API, and deactivates them afterwards, so the seeded
@@ -150,10 +167,44 @@ Development Requester selector; `docs/lab-03/tests.md` §7 maps their coverage.
 To rebuild the database from scratch: `cd server && npx prisma migrate reset --force`
 (re-applies every migration and re-seeds).
 
+**REG-02 needs Lab 3 data from before the Lab 4 migration.** It checks that every
+Ticket that existed when the migration ran was backfilled, so on a database built
+by `migrate reset` (the Lab 4 migration applied to empty tables) it has nothing to
+check and fails. Build the database in release order instead:
+
+```bash
+git worktree add ../toktickit-lab3 08ef17d      # the Lab 3 release on main
+cp server/.env ../toktickit-lab3/server/.env
+cd ../toktickit-lab3/server && npm ci && npx prisma migrate reset --force   # Lab 3 schema + seed
+cd -  && cd server && npx prisma generate && npx prisma migrate deploy && npm run prisma:seed
+git worktree remove --force ../toktickit-lab3
+```
+
+## Demonstration (Lab 4)
+
+With both dev servers running and the database seeded, every seeded account's
+password is `ChangeMe123!` (see the table above for which must change it first).
+
+1. **Requester** — sign in as a seeded Requester. You land on the Dashboard: three
+   cards, *Needs your attention* first. Click *Waiting for you*; My Tickets opens
+   filtered, with "Filtered from Dashboard" and a total equal to the card. Open a
+   Ticket to see its Actions Taken (read-only) and its status history, where staff
+   changes read "IT Support".
+2. **IT Staff** — sign in as a seeded IT Staff member. The Dashboard shows four
+   cards, the status and IT Priority strips, *My open actions*, *Urgent*, and
+   *Recently updated*. Open an In Progress Ticket: *Resolved* is missing from the
+   status select and the reasons are listed under it. Add a Completed action with a
+   result; *Resolved* appears and can be applied.
+3. **Two people** — open the same Ticket as two staff members in two browsers.
+   Change the status in one; the other's change is refused with the conflict
+   banner, and *Reload* shows the winner.
+4. **Administrator** — sign in as `arthit.admin`. The Dashboard adds the Users
+   card; the navigation is Dashboard, Ticket Queue, User Management.
+
 ## Status
 
-Labs 1 and 2 are merged to `main`. Lab 3 work happens on feature branches off
-`lab3-staging`. The authoritative per-lab status table is in
+Labs 1–3 are merged to `main`. Lab 4 work happens on feature branches off
+`lab4-staging` and is released to `main` in one PR. The authoritative per-lab status table is in
 [`AGENTS.md`](./AGENTS.md) §10, and each Issue is tracked on the
 **TokTickIT Individual Sprints** GitHub Project board.
 

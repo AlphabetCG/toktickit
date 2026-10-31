@@ -10,6 +10,7 @@ import {
 import { Button } from "../components/Button.js";
 import { PriorityBadge, StatusBadge, type TicketStatus } from "../components/Badge.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDate } from "../format.js";
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -30,10 +31,6 @@ const SORTS = [
   { value: "itPriority", label: "IT Priority" },
   { value: "ticketNumber", label: "Ticket Number" },
 ];
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
 
 interface Query {
   search: string;
@@ -196,7 +193,7 @@ export function StaffTicketQueue() {
         <h1 className="zg-page-title">Ticket Queue</h1>
         {data && (
           <p className="zg-queue-counts" aria-label="Queue counts">
-            {data.counts.unassigned} unassigned · {data.counts.mine} assigned to me
+            {data.counts.unassigned} unassigned · {data.counts.mine} assigned to me (all statuses)
           </p>
         )}
       </div>

@@ -11,6 +11,8 @@ import { removeTickets } from "../helpers/cleanup.js";
 const prisma = new PrismaClient();
 const TOKEN = `SD4${Date.now()}`;
 const DAY = 86_400_000;
+const HOUR = 3_600_000;
+const MINUTE = 60_000;
 const ACTIVE = ["NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "REOPENED"];
 const STATUSES = ["NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CLOSED", "REOPENED", "CANCELLED"];
 
@@ -199,8 +201,15 @@ describe("API-30: the lists", () => {
   it("includes a Ticket updated exactly inside the 7-day window and excludes one just outside", async () => {
     const inside = await ticket();
     const outside = await ticket();
-    await prisma.$executeRaw`UPDATE "Ticket" SET "updatedAt" = now() + interval '1 hour' WHERE id = ${inside}`;
-    await prisma.$executeRaw`UPDATE "Ticket" SET "updatedAt" = now() - interval '7 days 1 minute' WHERE id = ${outside}`;
+    // The columns hold UTC in "timestamp without time zone" while the session is
+    // Asia/Bangkok, so now() and a bound Date both land 7 h off: the instant is
+    // computed here and written with AT TIME ZONE 'UTC' (fixed in #54; before,
+    // "outside" was really 6 days 17 hours old). The shared database holds more
+    // than five recent Tickets, so the five-item cap would also drop "outside";
+    // the 7-day boundary itself is pinned by the windowStart unit tests.
+    const at = (ms: number) => new Date(Date.now() + ms);
+    await prisma.$executeRaw`UPDATE "Ticket" SET "updatedAt" = (${at(HOUR)}::timestamptz AT TIME ZONE 'UTC') WHERE id = ${inside}`;
+    await prisma.$executeRaw`UPDATE "Ticket" SET "updatedAt" = (${at(-(7 * DAY + MINUTE))}::timestamptz AT TIME ZONE 'UTC') WHERE id = ${outside}`;
     const ids = (await dashboard(staffA.cookie)).body.recentlyUpdated.items.map((t: { id: number }) => t.id);
     expect(ids).toContain(inside);
     expect(ids).not.toContain(outside);

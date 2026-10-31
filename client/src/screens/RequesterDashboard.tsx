@@ -11,16 +11,9 @@ import { useAuth } from "../auth.js";
 import { StatusBadge } from "../components/Badge.js";
 import { MetricCard, MiniList } from "../components/Dashboard.js";
 import { LoadingSkeleton, EmptyState, ErrorCallout } from "../components/States.js";
+import { formatDate, formatDateTime } from "../format.js";
 
 type Load = "loading" | "ready" | "forbidden" | "error";
-
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-}
 
 /** Every figure zero and every list empty: the only case where the Requester might have no Tickets at all. */
 function allZero(d: RequesterDashboardData): boolean {
@@ -134,7 +127,7 @@ export function RequesterDashboard() {
                   count={data.recentlyUpdated.items.length}
                 >
                   {data.recentlyUpdated.items.map((t) => (
-                    <Row key={t.id} ticket={t} meta={`Updated ${formatWhen(t.updatedAt)}`} />
+                    <Row key={t.id} ticket={t} meta={`Updated ${formatDateTime(t.updatedAt)}`} />
                   ))}
                 </MiniList>
 
@@ -144,7 +137,7 @@ export function RequesterDashboard() {
                   count={data.recentlyResolved.items.length}
                 >
                   {data.recentlyResolved.items.map((t) => (
-                    <Row key={t.id} ticket={t} meta={`Resolved ${formatDay(t.resolvedAt ?? t.updatedAt)}`} />
+                    <Row key={t.id} ticket={t} meta={`Resolved ${formatDate(t.resolvedAt ?? t.updatedAt)}`} />
                   ))}
                 </MiniList>
               </div>

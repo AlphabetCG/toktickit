@@ -177,7 +177,7 @@ recorded command output in §4.3 and §6, not by a single test row.
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
 | UI-01 | UI | FR-05, AC-17 | Actions list | Rows render in API order with Action Date/Time, description, result, performer, action-status badge text, and a follow-up marker | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
-| UI-02 | UI | FR-01, FR-02 | Create mode | *Add action* opens the form with performer defaulted to the current user and date/time to now; submit sends one request carrying a `clientRequestId` | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
+| UI-02 | UI | FR-01, FR-02 | Create mode | *Add action* opens the form with performer defaulted to the current user and date/time to now; submit sends one request carrying a `clientRequestId`. *#54:* an untouched default time is sent as the moment of saving, seconds included, so a Ticket created within the same minute accepts its first action (BR-10; found by E2E-01) | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-03 | UI | AC-06, AC-07, AC-08 | Client-side validation | Empty description, follow-up yes without a note, and Completed without a result each show a message beneath the field and send nothing; the Follow-up Note field appears only when follow-up is yes | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-04 | UI | FR-03 | Edit mode | *Edit* on a Planned action prefills every field; save sends `expectedVersion` | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-05 | UI | AC-11, FR-04 | Start and complete | *Start* and *Complete* appear only where permitted; completing an action without a result asks for one first | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
@@ -215,9 +215,9 @@ recorded command output in §4.3 and §6, not by a single test row.
 | UI-37 | UI | FR-16, AC-48 | Queue reads the URL | `/staff/tickets?ownerId=me&statusGroup=active` and `?itPriority=HIGH&sort=ticketDate&order=asc` apply on first load | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
 | UI-38 | UI | FR-16 | User Management reads the URL | `/admin/users?role=IT_STAFF` applies the role filter on first load | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
 | UI-39 | UI | FR-16 | Filters write the URL | Changing a filter updates the query string, so *Back* restores the previous filter; a filter chosen while a search is still debouncing is kept when the search lands (Queue and User Management) | `client/tests/lab-04/DrillDown.test.tsx` | Pass |
-| UI-40 | UI | AC-59, FR-19 | Double submit everywhere | Create Ticket, Public Comment, Internal Note, and user create each send one request on a double click | `client/tests/lab-04/Hardening.test.tsx` | Planned |
-| UI-41 | UI | AC-60, FR-20 | Data kept after failure | After a 500 or network error, Create Ticket, comment, note, and user forms keep every entered value | `client/tests/lab-04/Hardening.test.tsx` | Planned |
-| UI-42 | UI | FR-22 | No placeholder UI | No source file under `client/src` contains `TODO`, `Lorem`, `Coming soon`, `console.log`, or a `href="#"` link | `client/tests/lab-04/Hardening.test.tsx` | Planned |
+| UI-40 | UI | AC-59, FR-19 | Double submit everywhere | Create Ticket, Public Comment, Internal Note, and user create each send one request on a double click | `client/tests/lab-04/Hardening.test.tsx` | Pass |
+| UI-41 | UI | AC-60, FR-20 | Data kept after failure | After a 500 or network error, Create Ticket, comment, note, and user forms keep every entered value | `client/tests/lab-04/Hardening.test.tsx` | Pass |
+| UI-42 | UI | FR-22, ui-spec §10 | No placeholder, duplicate, or obsolete UI | No source file under `client/src` contains `TODO`, `Lorem`, `Coming soon`, `console.log`, or a `href="#"` link (P-05); dates are formatted only in `format.ts` (P-01); the Queue counts say "(all statuses)" (P-02); every raw `<button>` declares its type (P-06); every empty message and empty-state body is a full sentence (P-07) | `client/tests/lab-04/Hardening.test.tsx` | Pass |
 
 ### 2.8 UI style
 
@@ -233,11 +233,11 @@ recorded command output in §4.3 and §6, not by a single test row.
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| RESP-01 | Responsive | AC-62 | Desktop 1280×800 | Requester, IT Staff, and Administrator dashboards and both Ticket Details with actions: no horizontal page scroll; screenshots captured | `e2e/lab-04/responsive.spec.ts` | Planned |
-| RESP-02 | Responsive | AC-62 | Tablet 820×1180 | Same screens: no overflow or clipping; metric cards in two columns | `e2e/lab-04/responsive.spec.ts` | Planned |
-| RESP-03 | Responsive | AC-62 | Mobile 390×844 | Same screens: metric cards stack, actions render as cards, controls at least 44 px tall, no horizontal page scroll | `e2e/lab-04/responsive.spec.ts` | Planned |
-| RESP-04 | Accessibility | AC-62 | Keyboard and focus | The action form, cancel-action confirmation, and cancel-Ticket confirmation open, trap focus, close with Escape, and return focus to their trigger; focus is visible at every step | `e2e/lab-04/responsive.spec.ts` | Planned |
-| RESP-05 | Responsive | AC-62 | Containment | At each viewport every metric card, action row, and form control lies inside its panel's bounding box, and no two controls overlap | `e2e/lab-04/responsive.spec.ts` | Planned |
+| RESP-01 | Responsive | AC-62 | Desktop 1280×800 | Requester, IT Staff, and Administrator dashboards and both Ticket Details with actions: no horizontal page scroll; screenshots captured | `e2e/lab-04/responsive.spec.ts` | Pass |
+| RESP-02 | Responsive | AC-62 | Tablet 820×1180 | Same screens: no overflow or clipping; staff and Administrator cards in two columns, the Requester's three across (ui-spec §5.3, §6.3) | `e2e/lab-04/responsive.spec.ts` | Pass |
+| RESP-03 | Responsive | AC-62 | Mobile 390×844 | Same screens: the Requester's cards stack one per row and the staff cards stay 2 × 2 (ui-spec §6.3, §5.3; the planned wording said "stack" for both), actions render as cards with the badge on top, the action form is a full-width sheet, controls at least 44 px tall, no horizontal page scroll | `e2e/lab-04/responsive.spec.ts` | Pass |
+| RESP-04 | Accessibility | AC-62 | Keyboard and focus | The action form, cancel-action confirmation, and cancel-Ticket confirmation open, trap focus, close with Escape, and return focus to their trigger; focus is visible at every step. *#54:* the cancel-action dialog opened from the ⋯ menu returned focus to nowhere, because the menu item it came from is hidden on close; focus now goes back to ⋯ | `e2e/lab-04/responsive.spec.ts` | Pass |
+| RESP-05 | Responsive | AC-62 | Containment | At each viewport every metric card, action row, and form control lies inside its panel's bounding box, and no two controls overlap | `e2e/lab-04/responsive.spec.ts` | Pass |
 
 Screenshots are written to
 `artifacts/lab-04/screenshots/{staff-dashboard,requester-dashboard,actions-taken}/`
@@ -252,25 +252,26 @@ as `<state>-<viewport>.png`.
 
 The volume fixture is created idempotently (topped up to the target, never
 duplicated) with `CLOSED` Tickets under a dedicated `perf.*` Requester, so it
-adds nothing to the active counts that screenshots show. Run
-`npx prisma migrate reset --force` before capturing evidence screenshots.
+adds nothing to the active counts that screenshots show. To capture evidence on a
+clean database, rebuild it in release order (README, "REG-02 needs Lab 3 data"):
+a plain `migrate reset` leaves REG-02 nothing to check.
 
 ### 2.11 End-to-end
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final |
 |---------|------|------------------|---------------|-----------------|---------------------|-------|
-| E2E-01 | E2E | AC-01, AC-11 | Action lifecycle | IT Staff open a Ticket, add a Planned action, edit it, start it, and complete it with a result; the list updates at each step | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned |
-| E2E-02 | E2E | AC-03 | Performer is not the Owner | Staff A records an action performed by Staff B on a Ticket owned by C; the Requester then sees it read-only with B's name | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned |
-| E2E-03 | E2E | AC-14, AC-04 | Cancel and inactive performer | Cancelling an action needs confirmation; choosing a performer who is deactivated mid-session is refused beside the field | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned |
-| E2E-04 | E2E | AC-26, AC-29, AC-30 | Resolving a Ticket | *Resolved* is absent with no completed work; after completing an action it appears; resolving updates the badge and the history | `e2e/lab-04/ticket-resolution.spec.ts` | Planned |
-| E2E-05 | E2E | AC-28 | Follow-up blocks resolution | A completed action with follow-up keeps *Resolved* unavailable with the reason shown; recording the follow-up action unblocks it | `e2e/lab-04/ticket-resolution.spec.ts` | Planned |
-| E2E-06 | E2E | AC-37, AC-40 | Two people, one Ticket | Two browser contexts load the same Ticket; the second's status change is refused with the conflict banner; *Reload* shows the winner's status | `e2e/lab-04/ticket-resolution.spec.ts` | Planned |
-| E2E-07 | E2E | AC-31, AC-36 | Requester view of the work | The Requester signals resolution (status unchanged), sees actions and history with "IT Support", and never sees an Internal Note | `e2e/lab-04/ticket-resolution.spec.ts` | Planned |
-| E2E-08 | E2E | AC-44, AC-48 | Staff drill-down | Each staff metric card opens the Queue with matching filters and a total equal to the card's value | `e2e/lab-04/dashboards.spec.ts` | Planned |
-| E2E-09 | E2E | AC-42, AC-48 | Requester drill-down | Each Requester card opens My Tickets with matching filters and an equal total | `e2e/lab-04/dashboards.spec.ts` | Planned |
-| E2E-10 | E2E | AC-53, AC-54 | Landing and Administrator access | Each role lands on its dashboard; the Administrator opens the Queue and a Ticket Detail from navigation | `e2e/lab-04/dashboards.spec.ts` | Planned |
-| E2E-11 | E2E | AC-58, FR-18 | Representative Lab 1–3 regression | Health check; login and forced password change; Create Ticket with an attachment; My Tickets search; Requester comment; staff claim, IT Priority, Internal Note; Administrator creates a user | `e2e/lab-04/regression.spec.ts` | Planned |
-| E2E-12 | E2E | AC-61, FR-22 | No console errors or broken links | For each role, every navigation destination and every link on it loads a defined route and logs no console error | `e2e/lab-04/regression.spec.ts` | Planned |
+| E2E-01 | E2E | AC-01, AC-11 | Action lifecycle | IT Staff open a Ticket, add a Planned action, edit it, start it, and complete it with a result; the list updates at each step | `e2e/lab-04/actions-taken-flow.spec.ts` | Pass |
+| E2E-02 | E2E | AC-03 | Performer is not the Owner | Staff A records an action performed by Staff B on a Ticket owned by C; the Requester then sees it read-only with B's name | `e2e/lab-04/actions-taken-flow.spec.ts` | Pass |
+| E2E-03 | E2E | AC-14, AC-04 | Cancel and inactive performer | Cancelling an action needs confirmation; choosing a performer who is deactivated mid-session is refused beside the field | `e2e/lab-04/actions-taken-flow.spec.ts` | Pass |
+| E2E-04 | E2E | AC-26, AC-29, AC-30 | Resolving a Ticket | *Resolved* is absent with no completed work; after completing an action it appears; resolving updates the badge and the history | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-05 | E2E | AC-28 | Follow-up blocks resolution | A completed action with follow-up keeps *Resolved* unavailable with the reason shown; recording the follow-up action unblocks it | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-06 | E2E | AC-37, AC-40 | Two people, one Ticket | Two browser contexts load the same Ticket; the second's status change is refused with the conflict banner; *Reload* shows the winner's status | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-07 | E2E | AC-31, AC-36 | Requester view of the work | The Requester signals resolution (status unchanged), sees actions and history with "IT Support", and never sees an Internal Note | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-08 | E2E | AC-44, AC-48 | Staff drill-down | Each staff metric card opens the Queue with matching filters and a total equal to the card's value | `e2e/lab-04/dashboards.spec.ts` | Pass |
+| E2E-09 | E2E | AC-42, AC-48 | Requester drill-down | Each Requester card opens My Tickets with matching filters and an equal total | `e2e/lab-04/dashboards.spec.ts` | Pass |
+| E2E-10 | E2E | AC-53, AC-54 | Landing and Administrator access | Each role lands on its dashboard; the Administrator opens the Queue and a Ticket Detail from navigation | `e2e/lab-04/dashboards.spec.ts` | Pass |
+| E2E-11 | E2E | AC-58, FR-18 | Representative Lab 1–3 regression | Health check; login and forced password change; Create Ticket with an attachment; My Tickets search; Requester comment; staff claim, IT Priority, Internal Note; Administrator creates a user | `e2e/lab-04/regression.spec.ts` | Pass |
+| E2E-12 | E2E | AC-61, FR-22 | No console errors or broken links | For each role, every navigation destination and every link on it loads a defined route and logs no console error | `e2e/lab-04/regression.spec.ts` | Pass |
 
 **Totals:** 7 unit · 32 API · 16 workflow/concurrency · 9 authorization ·
 5 migration/regression · 42 UI component · 5 UI style · 5 responsive/accessibility ·
@@ -294,6 +295,7 @@ change, not a regression; the list is re-confirmed when Issue 5 lands.
 | `client/tests/lab-03/Login.test.tsx` | *Added in #53.* UI-01 expects the signed-in Requester on `/dashboard` instead of My Tickets | BR-62 | **Done (#53)** |
 | `client/tests/lab-03/ChangePassword.test.tsx` | *Added in #53.* UI-09 expects a Requester who completes the mandatory change on `/dashboard` instead of My Tickets | BR-62 | **Done (#53)** |
 | `e2e/lab-03/authentication.spec.ts` | *Added in #53.* E2E-01 expects the Requester to land on `/dashboard`, then opens My Tickets through the navigation; E2E-02 expects `/dashboard` after the password change | BR-62 | **Done (#53)** |
+| `client/tests/lab-02/MyTickets.test.tsx` | *Added in #54; a Lab 2 file, listed here because it is the only other edit to an earlier suite.* UI-15 waits for the request carrying the final search and retries the no-results query with `waitFor`. Stability only, no contract change: under a loaded full run a keystroke could outlast the 300 ms debounce, so "z" was searched before "zzz" and the node `findByText` returned was replaced before it was asserted (failed 1 in 3 full runs; 0 in 6 after) | — | **Done (#54)** |
 | `e2e/lab-03/helpers.ts` | ~~Expected post-login landing~~ | BR-62 | **Not needed:** `signIn` waits for the Logout button, not for a particular page; the specs that assumed a landing page were edited instead (above) |
 
 ---
@@ -393,38 +395,43 @@ memory**.
 
 ### 4.1 Per screen, per viewport
 
+Completed 2026-11-01 (Issue #54) against the 31 screenshots, with the
+observations recorded in ui-spec §13. §4.1 and §4.2 rest on RESP-01…05,
+E2E-07…10, and E2E-12 as well as on inspection.
+
 Repeat for the Requester, IT Staff, and Administrator dashboards and for both
 Ticket Details with Actions Taken, at desktop, tablet, and mobile:
 
-- [ ] No horizontal page scrolling
-- [ ] No clipped or truncated labels or values
-- [ ] No overlapping controls or validation messages
-- [ ] Editable and read-only fields visually distinct
-- [ ] Validation messages beneath their own field
-- [ ] One primary action per region; button hierarchy consistent
-- [ ] Zen Green tokens only
-- [ ] Ticket status, action status, and priority badges carry text
-- [ ] Keyboard focus visible on every interactive element
+- [x] No horizontal page scrolling
+- [x] No clipped or truncated labels or values
+- [x] No overlapping controls or validation messages
+- [x] Editable and read-only fields visually distinct
+- [x] Validation messages beneath their own field
+- [x] One primary action per region; button hierarchy consistent
+- [x] Zen Green tokens only
+- [x] Ticket status, action status, and priority badges carry text
+- [x] Keyboard focus visible on every interactive element
 
 ### 4.2 Role and data spot checks
 
-- [ ] Each role lands on its own dashboard and sees only its destinations
-- [ ] Every dashboard card's value equals the total on the screen it opens
-- [ ] A Requester's Ticket Detail shows actions and history, and no Internal Note
-- [ ] Private (Internal Note) and shared (comment, action) content are distinct at a glance
+- [x] Each role lands on its own dashboard and sees only its destinations
+- [x] Every dashboard card's value equals the total on the screen it opens
+- [x] A Requester's Ticket Detail shows actions and history, and no Internal Note
+- [x] Private (Internal Note) and shared (comment, action) content are distinct at a glance
 
 ### 4.3 Data, migration, and recovery
 
-- [ ] `npx prisma migrate reset --force` rebuilds and reseeds without error
+- [x] `npx prisma migrate reset --force` rebuilds and reseeds without error (2026-11-01, run against a scratch database `toktickit_resetcheck`,
+      then dropped, so the release-order development database was kept for REG-02)
 - [x] The seed runs twice with identical row counts (REG-04, every table, Issue #48)
 - [x] **Rollback drill (AC-56):** restore a Lab 3 `pg_dump` into
       `toktickit_rollback`, apply the Lab 4 migration, run
       `server/prisma/rollback/lab4_down.sql`, run the Lab 3 migration test
       against it — command output pasted below (2026-10-14, Issue #48)
-- [ ] `git diff main -- server/tests/lab-03 client/tests/lab-03 e2e/lab-03`
-      touches only the files in §2.12
+- [x] `git diff main -- server/tests/lab-0[123] client/tests/lab-0[123] e2e/lab-03`
+      touches only the files in §2.12 (2026-11-01, Issue #54)
 - [x] `git ls-files | grep -E '\.env$'` returns nothing (2026-10-14)
-- [ ] No test is skipped, `.todo`, `.skip`, or commented out in any suite
+- [x] No test is skipped, `.todo`, `.skip`, or `.only` in any suite (grep, 2026-11-01)
 
 #### Rollback drill output (AC-56)
 
@@ -514,20 +521,35 @@ Filled in when the suites run on the integrated `lab4-staging`, then **re-run on
 `main` after the release PR merges** and pasted here as the record of the
 release (submission Part 3).
 
+**Run on `feature/8-lab4-hardening-release`, 2026-11-01** (the integrated Lab 4
+code plus #54), against a database built in release order: Lab 3 migrations and
+seed, then the Lab 4 migration and seed. To be re-run on `lab4-staging` and on
+`main` after the release PR.
+
 | Level | Planned | Passing | Failing | Skipped |
 |-------|---------|---------|---------|---------|
-| Unit | 7 | | | |
-| API / integration | 32 | | | |
-| Workflow / concurrency | 16 | | | |
-| Authorization | 9 | | | |
-| Migration / regression | 5 | | | |
-| UI component | 42 | | | |
-| UI style | 5 | | | |
-| Responsive / accessibility | 5 | | | |
-| Performance smoke | 2 | | | |
-| E2E | 12 | | | |
-| **Total** | **135** | | | |
-| Labs 1–3 suites (regression) | all | | | |
+| Unit | 7 | 7 | 0 | 0 |
+| API / integration | 32 | 32 | 0 | 0 |
+| Workflow / concurrency | 16 | 16 | 0 | 0 |
+| Authorization | 9 | 9 | 0 | 0 |
+| Migration / regression | 5 | 5 | 0 | 0 |
+| UI component | 42 | 42 | 0 | 0 |
+| UI style | 5 | 5 | 0 | 0 |
+| Responsive / accessibility | 5 | 5 | 0 | 0 |
+| Performance smoke | 2 | 2 | 0 | 0 |
+| E2E | 12 | 12 | 0 | 0 |
+| **Total** | **135** | **135** | **0** | **0** |
+| Labs 1–3 suites (regression) | all | all | 0 | 0 |
+
+Raw counts (a planned ID often spans several `it` cases):
+
+| Suite | Command | Result |
+|-------|---------|--------|
+| Server, Labs 1–4 | `cd server && npx vitest run` | 33 files, **545 / 545** |
+| Client, Labs 1–4 | `cd client && npx vitest run` | 22 files, **246 / 246**, six consecutive full runs |
+| E2E, Lab 3 + Lab 4 | `npx playwright test` | **40 / 40** (16 Lab 3, 24 Lab 4) |
+| Typecheck | `npx tsc --noEmit` (both) | clean |
+| Client build | `cd client && npm run build` | OK |
 
 ---
 
@@ -540,6 +562,9 @@ release (submission Part 3).
 | Idempotency of Ticket, comment, note, and upload creation | UI single-flight only | D-16; covered by UI-40, not by a server key |
 | E2E development-database residue | Known | Carried from Lab 2 and Lab 3 — E2E runs write to the development database; reset before capturing evidence |
 | Test Tickets with status history | Left in place | Status history is append-only in the database (BR-33), so a Ticket that has history cannot be deleted. The shared `server/tests/helpers/cleanup.ts` removes a test Ticket's actions, comments, notes, and attachments, and deletes the Ticket only when it has no history. Tickets that a test moved through the workflow stay in the development database, adding to the residue noted above. Lab 2/3 cleanups are unaffected: they create their Tickets directly, without history |
+| Routed dashboard screenshots | By design | A shared, populated database cannot show an all-zero staff dashboard, one still loading, or one that failed. `responsive.spec.ts` routes `/api/dashboard/*` for those shots only: *zero* fetches the real response and zeroes its values and lists, so the shape is the server's own; *loading* holds the request; *failure* answers 500. Every other Lab 4 screenshot, including the empty Requester dashboard and the stale-conflict banner, is a real state |
+| Responsive specs overwrite committed screenshots | Known | Both `e2e/lab-03/responsive.spec.ts` and `e2e/lab-04/responsive.spec.ts` rewrite their `artifacts/` folders on every run; `git checkout -- artifacts/` restores the committed evidence |
+| REG-02 on a freshly reset database | Needs release-order build | REG-02 checks Tickets that existed when the Lab 4 migration ran. `migrate reset` applies it to empty tables, so there is nothing to check and the test fails. The README gives the release-order build (Lab 3 from a worktree of `main`, then Lab 4); the #54 results above were taken on such a database |
 | Rollback drill | Manual | Needs a second database restored from a dump, which the automated suite does not provision |
 | REG-02 history and `resolvedAt` invariants | Scoped to pre-migration Tickets | REG-02 asserts the backfilled history and `resolvedAt` only for Tickets that existed when the migration was applied (read from `_prisma_migrations.finished_at`), which is what the migration is responsible for. Tickets created afterwards get their creation entry and `resolvedAt` from the workflow (BR-31, BR-32, Issue #51), which is covered by that Issue's own tests. An unscoped check failed depending on test order: Lab 2/3 suites create Closed Tickets through Lab 3 code, which does not maintain `resolvedAt` yet |
 | Seeded history on an already-migrated database | By design (BR-58) | The seed writes a seeded Ticket's history only when it has none. On a database that was migrated rather than reset, the seeded Tickets keep their single "Recorded at upgrade" entry. `npx prisma migrate reset --force` gives them the full seeded path |

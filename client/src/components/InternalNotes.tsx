@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { postNote, ValidationError, type Note, type Role } from "../api.js";
 import { Button } from "./Button.js";
+import { formatDateTime } from "../format.js";
 
 const BODY_MAX = 2000;
 
@@ -9,16 +10,6 @@ const ROLE_LABEL: Record<Role, string> = {
   IT_STAFF: "IT Staff",
   ADMINISTRATOR: "Administrator",
 };
-
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 interface InternalNotesProps {
   ticketId: number;
@@ -71,7 +62,7 @@ export function InternalNotes({ ticketId, initial, disabledReason }: InternalNot
             <li key={n.id} className="zg-comment">
               <p className="zg-comment__meta">
                 <span className="zg-comment__author">{n.author.name}</span>{" "}
-                <span className="zg-comment__role">({ROLE_LABEL[n.author.role]})</span> · {formatWhen(n.createdAt)}
+                <span className="zg-comment__role">({ROLE_LABEL[n.author.role]})</span> · {formatDateTime(n.createdAt)}
               </p>
               {/* Text node, never HTML (BR-45). */}
               <p className="zg-comment__body">{n.body}</p>
