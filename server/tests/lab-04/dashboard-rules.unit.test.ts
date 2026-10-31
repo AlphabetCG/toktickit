@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ACTIVE_STATUSES, windowStart, isWithinWindow } from "../../src/dashboardRules.js";
 import { normalizeQueueQuery } from "../../src/queueQuery.js";
+import { normalizeTicketQuery } from "../../src/ticketQuery.js";
 
 // UNIT-06, UNIT-07 (docs/lab-04/tests.md §2.1). Contract: specification BR-46,
 // BR-49; api-spec §4.
@@ -49,5 +50,19 @@ describe("UNIT-07: the active set and statusGroup", () => {
     const q = normalizeQueueQuery({ status: "DONE", statusGroup: "active" });
     expect(q.status).toBeUndefined();
     expect(q.statusGroup).toBe("active");
+  });
+});
+
+// UNIT-07, continued — the same rule on My Tickets (api-spec §4)
+describe("UNIT-07: statusGroup on My Tickets", () => {
+  it("normalises statusGroup=active and ignores an invalid value", () => {
+    expect(normalizeTicketQuery({ statusGroup: "active" }).statusGroup).toBe("active");
+    expect(normalizeTicketQuery({ statusGroup: "closed" }).statusGroup).toBeUndefined();
+    expect(normalizeTicketQuery({ statusGroup: ["active"] }).statusGroup).toBeUndefined();
+  });
+
+  it("lets an explicit status win, and keeps the group when the status is invalid", () => {
+    expect(normalizeTicketQuery({ status: "RESOLVED", statusGroup: "active" })).toMatchObject({ status: "RESOLVED", statusGroup: undefined });
+    expect(normalizeTicketQuery({ status: "DONE", statusGroup: "active" })).toMatchObject({ status: undefined, statusGroup: "active" });
   });
 });

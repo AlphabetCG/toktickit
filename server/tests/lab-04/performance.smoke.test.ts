@@ -5,9 +5,9 @@ import { app } from "../../src/app.js";
 import { ensureUser, loginCookie } from "../helpers/auth.js";
 import { removeTickets } from "../helpers/cleanup.js";
 
-// PERF-02 (docs/lab-04/tests.md §2.10): a regression tripwire on the development
-// machine, not a production benchmark (specification, open assumptions). PERF-01,
-// the Requester dashboard, arrives with #53.
+// PERF-01, PERF-02 (docs/lab-04/tests.md §2.10): a regression tripwire on the
+// development machine, not a production benchmark (specification, open assumptions).
+// Every volume Ticket belongs to one Requester, so PERF-01 measures the worst case.
 const prisma = new PrismaClient();
 const TOKEN = `PF4${Date.now()}`;
 const TICKETS = 1_000;
@@ -19,12 +19,14 @@ const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
 const ACTION_STATUSES: ActionStatus[] = ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
 
 let adminCookie: string;
+let requesterCookie: string;
 
 beforeAll(async () => {
   const admin = await ensureUser(prisma, { email: "pf4.admin@toktickit.test", role: "ADMINISTRATOR" });
   adminCookie = await loginCookie("pf4.admin@toktickit.test");
   const staff = await ensureUser(prisma, { email: "pf4.staff@toktickit.test", role: "IT_STAFF" });
   const requester = await ensureUser(prisma, { email: "pf4.req@toktickit.test", role: "REQUESTER" });
+  requesterCookie = await loginCookie("pf4.req@toktickit.test");
   const categoryId = (await prisma.category.findFirstOrThrow()).id;
   const relatedSystemId = (await prisma.relatedSystem.findFirstOrThrow()).id;
   const now = Date.now();
@@ -67,20 +69,30 @@ afterAll(async () => {
   await prisma.$disconnect();
 }, 120_000);
 
-// PERF-02 — AC-52, BR-47
-it("PERF-02: the staff dashboard answers in under 500 ms (median of 5) at volume", async () => {
+/** Median of 5 timed calls after one warm-up; every call must succeed. */
+async function medianMs(label: string, path: string, cookie: string) {
   expect(await prisma.ticket.count()).toBeGreaterThanOrEqual(TICKETS);
   expect(await prisma.actionTaken.count()).toBeGreaterThanOrEqual(ACTIONS);
 
-  await request(app).get("/api/dashboard/staff").set("Cookie", adminCookie); // warm-up
+  await request(app).get(path).set("Cookie", cookie); // warm-up
   const timings: number[] = [];
   for (let i = 0; i < 5; i++) {
     const started = performance.now();
-    const res = await request(app).get("/api/dashboard/staff").set("Cookie", adminCookie);
+    const res = await request(app).get(path).set("Cookie", cookie);
     timings.push(performance.now() - started);
     expect(res.status).toBe(200);
   }
   const median = [...timings].sort((a, b) => a - b)[2];
-  console.log(`PERF-02 staff dashboard: median ${median.toFixed(1)} ms over 5 calls (${timings.map((t) => t.toFixed(0)).join(", ")})`);
-  expect(median).toBeLessThan(THRESHOLD_MS);
+  console.log(`${label}: median ${median.toFixed(1)} ms over 5 calls (${timings.map((t) => t.toFixed(0)).join(", ")})`);
+  return median;
+}
+
+// PERF-01 — AC-52, BR-47
+it("PERF-01: the Requester dashboard answers in under 500 ms (median of 5) at volume", async () => {
+  expect(await medianMs("PERF-01 requester dashboard", "/api/dashboard/requester", requesterCookie)).toBeLessThan(THRESHOLD_MS);
+}, 60_000);
+
+// PERF-02 — AC-52, BR-47
+it("PERF-02: the staff dashboard answers in under 500 ms (median of 5) at volume", async () => {
+  expect(await medianMs("PERF-02 staff dashboard", "/api/dashboard/staff", adminCookie)).toBeLessThan(THRESHOLD_MS);
 }, 60_000);

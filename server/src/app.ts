@@ -402,6 +402,7 @@ app.get("/api/tickets", requireAuth, requirePasswordChanged, async (req: Request
     ...(q.relatedSystemId ? { relatedSystemId: q.relatedSystemId } : {}),
     ...(q.priority ? { requestedPriority: q.priority as Prisma.EnumRequestedPriorityFilter } : {}),
     ...(q.status ? { currentStatus: q.status as Prisma.EnumTicketStatusFilter } : {}),
+    ...(q.statusGroup === "active" ? { currentStatus: { in: [...ACTIVE_STATUSES] } } : {}),
     ...(q.search
       ? {
           OR: [
@@ -2026,6 +2027,78 @@ app.get("/api/dashboard/staff", requireAuth, requirePasswordChanged, async (req:
             },
           }
         : {}),
+    });
+  } catch {
+    res.status(500).json({ error: "Unable to load the dashboard" });
+  }
+});
+
+// --- Requester dashboard (Lab 4, api-spec §5.1) -----------------------------------
+
+const REQUESTER_TICKET_SUMMARY = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  currentStatus: true,
+  updatedAt: true,
+  resolvedAt: true,
+} satisfies Prisma.TicketSelect;
+
+// GET /api/dashboard/requester — the session user's own Tickets only. The route
+// reads no query parameter, so nothing a client sends can widen the scope (BR-53).
+// Same shape rules as the staff dashboard: one read transaction, lists of at most
+// five ending in id, no description (BR-47, BR-48).
+app.get("/api/dashboard/requester", requireAuth, requirePasswordChanged, async (req: Request, res: Response) => {
+  const user = req.user!;
+  if (user.role !== "REQUESTER") {
+    res.status(403).json({ error: "This dashboard is for requesters." });
+    return;
+  }
+  try {
+    const now = new Date();
+    const mine = { requesterId: user.id };
+    const waiting = { ...mine, currentStatus: "WAITING_FOR_REQUESTER" as const };
+
+    const [openTickets, waitingForMe, awaitingClosure, needsAttention, recentlyUpdated, recentlyResolved] =
+      await getPrisma().$transaction(
+        (tx) =>
+          Promise.all([
+            tx.ticket.count({ where: { ...mine, currentStatus: ACTIVE_IN } }),
+            tx.ticket.count({ where: waiting }),
+            tx.ticket.count({ where: { ...mine, currentStatus: "RESOLVED" } }),
+            tx.ticket.findMany({
+              where: waiting,
+              orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+              take: 5,
+              select: REQUESTER_TICKET_SUMMARY,
+            }),
+            tx.ticket.findMany({
+              where: { ...mine, updatedAt: { gte: windowStart(now, 7) } },
+              orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+              take: 5,
+              select: REQUESTER_TICKET_SUMMARY,
+            }),
+            tx.ticket.findMany({
+              where: { ...mine, currentStatus: { in: ["RESOLVED", "CLOSED"] }, resolvedAt: { gte: windowStart(now, 30) } },
+              orderBy: [{ resolvedAt: "desc" }, { id: "desc" }],
+              take: 5,
+              select: REQUESTER_TICKET_SUMMARY,
+            }),
+          ]),
+        { isolationLevel: "RepeatableRead" }
+      );
+
+    const summaries = (items: typeof needsAttention) => items.map((t) => ({ ...t, href: `/tickets/${t.id}` }));
+    res.status(200).json({
+      generatedAt: now.toISOString(),
+      metrics: {
+        openTickets: metric(openTickets, "/tickets?statusGroup=active"),
+        waitingForMe: metric(waitingForMe, "/tickets?status=WAITING_FOR_REQUESTER"),
+        awaitingClosure: metric(awaitingClosure, "/tickets?status=RESOLVED"),
+      },
+      needsAttention: { items: summaries(needsAttention), viewAllHref: "/tickets?status=WAITING_FOR_REQUESTER" },
+      recentlyUpdated: { items: summaries(recentlyUpdated), viewAllHref: "/tickets?sort=updatedAt&order=desc" },
+      recentlyResolved: { items: summaries(recentlyResolved) },
     });
   } catch {
     res.status(500).json({ error: "Unable to load the dashboard" });

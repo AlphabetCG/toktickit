@@ -27,6 +27,8 @@ test("E2E-01: a Requester logs in, opens their tickets, logs out, and a direct U
   const { id } = await createTicketViaApi(requester, summary);
 
   await signIn(page, requester);
+  await expect(page).toHaveURL(/\/dashboard$/); // Lab 4 BR-62
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "My Tickets" }).click();
   await expect(page).toHaveURL(/\/tickets$/);
   await expect(page.getByText(summary)).toBeVisible();
 
@@ -69,7 +71,7 @@ test("E2E-02: a user holding an initial password reaches only the change screen 
   await page.getByLabel("Confirm new password").fill(FINAL_PASSWORD);
   await page.getByRole("button", { name: "Save password" }).click();
   await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
-  await expect(page).toHaveURL(/\/tickets$/);
+  await expect(page).toHaveURL(/\/dashboard$/); // Lab 4 BR-62
 });
 
 // E2E-03 — AC-11

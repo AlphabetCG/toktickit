@@ -1592,8 +1592,21 @@ a.zg-metric:focus-visible,
 }
 
 .zg-metric__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zg-space-2);
   font-size: var(--zg-fs-label);
   color: var(--zg-text-muted);
+}
+
+/* Requester dashboard (§6.3): three cards across at desktop and tablet. */
+.zg-metrics--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+a.zg-btn {
+  text-decoration: none;
 }
 
 .zg-metric__value {
@@ -1742,10 +1755,15 @@ a.zg-metric:focus-visible,
   cursor: pointer;
 }
 
-/* §5.3 — tablet: cards 2 × 2, every list full width. */
+/* §5.3 — tablet: cards 2 × 2, every list full width. §6.3: the Requester's
+   three cards still fit across at 768 px. */
 @media (max-width: 991px) {
   .zg-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zg-metrics--three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .zg-dashboard__pair {
@@ -1763,5 +1781,26 @@ a.zg-metric:focus-visible,
   .zg-count-strip__title {
     min-width: 0;
     flex: 1 0 100%;
+  }
+
+  /* §6.3 — mobile: one card per row, label and value on one line; Create
+     ticket full width under the greeting. */
+  .zg-metrics--three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zg-metrics--three .zg-metric {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .zg-metrics--three .zg-metric__cue {
+    flex-basis: 100%;
+  }
+
+  .zg-dashboard__create {
+    width: 100%;
   }
 }

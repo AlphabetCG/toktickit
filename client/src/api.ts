@@ -188,6 +188,8 @@ export interface TicketListParams {
   relatedSystemId?: string;
   priority?: string;
   status?: string;
+  /** Lab 4 (api-spec §4): "active" = the five open statuses; an explicit status wins. */
+  statusGroup?: string;
   sort?: string;
   order?: string;
   page?: number;
@@ -716,6 +718,32 @@ export interface StaffDashboardData {
   recentlyUpdated: { items: StaffTicketSummary[]; viewAllHref: string };
   /** Administrators only; the key is absent for IT Staff (AC-49). */
   userCounts?: { activeByRole: Record<Role, Metric>; inactive: Metric };
+}
+
+/** Requester dashboard list item (api-spec §5.1) — never a description. */
+export interface RequesterTicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatusValue;
+  updatedAt: string;
+  resolvedAt: string | null;
+  href: string;
+}
+
+export interface RequesterDashboardData {
+  generatedAt: string;
+  metrics: { openTickets: Metric; waitingForMe: Metric; awaitingClosure: Metric };
+  needsAttention: { items: RequesterTicketSummary[]; viewAllHref: string };
+  recentlyUpdated: { items: RequesterTicketSummary[]; viewAllHref: string };
+  recentlyResolved: { items: RequesterTicketSummary[] };
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  const res = await request("/api/dashboard/requester");
+  await guard(res);
+  if (!res.ok) throw new Error(`Dashboard request failed: HTTP ${res.status}`);
+  return res.json();
 }
 
 export async function getStaffDashboard(): Promise<StaffDashboardData> {

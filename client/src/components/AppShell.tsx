@@ -20,11 +20,13 @@ interface NavItem {
 // Role-specific destinations (ui-spec §6/§7, AC-53). Only the acting role's items
 // are rendered, so another role's destinations are absent from the DOM entirely.
 const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+  // Lab 4 (ui-spec §3): Dashboard first for every role; Administrators also reach
+  // the queue (BR-63).
   REQUESTER: [
+    { to: "/dashboard", label: "Dashboard", end: true },
     { to: "/tickets", label: "My Tickets", end: true },
     { to: "/tickets/new", label: "Create Ticket" },
   ],
-  // Lab 4 (ui-spec §3): Dashboard first; Administrators also reach the queue (BR-63).
   IT_STAFF: [
     { to: "/dashboard", label: "Dashboard", end: true },
     { to: "/staff/tickets", label: "Ticket Queue" },
